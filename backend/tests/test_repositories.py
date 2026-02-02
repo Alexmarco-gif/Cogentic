@@ -1,4 +1,4 @@
-import asyncio
+import pytest
 from uuid import uuid4
 from backend.database import get_db_context
 from backend.repositories.organization import OrganizationRepository
@@ -7,6 +7,7 @@ from backend.repositories.document import DocumentRepository
 from backend.models import Document
 
 
+@pytest.mark.asyncio
 async def test_tenant_isolation():
     async with get_db_context() as db:
         # Create two organizations
@@ -45,6 +46,3 @@ async def test_tenant_isolation():
             print("\n🎉 Tenant isolation works! Org 2 cannot see Org 1's documents")
         else:
             print("\n❌ TENANT ISOLATION FAILED!")
-
-
-asyncio.run(test_tenant_isolation())

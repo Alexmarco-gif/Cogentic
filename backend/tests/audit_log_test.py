@@ -1,17 +1,18 @@
 import sys
 from pathlib import Path
+import pytest
 
 # Add project root to Python path
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import asyncio
 from datetime import datetime
 from backend.database import get_db_context
 from backend.models import Organization, AuditLog
 from sqlalchemy import select
 
 
+@pytest.mark.asyncio
 async def test_audit_logs():
     async with get_db_context() as db:
         # Create an org for testing with unique slug
@@ -64,6 +65,3 @@ async def test_audit_logs():
             print("✅ Audit log delete blocked by database rule")
         else:
             print("❌ Audit log was deleted!")
-
-
-asyncio.run(test_audit_logs())
