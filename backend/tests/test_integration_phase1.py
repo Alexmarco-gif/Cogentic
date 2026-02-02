@@ -196,25 +196,25 @@ def mock_redis():
 @pytest.fixture
 def mock_jwks():
     """
-    Mock JWKS endpoint to skip Auth0 key fetching.
-    Tokens will be verified using TEST_SECRET_KEY.
+    Mock token verification to skip Auth0 JWKS fetching.
+    Tokens will be decoded without signature verification for testing.
     """
-    # Mock both the JWKS client and JWT decode
-    with patch("backend.auth.utils.jwt.decode") as mock_decode:
-        # Configure mock to return decoded token
-        def decode_side_effect(token, *args, **kwargs):
-            # Decode without verification for testing
-            from jose import jwt
+    # Mock the verify_token function to bypass kid/JWKS validation
+    async def mock_verify_token(token: str):
+        # Decode without verification for testing
+        from jose import jwt
+        from backend.auth.schemas import TokenPayload
 
-            return jwt.decode(
-                token,
-                TEST_SECRET_KEY,
-                algorithms=["HS256"],
-                options={"verify_signature": False},
-            )
+        payload = jwt.decode(
+            token,
+            TEST_SECRET_KEY,
+            algorithms=["HS256"],
+            options={"verify_signature": False},
+        )
+        return TokenPayload(**payload)
 
-        mock_decode.side_effect = decode_side_effect
-        yield mock_decode
+    with patch("backend.auth.utils.verify_token", side_effect=mock_verify_token):
+        yield
 
 
 # ============================================================================
