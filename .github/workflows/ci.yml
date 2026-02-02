@@ -13,34 +13,34 @@ on:
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ruff black pytest pytest-asyncio pytest-cov httpx
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      
+
       - name: Lint with ruff
         run: |
           # Stop the build if there are Python syntax errors or undefined names
-          ruff check backend/ --select=E9,F63,F7,F82 --show-source
+          ruff check backend/ --select=E9,F63,F7,F82
           # Check all other rules (but don't fail)
           ruff check backend/ --exit-zero
-      
+
       - name: Format check with black
         run: |
           black --check backend/ --line-length 88
-      
+
       - name: Run tests with pytest
         env:
           ENVIRONMENT: test
@@ -59,7 +59,7 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml \
             --maxfail=1
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         if: github.event_name == 'pull_request'
@@ -73,19 +73,19 @@ jobs:
   security-check:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install safety
         run: pip install safety
-      
+
       - name: Check for security vulnerabilities
         run: |
           pip install -r requirements.txt

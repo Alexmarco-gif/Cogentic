@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 import pytest
 
 # Add project root to Python path
@@ -7,11 +8,14 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from datetime import datetime
-from backend.database import get_db_context
-from backend.models import Organization, AuditLog
+
 from sqlalchemy import select
 
+from backend.database import get_db_context
+from backend.models import AuditLog, Organization
 
+
+@pytest.mark.integration  # Requires live PostgreSQL database
 @pytest.mark.asyncio
 async def test_audit_logs():
     async with get_db_context() as db:
@@ -39,7 +43,7 @@ async def test_audit_logs():
         try:
             await db.commit()
             print("❌ Audit log was modified (rule not working)!")
-        except Exception as e:
+        except Exception:
             # Expected: SQLAlchemy detects 0 rows updated
             print("✅ Audit log update blocked by database rule")
             await db.rollback()  # Rollback the failed transaction

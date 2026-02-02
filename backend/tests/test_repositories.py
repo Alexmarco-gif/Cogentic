@@ -1,12 +1,12 @@
 import pytest
-from uuid import uuid4
+
 from backend.database import get_db_context
+from backend.repositories.document import DocumentRepository
 from backend.repositories.organization import OrganizationRepository
 from backend.repositories.user import UserRepository
-from backend.repositories.document import DocumentRepository
-from backend.models import Document
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_tenant_isolation():
     async with get_db_context() as db:
@@ -39,7 +39,7 @@ async def test_tenant_isolation():
         doc_repo_2 = DocumentRepository(db, org2.id)
         docs_in_org2 = await doc_repo_2.get_multi()
 
-        print(f"\n📊 Documents in Org 1: 1")
+        print("\n📊 Documents in Org 1: 1")
         print(f"📊 Documents visible to Org 2: {len(docs_in_org2)}")
 
         if len(docs_in_org2) == 0:
