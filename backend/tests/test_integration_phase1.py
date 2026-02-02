@@ -21,31 +21,28 @@ Test Strategy:
 Expected Runtime: ~60 seconds for 50+ tests
 """
 
-import pytest
 import hashlib
 import hmac
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from datetime import datetime
+from typing import Dict
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
-from unittest.mock import patch, MagicMock, AsyncMock
 
+import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
 from jose import jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.main import app
 from backend.config import get_settings
 from backend.database import get_db
+from backend.main import app
 from backend.models.base import Base
-from backend.models.user import User
-from backend.models.organization import Organization
 from backend.models.org_user import OrgUser
-from backend.models.api_key import APIKey
+from backend.models.organization import Organization
+from backend.models.user import User
 
 settings = get_settings()
 
@@ -199,10 +196,12 @@ def mock_jwks():
     Mock token verification to skip Auth0 JWKS fetching.
     Tokens will be decoded without signature verification for testing.
     """
+
     # Mock the verify_token function to bypass kid/JWKS validation
     async def mock_verify_token(token: str):
         # Decode without verification for testing
         from jose import jwt
+
         from backend.auth.schemas import TokenPayload
 
         payload = jwt.decode(
