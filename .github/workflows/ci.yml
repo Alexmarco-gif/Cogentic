@@ -51,8 +51,9 @@ jobs:
           AUTH0_M2M_CLIENT_ID: "test-client-id"
           AUTH0_M2M_CLIENT_SECRET: "test-client-secret"
         run: |
-          # Run tests excluding preprod tests (those need real environment)
+          # Run tests excluding integration tests (those need real database)
           pytest backend/tests/ -v \
+            -m "not integration" \
             --ignore=backend/tests/test_preprod.py \
             --ignore=backend/tests/test_e2e_comprehensive.py \
             --cov=backend \
