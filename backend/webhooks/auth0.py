@@ -35,7 +35,11 @@ settings = get_settings()
 
 class Auth0WebhookEvent(BaseModel):
     """Auth0 webhook event payload"""
-    event: str = Field(..., description="Event type (post-login, post-registration, post-user-deletion)")
+
+    event: str = Field(
+        ...,
+        description="Event type (post-login, post-registration, post-user-deletion)",
+    )
     user_id: str = Field(..., description="Auth0 user ID")
     email: str | None = None
     name: str | None = None
@@ -46,26 +50,25 @@ class Auth0WebhookEvent(BaseModel):
 async def verify_webhook_signature(request: Request) -> bool:
     """
     Verify Auth0 webhook signature using HMAC SHA256.
-    
+
     Auth0 sends signature in X-Auth0-Signature header.
     Format: sha256=<hex_signature>
-    
+
     Args:
         request: FastAPI request with headers and body
-        
+
     Returns:
         True if signature is valid
-        
+
     Raises:
         HTTPException: If signature is missing or invalid
     """
     signature_header = request.headers.get("X-Auth0-Signature")
     if not signature_header:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing webhook signature"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature"
         )
-    
+
     # Parse signature header (format: sha256=<hex>)
     try:
         algorithm, signature = signature_header.split("=", 1)
@@ -73,57 +76,53 @@ async def verify_webhook_signature(request: Request) -> bool:
             raise ValueError("Unsupported signature algorithm")
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid signature format"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature format"
         )
-    
+
     # Get webhook secret from config
     webhook_secret = settings.auth0_webhook_secret
     if not webhook_secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Webhook secret not configured"
+            detail="Webhook secret not configured",
         )
-    
+
     # Read request body
     body = await request.body()
-    
+
     # Compute expected signature
     expected_signature = hmac.new(
-        webhook_secret.encode("utf-8"),
-        body,
-        hashlib.sha256
+        webhook_secret.encode("utf-8"), body, hashlib.sha256
     ).hexdigest()
-    
+
     # Compare signatures (constant-time comparison)
     if not hmac.compare_digest(signature, expected_signature):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid webhook signature"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature"
         )
-    
+
     return True
 
 
 async def check_idempotency(event_id: str, ttl_seconds: int = 86400) -> bool:
     """
     Check if event has already been processed (idempotency).
-    
+
     Uses Redis to store processed event IDs with TTL.
-    
+
     Args:
         event_id: Unique event identifier
         ttl_seconds: How long to remember processed events (default: 24 hours)
-        
+
     Returns:
         True if event is new (not processed), False if already processed
     """
     redis = await get_redis()
     key = f"webhook:processed:{event_id}"
-    
+
     # Try to set key (only succeeds if doesn't exist)
     was_set = await redis.set(key, "1", ex=ttl_seconds, nx=True)
-    
+
     return was_set is not None
 
 
@@ -136,34 +135,34 @@ async def handle_user_signup(
 ) -> Dict[str, Any]:
     """
     Handle user signup event from Auth0.
-    
+
     Creates:
     1. User record in database
     2. Personal organization for the user
     3. OrgUser membership with owner role
-    
+
     Args:
         user_id: Auth0 user ID (e.g., "auth0|abc123")
         email: User email
         name: User display name
         picture: User profile picture URL
         db: Database session
-        
+
     Returns:
         Dict with created user_id and org_id
     """
     user_repo = UserRepository(db)
     org_repo = OrganizationRepository(db, user_id=None, request_id=None)
-    
+
     # Check if user already exists (idempotency at DB level)
     existing_user = await user_repo.get_by_auth0_id(user_id)
     if existing_user:
         return {
             "status": "already_exists",
             "user_id": str(existing_user.id),
-            "message": "User already exists"
+            "message": "User already exists",
         }
-    
+
     # Create user
     user = await user_repo.create(
         auth0_id=user_id,
@@ -173,35 +172,35 @@ async def handle_user_signup(
         last_login_at=datetime.utcnow(),
         login_count=1,
     )
-    
+
     # Generate org slug from email (e.g., "user-abc123" from "user@example.com")
     email_prefix = email.split("@")[0].lower()
     base_slug = f"{email_prefix}-{str(uuid4())[:8]}"
-    
+
     # Ensure slug is unique
     slug = base_slug
     counter = 1
     while await org_repo.slug_exists(slug):
         slug = f"{base_slug}-{counter}"
         counter += 1
-    
+
     # Create personal organization
     org = await org_repo.create(
         name=f"{name or email}'s Organization",
         slug=slug,
         billing_email=email,
     )
-    
+
     # Create organization membership (owner role)
     await org_repo.add_member(org.id, user.id, role="owner")
-    
+
     await db.commit()
-    
+
     return {
         "status": "created",
         "user_id": str(user.id),
         "org_id": str(org.id),
-        "message": "User and organization created successfully"
+        "message": "User and organization created successfully",
     }
 
 
@@ -212,44 +211,44 @@ async def handle_user_login(
 ) -> Dict[str, Any]:
     """
     Handle user login event from Auth0.
-    
+
     Updates:
     - last_login_at timestamp
     - login_count increment
-    
+
     Args:
         user_id: Auth0 user ID
         email: User email (for logging)
         db: Database session
-        
+
     Returns:
         Dict with update status
     """
     user_repo = UserRepository(db)
-    
+
     user = await user_repo.get_by_auth0_id(user_id)
     if not user:
         # User doesn't exist yet - might be first login
         # Return success but log warning
         return {
             "status": "user_not_found",
-            "message": f"User {email} not found in database"
+            "message": f"User {email} not found in database",
         }
-    
+
     # Update login stats
     await user_repo.update(
         user.id,
         last_login_at=datetime.utcnow(),
         login_count=user.login_count + 1,
     )
-    
+
     await db.commit()
-    
+
     return {
         "status": "updated",
         "user_id": str(user.id),
         "login_count": user.login_count + 1,
-        "message": "Login stats updated"
+        "message": "Login stats updated",
     }
 
 
@@ -260,38 +259,35 @@ async def handle_user_deletion(
 ) -> Dict[str, Any]:
     """
     Handle user deletion event from Auth0.
-    
+
     Soft deletes:
     - User record
     - User's personal organization (if they're the only owner)
     - Organization memberships
-    
+
     Args:
         user_id: Auth0 user ID
         email: User email
         db: Database session
-        
+
     Returns:
         Dict with deletion status
     """
     user_repo = UserRepository(db)
-    
+
     user = await user_repo.get_by_auth0_id(user_id)
     if not user:
-        return {
-            "status": "not_found",
-            "message": f"User {email} not found in database"
-        }
-    
+        return {"status": "not_found", "message": f"User {email} not found in database"}
+
     # Soft delete user (SQLAlchemy will cascade to org_users via relationship)
     await user_repo.soft_delete(user.id)
-    
+
     await db.commit()
-    
+
     return {
         "status": "deleted",
         "user_id": str(user.id),
-        "message": "User soft deleted successfully"
+        "message": "User soft deleted successfully",
     }
 
 
@@ -302,16 +298,16 @@ async def auth0_webhook(
 ) -> Dict[str, Any]:
     """
     Auth0 webhook endpoint.
-    
+
     Handles Auth0 events:
     - post-registration: Create user and personal org
     - post-login: Update login stats
     - post-user-deletion: Soft delete user
-    
+
     Security:
     - Verifies webhook signature
     - Implements idempotency via Redis
-    
+
     Returns:
         200: Event processed successfully
         401: Invalid signature
@@ -320,29 +316,29 @@ async def auth0_webhook(
     """
     # Verify webhook signature
     await verify_webhook_signature(request)
-    
+
     # Parse event payload
     body = await request.body()
     payload = json.loads(body)
-    
+
     # Extract event data
     event_type = payload.get("event")
     user_id = payload.get("user_id")
     email = payload.get("email", "unknown@example.com")
-    
+
     # Generate event ID for idempotency
     event_id = f"{event_type}:{user_id}:{payload.get('timestamp', datetime.utcnow().isoformat())}"
     event_id_hash = hashlib.sha256(event_id.encode()).hexdigest()
-    
+
     # Check idempotency
     is_new = await check_idempotency(event_id_hash)
     if not is_new:
         return {
             "status": "already_processed",
             "event_id": event_id_hash,
-            "message": "Event already processed"
+            "message": "Event already processed",
         }
-    
+
     # Route to appropriate handler
     try:
         if event_type == "post-registration":
@@ -369,21 +365,22 @@ async def auth0_webhook(
             return {
                 "status": "ignored",
                 "event_type": event_type,
-                "message": f"Unknown event type: {event_type}"
+                "message": f"Unknown event type: {event_type}",
             }
-        
+
         return {
             **result,
             "event_id": event_id_hash,
             "event_type": event_type,
         }
-    
+
     except Exception as e:
         # Log error but don't expose details to client
         import logging
+
         logging.error(f"Webhook processing error: {str(e)}", exc_info=True)
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error processing webhook event"
+            detail="Error processing webhook event",
         )

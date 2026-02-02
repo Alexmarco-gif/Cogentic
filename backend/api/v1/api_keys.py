@@ -25,20 +25,27 @@ router = APIRouter(prefix="/api/v1", tags=["api-keys"])
 
 # Request/Response Models
 
+
 class CreateAPIKeyRequest(BaseModel):
     """Request to create a new API key"""
-    name: str = Field(..., min_length=1, max_length=255, description="Human-readable name")
+
+    name: str = Field(
+        ..., min_length=1, max_length=255, description="Human-readable name"
+    )
     description: str | None = Field(None, description="Optional description")
     scopes: list[str] = Field(
         default_factory=lambda: ["read:documents", "write:documents"],
-        description="Permission scopes"
+        description="Permission scopes",
     )
     rate_limit: int = Field(100, ge=10, le=10000, description="Requests per minute")
-    expires_in_days: int | None = Field(None, ge=1, le=365, description="Days until expiration (optional)")
+    expires_in_days: int | None = Field(
+        None, ge=1, le=365, description="Days until expiration (optional)"
+    )
 
 
 class APIKeyResponse(BaseModel):
     """API key metadata (without the actual key)"""
+
     id: UUID
     name: str
     description: str | None
@@ -54,25 +61,31 @@ class APIKeyResponse(BaseModel):
 
 class CreateAPIKeyResponse(BaseModel):
     """Response when creating a new API key (includes the actual key)"""
+
     api_key: str = Field(..., description="The actual API key - ONLY SHOWN ONCE")
     key_id: UUID
     key_prefix: str
     expires_at: datetime | None
-    
+
     class Config:
         json_schema_extra = {
             "example": {
                 "api_key": "cogent_pk_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
                 "key_id": "123e4567-e89b-12d3-a456-426614174000",
                 "key_prefix": "cogent_pk_live_a1",
-                "expires_at": "2027-01-30T10:00:00Z"
+                "expires_at": "2027-01-30T10:00:00Z",
             }
         }
 
 
 # Endpoints
 
-@router.post("/orgs/{org_id}/api-keys", response_model=CreateAPIKeyResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/orgs/{org_id}/api-keys",
+    response_model=CreateAPIKeyResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_api_key(
     org_id: UUID,
     request: CreateAPIKeyRequest,
@@ -81,29 +94,29 @@ async def create_api_key(
 ):
     """
     Create a new API key for the organization.
-    
+
     **Permissions:** Admin or Owner
-    
+
     **WARNING:** The actual API key is only returned once! Save it securely.
-    
+
     Returns:
         The API key metadata and the actual key (only shown once)
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
     require_role(auth, "admin")
-    
+
     # Check max API keys limit (prevent abuse)
     repo = APIKeyRepository(db)
     active_count = await repo.count_active_by_org(org_id)
-    
+
     MAX_API_KEYS_PER_ORG = 50
     if active_count >= MAX_API_KEYS_PER_ORG:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Maximum {MAX_API_KEYS_PER_ORG} active API keys per organization"
+            detail=f"Maximum {MAX_API_KEYS_PER_ORG} active API keys per organization",
         )
-    
+
     # Create API key
     api_key_model, plaintext_key = await repo.create_key(
         org_id=org_id,
@@ -114,9 +127,9 @@ async def create_api_key(
         rate_limit=request.rate_limit,
         expires_in_days=request.expires_in_days,
     )
-    
+
     await db.commit()
-    
+
     logger.info(
         f"API key created: {api_key_model.key_prefix}... by user {auth.user_id}",
         extra={
@@ -124,9 +137,9 @@ async def create_api_key(
             "api_key_name": api_key_model.name,
             "org_id": str(org_id),
             "created_by": str(auth.user_id),
-        }
+        },
     )
-    
+
     return CreateAPIKeyResponse(
         api_key=plaintext_key,
         key_id=api_key_model.id,
@@ -144,23 +157,23 @@ async def list_api_keys(
 ):
     """
     List all API keys for the organization.
-    
+
     **Permissions:** Admin or Owner
-    
+
     Args:
         org_id: Organization ID
         include_revoked: Include revoked keys in results
-    
+
     Returns:
         List of API key metadata (without actual keys)
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
     require_role(auth, "admin")
-    
+
     repo = APIKeyRepository(db)
     api_keys = await repo.list_by_org(org_id, include_revoked=include_revoked)
-    
+
     return [
         APIKeyResponse(
             id=key.id,
@@ -179,7 +192,9 @@ async def list_api_keys(
     ]
 
 
-@router.delete("/orgs/{org_id}/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/orgs/{org_id}/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def revoke_api_key(
     org_id: UUID,
     key_id: UUID,
@@ -188,11 +203,11 @@ async def revoke_api_key(
 ):
     """
     Revoke an API key (makes it inactive).
-    
+
     **Permissions:** Admin or Owner
-    
+
     **Note:** Revoked keys cannot be reactivated. Create a new key instead.
-    
+
     Args:
         org_id: Organization ID
         key_id: API key ID to revoke
@@ -200,13 +215,15 @@ async def revoke_api_key(
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
     require_role(auth, "admin")
-    
+
     repo = APIKeyRepository(db)
     api_key = await repo.get(key_id)
-    
+
     if not api_key:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
+        )
+
     # Verify key belongs to org
     if api_key.org_id != org_id:
         logger.warning(
@@ -215,14 +232,16 @@ async def revoke_api_key(
                 "user_id": str(auth.user_id),
                 "user_org": str(org_id),
                 "key_org": str(api_key.org_id),
-            }
+            },
         )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
+        )
+
     # Revoke key
     await repo.revoke(key_id)
     await db.commit()
-    
+
     logger.info(
         f"API key revoked: {api_key.key_prefix}... by user {auth.user_id}",
         extra={
@@ -230,9 +249,9 @@ async def revoke_api_key(
             "api_key_name": api_key.name,
             "org_id": str(org_id),
             "revoked_by": str(auth.user_id),
-        }
+        },
     )
-    
+
     return None
 
 
@@ -245,28 +264,30 @@ async def get_api_key(
 ):
     """
     Get details for a specific API key.
-    
+
     **Permissions:** Admin or Owner
-    
+
     **Note:** The actual API key is never returned (only the prefix).
-    
+
     Args:
         org_id: Organization ID
         key_id: API key ID
-    
+
     Returns:
         API key metadata
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
     require_role(auth, "admin")
-    
+
     repo = APIKeyRepository(db)
     api_key = await repo.get(key_id)
-    
+
     if not api_key or api_key.org_id != org_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
+        )
+
     return APIKeyResponse(
         id=api_key.id,
         name=api_key.name,

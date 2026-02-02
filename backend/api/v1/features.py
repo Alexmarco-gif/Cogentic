@@ -12,12 +12,12 @@ from backend.auth import get_current_user, AuthContext
 from backend.services.feature_flags import FeatureFlagService, get_feature_flags_service
 from pydantic import BaseModel, Field
 
-
 router = APIRouter(prefix="/features", tags=["features"])
 
 
 class FeatureInfo(BaseModel):
     """Information about a feature flag"""
+
     name: str
     enabled: bool
     description: str
@@ -26,8 +26,13 @@ class FeatureInfo(BaseModel):
 
 class FeaturesResponse(BaseModel):
     """Response containing all features and their status"""
-    enabled_features: List[str] = Field(..., description="List of enabled feature names")
-    all_features: Dict[str, FeatureInfo] = Field(..., description="All features with details")
+
+    enabled_features: List[str] = Field(
+        ..., description="List of enabled feature names"
+    )
+    all_features: Dict[str, FeatureInfo] = Field(
+        ..., description="All features with details"
+    )
 
 
 @router.get("", response_model=FeaturesResponse)
@@ -37,10 +42,10 @@ async def list_features(
 ):
     """
     List all features and their status for current user.
-    
+
     Returns which features are enabled for the authenticated user
     based on their plan, org, and any user-specific overrides.
-    
+
     Useful for:
     - Frontend feature detection
     - Debugging feature access
@@ -52,10 +57,10 @@ async def list_features(
         org_id=str(auth.org_id),
         plan=auth.plan,
     )
-    
+
     # Get all feature definitions
     all_features_dict = flags.list_features()
-    
+
     # Build response
     all_features = {}
     for name, definition in all_features_dict.items():
@@ -65,7 +70,7 @@ async def list_features(
             description=definition.description,
             required_plan=definition.required_plan,
         )
-    
+
     return FeaturesResponse(
         enabled_features=enabled,
         all_features=all_features,
@@ -80,7 +85,7 @@ async def check_feature(
 ) -> Dict[str, bool]:
     """
     Check if a specific feature is enabled for current user.
-    
+
     Returns:
         {"enabled": true/false}
     """
@@ -90,5 +95,5 @@ async def check_feature(
         org_id=str(auth.org_id),
         plan=auth.plan,
     )
-    
+
     return {"enabled": enabled}

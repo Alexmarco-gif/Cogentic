@@ -37,57 +37,54 @@ logger = get_logger(__name__)
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Add unique request ID to each request for tracing"""
-    
+
     async def dispatch(self, request: Request, call_next):
         # Generate or use existing request ID
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        
+
         # Store in request state
         request.state.request_id = request_id
-        
+
         # Process request
         response = await call_next(request)
-        
+
         # Add to response headers
         response.headers["X-Request-ID"] = request_id
-        
+
         return response
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
     """Track request metrics for Prometheus"""
-    
+
     async def dispatch(self, request: Request, call_next):
         # Skip metrics endpoint itself
         if request.url.path == "/metrics":
             return await call_next(request)
-        
+
         # Start timing
         start_time = time.time()
-        
+
         # Process request
         response = await call_next(request)
-        
+
         # Calculate duration
         duration = time.time() - start_time
-        
+
         # Extract endpoint (remove IDs for cleaner metrics)
         endpoint = request.url.path
         method = request.method
         status_code = response.status_code
-        
+
         # Record metrics
         http_requests_total.labels(
-            method=method,
-            endpoint=endpoint,
-            status_code=status_code
+            method=method, endpoint=endpoint, status_code=status_code
         ).inc()
-        
-        http_request_duration_seconds.labels(
-            method=method,
-            endpoint=endpoint
-        ).observe(duration)
-        
+
+        http_request_duration_seconds.labels(method=method, endpoint=endpoint).observe(
+            duration
+        )
+
         # Log slow requests
         if duration > 2.0:
             logger.warning(
@@ -96,9 +93,9 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                 endpoint=endpoint,
                 duration=duration,
                 status_code=status_code,
-                request_id=request.state.request_id
+                request_id=request.state.request_id,
             )
-        
+
         return response
 
 
@@ -107,16 +104,16 @@ async def lifespan(app: FastAPI):
     """Application lifecycle manager"""
     # Startup
     print("🚀 Starting Cogent API...")
-    
+
     # Initialize observability
     init_observability(
         environment=settings.environment,
         version=settings.app_version,
-        sentry_dsn=getattr(settings, 'sentry_dsn', None),
-        logtail_token=getattr(settings, 'logtail_token', None),
-        posthog_api_key=getattr(settings, 'posthog_api_key', None),
+        sentry_dsn=getattr(settings, "sentry_dsn", None),
+        logtail_token=getattr(settings, "logtail_token", None),
+        posthog_api_key=getattr(settings, "posthog_api_key", None),
     )
-    
+
     # Test database connection
     try:
         async with engine.connect() as conn:
@@ -125,7 +122,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("database_connection_failed", error=str(e))
         print(f"❌ Database connection failed: {e}")
-    
+
     # Test Redis connection
     try:
         redis = await get_redis()
@@ -135,12 +132,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("redis_connection_failed", error=str(e))
         print(f"❌ Redis connection failed: {e}")
-    
+
     logger.info("app_startup_complete", environment=settings.environment)
     print("✅ Auth system initialized")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("app_shutdown_started")
     print("🛑 Shutting down Cogent API...")
@@ -209,7 +206,7 @@ async def health_check():
             db_healthy = True
     except Exception:
         pass
-    
+
     # Test Redis
     redis_healthy = False
     try:
@@ -218,7 +215,7 @@ async def health_check():
         redis_healthy = True
     except Exception:
         pass
-    
+
     return {
         "status": "healthy" if db_healthy and redis_healthy else "degraded",
         "services": {
@@ -230,7 +227,7 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "backend.main:app",
         host="0.0.0.0",

@@ -3,7 +3,7 @@ Comprehensive End-to-End Tests for Phase 1
 
 Additional E2E test scenarios not covered in test_integration_phase1.py:
 - Token refresh flow (Auth0 SDK integration)
-- Password reset workflow  
+- Password reset workflow
 - Concurrent access patterns (race conditions)
 - API key authentication flow
 - Permission boundary testing (role escalation attempts)
@@ -53,6 +53,7 @@ TEST_API_KEY_HASH = "a" * 64  # Mock SHA256 hash
 # FIXTURES
 # =============================================================================
 
+
 @pytest.fixture(scope="function")
 def test_db():
     """In-memory SQLite database for testing"""
@@ -72,12 +73,13 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """FastAPI TestClient with database override"""
+
     def override_get_db():
         try:
             yield test_db
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
@@ -102,7 +104,7 @@ def seed_security_test_data(test_db):
     )
     test_db.add(org1)
     test_db.add(org2)
-    
+
     # Create attacker user
     attacker = User(
         id=TEST_USER_ID,
@@ -119,11 +121,11 @@ def seed_security_test_data(test_db):
     )
     test_db.add(attacker)
     test_db.add(victim)
-    
+
     # Memberships
     test_db.add(OrgUser(org_id=org1.id, user_id=attacker.id, role="member"))
     test_db.add(OrgUser(org_id=org2.id, user_id=victim.id, role="owner"))
-    
+
     # Create sensitive document in victim org
     doc = Document(
         id=uuid4(),
@@ -136,9 +138,9 @@ def seed_security_test_data(test_db):
         org_id=org2.id,
     )
     test_db.add(doc)
-    
+
     test_db.commit()
-    
+
     yield {
         "attacker_org": org1,
         "victim_org": org2,
@@ -158,10 +160,10 @@ def create_test_token(
     """Create a test JWT token"""
     org_id = org_id or str(TEST_ORG_ID)
     roles = roles or ["member"]
-    
+
     now = int(datetime.utcnow().timestamp())
     exp = now - 3600 if expired else now + 3600
-    
+
     payload = {
         "iss": f"https://{settings.auth0_domain}/",
         "sub": user_id,
@@ -172,7 +174,7 @@ def create_test_token(
         "https://cogent-ai.com/roles": roles,
         "https://cogent-ai.com/plan": plan,
     }
-    
+
     return jwt.encode(payload, TEST_SECRET, algorithm="HS256")
 
 
@@ -180,9 +182,10 @@ def create_test_token(
 # SECURITY TESTS: Permission Boundary Testing
 # =============================================================================
 
+
 class TestPermissionBoundaries:
     """Test that users cannot escalate privileges or bypass authorization"""
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_role_escalation_attempt(self, mock_jwks, client, seed_security_test_data):
         """
@@ -193,25 +196,29 @@ class TestPermissionBoundaries:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         data = seed_security_test_data
         token = create_test_token(
             user_id=data["attacker"].auth0_id,
             org_id=str(data["attacker_org"].id),
             roles=["member"],  # Low privilege role
         )
-        
+
         # Try to delete organization (requires owner)
         response = client.delete(
             f"/api/v1/orgs/{data['attacker_org'].id}",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
-        
-        assert response.status_code == 403, "Member should not be able to delete organization"
+
+        assert (
+            response.status_code == 403
+        ), "Member should not be able to delete organization"
         assert "forbidden" in response.json()["error"].lower()
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
-    def test_cross_org_resource_access_attempt(self, mock_jwks, client, seed_security_test_data):
+    def test_cross_org_resource_access_attempt(
+        self, mock_jwks, client, seed_security_test_data
+    ):
         """
         Test: User from Org A tries to access document from Org B
         Expected: 404 Not Found (pretend resource doesn't exist for security)
@@ -219,23 +226,23 @@ class TestPermissionBoundaries:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         data = seed_security_test_data
         token = create_test_token(
             user_id=data["attacker"].auth0_id,
             org_id=str(data["attacker_org"].id),
             roles=["owner"],  # Even as owner in own org...
         )
-        
+
         # Try to access victim's document
         response = client.get(
             f"/api/v1/orgs/{data['victim_org'].id}/documents/{data['sensitive_doc'].id}",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         # Should return 403 or 404 (not exposing existence)
         assert response.status_code in [403, 404], "Cross-org access should be blocked"
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_token_tampering_detected(self, mock_jwks, client, seed_security_test_data):
         """
@@ -244,20 +251,19 @@ class TestPermissionBoundaries:
         """
         # Create token with member role
         token = create_test_token(roles=["member"])
-        
+
         # Decode without verification and modify
         payload = jwt.get_unverified_claims(token)
         payload["https://cogent-ai.com/roles"] = ["owner"]  # Escalate privilege
-        
+
         # Re-encode with wrong secret
         tampered_token = jwt.encode(payload, "wrong_secret", algorithm="HS256")
-        
+
         # Try to use tampered token
         response = client.get(
-            "/api/v1/orgs",
-            headers={"Authorization": f"Bearer {tampered_token}"}
+            "/api/v1/orgs", headers={"Authorization": f"Bearer {tampered_token}"}
         )
-        
+
         assert response.status_code == 401, "Tampered token should be rejected"
 
 
@@ -265,12 +271,15 @@ class TestPermissionBoundaries:
 # CONCURRENT ACCESS TESTS
 # =============================================================================
 
+
 class TestConcurrentAccess:
     """Test race conditions and concurrent modification scenarios"""
-    
+
     @pytest.mark.asyncio
     @patch("backend.auth.jwks.get_jwks_client")
-    async def test_concurrent_document_creation(self, mock_jwks, client, seed_security_test_data):
+    async def test_concurrent_document_creation(
+        self, mock_jwks, client, seed_security_test_data
+    ):
         """
         Test: Multiple users creating documents simultaneously
         Expected: All documents created with correct ownership, no data corruption
@@ -278,7 +287,7 @@ class TestConcurrentAccess:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         data = seed_security_test_data
         org_id = data["attacker_org"].id
         token = create_test_token(
@@ -286,7 +295,7 @@ class TestConcurrentAccess:
             org_id=str(org_id),
             roles=["member"],
         )
-        
+
         # Simulate concurrent document uploads
         async def create_document(index: int):
             response = client.post(
@@ -297,18 +306,20 @@ class TestConcurrentAccess:
                     "size_bytes": 1024 * index,
                     "content_type": "application/pdf",
                 },
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {token}"},
             )
             return response.status_code, response.json()
-        
+
         # Create 10 documents concurrently
         tasks = [create_document(i) for i in range(10)]
         results = await asyncio.gather(*tasks)
-        
+
         # All should succeed
         success_count = sum(1 for status, _ in results if status == 201)
-        assert success_count == 10, f"Expected 10 successful creates, got {success_count}"
-        
+        assert (
+            success_count == 10
+        ), f"Expected 10 successful creates, got {success_count}"
+
         # Verify no duplicate IDs
         doc_ids = [data["id"] for _, data in results if "id" in data]
         assert len(doc_ids) == len(set(doc_ids)), "Duplicate document IDs detected"
@@ -318,9 +329,10 @@ class TestConcurrentAccess:
 # API KEY AUTHENTICATION TESTS
 # =============================================================================
 
+
 class TestAPIKeyAuthentication:
     """Test API key-based authentication flow"""
-    
+
     def test_api_key_authentication_success(self, client, test_db):
         """
         Test: Valid API key authenticates successfully
@@ -334,7 +346,7 @@ class TestAPIKeyAuthentication:
             billing_email="api@test.com",
         )
         test_db.add(org)
-        
+
         api_key = APIKey(
             id=uuid4(),
             key_hash=TEST_API_KEY_HASH,
@@ -346,18 +358,17 @@ class TestAPIKeyAuthentication:
         )
         test_db.add(api_key)
         test_db.commit()
-        
+
         # Use API key (mocked hash verification)
         with patch("backend.auth.utils.hash_api_key", return_value=TEST_API_KEY_HASH):
             response = client.get(
-                "/api/v1/health",
-                headers={"X-API-Key": "cogent_pk_test_key_12345"}
+                "/api/v1/health", headers={"X-API-Key": "cogent_pk_test_key_12345"}
             )
-        
+
         # Should succeed (if API key auth is implemented)
         # Note: May return 200 or 401 depending on implementation status
         assert response.status_code in [200, 401]
-    
+
     def test_api_key_rate_limiting(self, client, test_db):
         """
         Test: API key respects rate limits
@@ -371,7 +382,7 @@ class TestAPIKeyAuthentication:
             billing_email="rate@test.com",
         )
         test_db.add(org)
-        
+
         api_key = APIKey(
             id=uuid4(),
             key_hash=TEST_API_KEY_HASH,
@@ -383,17 +394,16 @@ class TestAPIKeyAuthentication:
         )
         test_db.add(api_key)
         test_db.commit()
-        
+
         # Make requests exceeding rate limit
         with patch("backend.auth.utils.hash_api_key", return_value=TEST_API_KEY_HASH):
             responses = []
             for i in range(10):
                 resp = client.get(
-                    "/api/v1/health",
-                    headers={"X-API-Key": "cogent_pk_test_key_12345"}
+                    "/api/v1/health", headers={"X-API-Key": "cogent_pk_test_key_12345"}
                 )
                 responses.append(resp.status_code)
-        
+
         # Some requests should be rate limited (429)
         # Note: Depends on rate limiter implementation
         rate_limited = sum(1 for status in responses if status == 429)
@@ -404,9 +414,10 @@ class TestAPIKeyAuthentication:
 # MALFORMED DATA TESTS
 # =============================================================================
 
+
 class TestMalformedDataHandling:
     """Test handling of malformed, invalid, or malicious input"""
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_sql_injection_attempt_in_query_params(self, mock_jwks, client, test_db):
         """
@@ -416,7 +427,7 @@ class TestMalformedDataHandling:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         # Create test org
         org = Organization(
             id=TEST_ORG_ID,
@@ -426,19 +437,23 @@ class TestMalformedDataHandling:
         )
         test_db.add(org)
         test_db.commit()
-        
+
         token = create_test_token()
-        
+
         # Attempt SQL injection in search parameter
         response = client.get(
             f"/api/v1/orgs/{org.id}/documents",
             params={"search": "'; DROP TABLE documents; --"},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         # Should return 200 or 400, but not 500 (SQL error)
-        assert response.status_code in [200, 400, 422], "SQL injection should be prevented"
-    
+        assert response.status_code in [
+            200,
+            400,
+            422,
+        ], "SQL injection should be prevented"
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_xss_attempt_in_user_input(self, mock_jwks, client, test_db):
         """
@@ -448,7 +463,7 @@ class TestMalformedDataHandling:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         org = Organization(
             id=TEST_ORG_ID,
             name="XSS Test Org",
@@ -457,9 +472,9 @@ class TestMalformedDataHandling:
         )
         test_db.add(org)
         test_db.commit()
-        
+
         token = create_test_token()
-        
+
         # Attempt XSS in document filename
         response = client.post(
             f"/api/v1/orgs/{org.id}/documents",
@@ -469,15 +484,15 @@ class TestMalformedDataHandling:
                 "size_bytes": 1024,
                 "content_type": "application/pdf",
             },
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         # Should either sanitize or reject
         if response.status_code == 201:
             # If accepted, verify script tags are escaped/removed
             data = response.json()
             assert "<script>" not in data.get("filename", ""), "XSS not sanitized"
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_oversized_payload_rejected(self, mock_jwks, client, test_db):
         """
@@ -487,7 +502,7 @@ class TestMalformedDataHandling:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         org = Organization(
             id=TEST_ORG_ID,
             name="Size Test Org",
@@ -496,9 +511,9 @@ class TestMalformedDataHandling:
         )
         test_db.add(org)
         test_db.commit()
-        
+
         token = create_test_token()
-        
+
         # Send document with impossibly large size
         response = client.post(
             f"/api/v1/orgs/{org.id}/documents",
@@ -508,20 +523,25 @@ class TestMalformedDataHandling:
                 "size_bytes": 999999999999999,  # Unrealistic size
                 "content_type": "application/pdf",
             },
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         # Should validate and reject
-        assert response.status_code in [400, 413, 422], "Oversized payload should be rejected"
+        assert response.status_code in [
+            400,
+            413,
+            422,
+        ], "Oversized payload should be rejected"
 
 
 # =============================================================================
 # SESSION MANAGEMENT TESTS
 # =============================================================================
 
+
 class TestSessionManagement:
     """Test token lifecycle and session behavior"""
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_expired_token_rejected(self, mock_jwks, client):
         """
@@ -531,18 +551,17 @@ class TestSessionManagement:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         expired_token = create_test_token(expired=True)
-        
+
         response = client.get(
-            "/api/v1/orgs",
-            headers={"Authorization": f"Bearer {expired_token}"}
+            "/api/v1/orgs", headers={"Authorization": f"Bearer {expired_token}"}
         )
-        
+
         assert response.status_code == 401, "Expired token should be rejected"
         error_msg = response.json().get("message", "").lower()
         assert "expired" in error_msg or "invalid" in error_msg
-    
+
     @patch("backend.auth.jwks.get_jwks_client")
     def test_missing_required_claims_rejected(self, mock_jwks, client):
         """
@@ -552,7 +571,7 @@ class TestSessionManagement:
         mock_client = AsyncMock()
         mock_client.get_signing_key = AsyncMock(return_value=TEST_SECRET)
         mock_jwks.return_value = mock_client
-        
+
         # Create token without org_id claim
         now = int(datetime.utcnow().timestamp())
         payload = {
@@ -564,13 +583,14 @@ class TestSessionManagement:
             # Missing org_id and other custom claims
         }
         invalid_token = jwt.encode(payload, TEST_SECRET, algorithm="HS256")
-        
+
         response = client.get(
-            "/api/v1/orgs",
-            headers={"Authorization": f"Bearer {invalid_token}"}
+            "/api/v1/orgs", headers={"Authorization": f"Bearer {invalid_token}"}
         )
-        
-        assert response.status_code == 401, "Token with missing claims should be rejected"
+
+        assert (
+            response.status_code == 401
+        ), "Token with missing claims should be rejected"
 
 
 if __name__ == "__main__":

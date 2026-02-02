@@ -22,20 +22,20 @@ logger = logging.getLogger(__name__)
 def get_rate_limit_key(request: Request) -> str:
     """
     Determine rate limit key based on authentication status.
-    
+
     Strategy:
     - Authenticated users: Use user_id (allows higher limits)
     - Unauthenticated: Use IP address (lower limits for abuse prevention)
     """
     # Check if request has auth context (set by get_current_user dependency)
     auth: AuthContext | None = getattr(request.state, "auth", None)
-    
+
     if auth:
         # Use user_id for authenticated requests
         key = f"user:{auth.user_id}"
         logger.debug(f"Rate limit key: {key}")
         return key
-    
+
     # Fallback to IP for unauthenticated requests
     ip = get_remote_address(request)
     logger.debug(f"Rate limit key: ip:{ip}")
@@ -45,24 +45,24 @@ def get_rate_limit_key(request: Request) -> str:
 def get_rate_limit_for_user(request: Request) -> str:
     """
     Determine appropriate rate limit based on user role.
-    
+
     Returns:
         Rate limit string (e.g., "100/minute")
     """
     auth: AuthContext | None = getattr(request.state, "auth", None)
-    
+
     if not auth:
         # Public endpoints: 20/min per IP
         return "20/minute"
-    
+
     # Super admins get highest limits
     if auth.is_super_admin:
         return "1000/minute"
-    
+
     # Admins and owners get high limits
     if auth.is_admin_or_higher:
         return "1000/minute"
-    
+
     # Regular authenticated users
     return "100/minute"
 
@@ -77,6 +77,7 @@ limiter = Limiter(
 
 
 # Convenience decorators for common rate limits
+
 
 def rate_limit_public(func: Callable) -> Callable:
     """Decorator for public endpoints (20/min per IP)"""

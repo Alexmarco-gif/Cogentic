@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class QueryAuditLogger:
     """Audit logger for database queries"""
-    
+
     @staticmethod
     def log_query(
         *,
@@ -30,7 +30,7 @@ class QueryAuditLogger:
     ) -> None:
         """
         Log a database query for audit trail.
-        
+
         Args:
             user_id: User performing the query (from AuthContext)
             org_id: Organization context
@@ -50,24 +50,26 @@ class QueryAuditLogger:
             "action": action,
             "request_id": request_id,
         }
-        
+
         if filters:
-            audit_data["filters"] = {k: str(v) if isinstance(v, UUID) else v for k, v in filters.items()}
-        
+            audit_data["filters"] = {
+                k: str(v) if isinstance(v, UUID) else v for k, v in filters.items()
+            }
+
         if result_count is not None:
             audit_data["result_count"] = result_count
-        
+
         if duration_ms is not None:
             audit_data["duration_ms"] = round(duration_ms, 2)
-        
+
         if resource_ids:
             audit_data["resource_ids"] = [str(rid) for rid in resource_ids]
-        
+
         logger.info(
             f"DB_QUERY | table={table} action={action} org_id={org_id} user_id={user_id}",
-            extra={"audit": audit_data}
+            extra={"audit": audit_data},
         )
-    
+
     @staticmethod
     def log_cross_org_attempt(
         *,
@@ -81,7 +83,7 @@ class QueryAuditLogger:
     ) -> None:
         """
         Log attempted cross-org access (security violation).
-        
+
         Args:
             user_id: User who attempted access
             user_org_id: User's actual org
@@ -106,9 +108,9 @@ class QueryAuditLogger:
                     "resource_id": str(resource_id) if resource_id else None,
                     "request_id": request_id,
                 }
-            }
+            },
         )
-    
+
     @staticmethod
     def log_missing_org_context(
         *,
@@ -119,7 +121,7 @@ class QueryAuditLogger:
     ) -> None:
         """
         Log query on multi-tenant table without org_id (security violation).
-        
+
         Args:
             table: Table name
             action: Action attempted
@@ -137,7 +139,7 @@ class QueryAuditLogger:
                     "user_id": str(user_id) if user_id else None,
                     "request_id": request_id,
                 }
-            }
+            },
         )
 
 

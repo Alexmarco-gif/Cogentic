@@ -18,39 +18,39 @@ logger = logging.getLogger(__name__)
 def can_view_resource(auth: AuthContext, resource: Any) -> bool:
     """
     Check if user can view a resource.
-    
+
     Rules:
     - All roles can view resources in their org
     - Private resources: only owner + admins
     - Shared resources: owner + shared_with users + admins
     - Org/public resources: all org members
-    
+
     Args:
         auth: Authenticated user context
         resource: Resource object (must have visibility, owner_id, shared_with)
-        
+
     Returns:
         True if user can view resource
     """
     # Admin/Owner can view everything in their org
     if Role.from_string(auth.role) >= Role.ADMIN:
         return True
-    
+
     # Check visibility
     visibility = getattr(resource, "visibility", "private")
     owner_id = getattr(resource, "owner_id", None)
-    
+
     if visibility == "private":
         # Only owner + admins
         return owner_id == auth.user_id
-    
+
     if visibility == "shared":
         # Owner + shared_with + admins
         if owner_id == auth.user_id:
             return True
         shared_with = getattr(resource, "shared_with", [])
         return str(auth.user_id) in shared_with
-    
+
     # Org/public visibility - all org members can view
     return True
 
@@ -58,90 +58,90 @@ def can_view_resource(auth: AuthContext, resource: Any) -> bool:
 def can_edit_resource(auth: AuthContext, resource: Any) -> bool:
     """
     Check if user can edit a resource.
-    
+
     Rules:
     - Owner can always edit own resources
     - Admin/Owner can edit any resource in org
     - Members cannot edit others' resources
     - Viewers cannot edit anything
-    
+
     Args:
         auth: Authenticated user context
         resource: Resource object (must have owner_id)
-        
+
     Returns:
         True if user can edit resource
     """
     user_role = Role.from_string(auth.role)
     caps = get_role_capabilities(user_role)
-    
+
     # Can this role edit anything?
     if not caps["can_edit_own"]:
         return False
-    
+
     owner_id = getattr(resource, "owner_id", None)
     is_owner = owner_id == auth.user_id
-    
+
     # Owner can edit own resource
     if is_owner and caps["can_edit_own"]:
         return True
-    
+
     # Admin+ can edit any resource
     if caps["can_edit_all"]:
         return True
-    
+
     return False
 
 
 def can_delete_resource(auth: AuthContext, resource: Any) -> bool:
     """
     Check if user can delete a resource.
-    
+
     Rules:
     - Owner can delete own resources
     - Admin/Owner can delete any resource in org
     - Members cannot delete others' resources
     - Viewers cannot delete anything
-    
+
     Args:
         auth: Authenticated user context
         resource: Resource object (must have owner_id)
-        
+
     Returns:
         True if user can delete resource
     """
     user_role = Role.from_string(auth.role)
     caps = get_role_capabilities(user_role)
-    
+
     # Can this role delete anything?
     if not caps["can_delete_own"]:
         return False
-    
+
     owner_id = getattr(resource, "owner_id", None)
     is_owner = owner_id == auth.user_id
-    
+
     # Owner can delete own resource
     if is_owner and caps["can_delete_own"]:
         return True
-    
+
     # Admin+ can delete any resource
     if caps["can_delete_all"]:
         return True
-    
+
     return False
 
 
 def can_create_resource(auth: AuthContext) -> bool:
     """
     Check if user can create resources.
-    
+
     Rules:
     - Viewers: No
     - Members+: Yes
-    
+
     Args:
         auth: Authenticated user context
-        
+
     Returns:
         True if user can create resources
     """
@@ -153,14 +153,14 @@ def can_create_resource(auth: AuthContext) -> bool:
 def can_manage_members(auth: AuthContext) -> bool:
     """
     Check if user can manage org members.
-    
+
     Rules:
     - Admin+: Yes (but admins cannot manage owners/other admins)
     - Member/Viewer: No
-    
+
     Args:
         auth: Authenticated user context
-        
+
     Returns:
         True if user can manage members
     """
@@ -172,14 +172,14 @@ def can_manage_members(auth: AuthContext) -> bool:
 def can_manage_billing(auth: AuthContext) -> bool:
     """
     Check if user can manage billing.
-    
+
     Rules:
     - Owner: Yes
     - Everyone else: No
-    
+
     Args:
         auth: Authenticated user context
-        
+
     Returns:
         True if user can manage billing
     """
@@ -191,14 +191,14 @@ def can_manage_billing(auth: AuthContext) -> bool:
 def can_delete_org(auth: AuthContext) -> bool:
     """
     Check if user can delete the organization.
-    
+
     Rules:
     - Owner: Yes
     - Everyone else: No
-    
+
     Args:
         auth: Authenticated user context
-        
+
     Returns:
         True if user can delete org
     """
@@ -210,15 +210,15 @@ def can_delete_org(auth: AuthContext) -> bool:
 def get_user_permissions(auth: AuthContext) -> dict[str, bool]:
     """
     Get complete permission matrix for current user.
-    
+
     Useful for frontend to show/hide UI elements.
-    
+
     Args:
         auth: Authenticated user context
-        
+
     Returns:
         Dictionary of all permissions
-        
+
     Example:
         perms = get_user_permissions(auth)
         if perms["can_manage_billing"]:
@@ -236,15 +236,15 @@ def filter_resources_by_permission(
 ) -> list[Any]:
     """
     Filter list of resources based on user permissions.
-    
+
     Args:
         auth: Authenticated user context
         resources: List of resource objects
         permission: Permission to check ("view", "edit", "delete")
-        
+
     Returns:
         Filtered list of resources user has permission for
-        
+
     Example:
         documents = await repo.list_by_org(org_id)
         visible_docs = filter_resources_by_permission(auth, documents, "view")
@@ -254,11 +254,11 @@ def filter_resources_by_permission(
         "edit": can_edit_resource,
         "delete": can_delete_resource,
     }
-    
+
     check_func = permission_checks.get(permission)
     if not check_func:
         raise ValueError(f"Invalid permission: {permission}")
-    
+
     return [r for r in resources if check_func(auth, r)]
 
 
@@ -271,7 +271,7 @@ def log_permission_check(
 ) -> None:
     """
     Log permission check for audit trail.
-    
+
     Args:
         auth: Authenticated user context
         action: Action being performed (view, edit, delete, etc.)
@@ -280,7 +280,7 @@ def log_permission_check(
         allowed: Whether permission was granted
     """
     log_level = logging.INFO if allowed else logging.WARNING
-    
+
     logger.log(
         log_level,
         f"Permission check: {action} {resource_type} - {'allowed' if allowed else 'denied'}",
@@ -293,5 +293,5 @@ def log_permission_check(
             "resource_id": str(resource_id) if resource_id else None,
             "allowed": allowed,
             "request_id": auth.request_id,
-        }
+        },
     )

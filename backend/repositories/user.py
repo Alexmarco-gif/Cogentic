@@ -12,24 +12,20 @@ from backend.repositories.base import BaseRepository
 
 class UserRepository(BaseRepository[User]):
     """Repository for user operations"""
-    
+
     def __init__(self, db: AsyncSession):
         super().__init__(User, db)
-    
+
     async def get_by_auth0_id(self, auth0_id: str) -> User | None:
         """Get user by Auth0 ID"""
-        result = await self.db.execute(
-            select(User).where(User.auth0_id == auth0_id)
-        )
+        result = await self.db.execute(select(User).where(User.auth0_id == auth0_id))
         return result.scalar_one_or_none()
-    
+
     async def get_by_email(self, email: str) -> User | None:
         """Get user by email"""
-        result = await self.db.execute(
-            select(User).where(User.email == email)
-        )
+        result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
-    
+
     async def get_with_organizations(self, user_id: UUID) -> User | None:
         """Get user with their organization memberships"""
         result = await self.db.execute(
@@ -38,7 +34,7 @@ class UserRepository(BaseRepository[User]):
             .where(User.id == user_id)
         )
         return result.scalar_one_or_none()
-    
+
     async def create_or_update_from_auth0(
         self,
         auth0_id: str,
@@ -48,7 +44,7 @@ class UserRepository(BaseRepository[User]):
     ) -> User:
         """Create or update user from Auth0 data"""
         user = await self.get_by_auth0_id(auth0_id)
-        
+
         if user:
             # Update existing user
             user.email = email
@@ -64,5 +60,5 @@ class UserRepository(BaseRepository[User]):
                 name=name,
                 picture_url=picture_url,
             )
-        
+
         return user

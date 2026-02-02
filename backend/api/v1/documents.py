@@ -30,6 +30,7 @@ router = APIRouter(prefix="/orgs/{org_id}/documents")
 # Pydantic schemas
 class DocumentResponse(BaseModel):
     """Document response model"""
+
     id: str
     filename: str
     storage_path: str | None
@@ -39,13 +40,14 @@ class DocumentResponse(BaseModel):
     owner_id: str
     org_id: str
     created_at: str
-    
+
     class Config:
         from_attributes = True
 
 
 class DocumentCreate(BaseModel):
     """Document creation request"""
+
     filename: str = Field(..., min_length=1, max_length=255)
     storage_path: str = Field(..., min_length=1)
     size_bytes: int = Field(..., ge=0)
@@ -55,6 +57,7 @@ class DocumentCreate(BaseModel):
 
 class DocumentUpdate(BaseModel):
     """Document update request"""
+
     filename: str | None = Field(None, min_length=1, max_length=255)
     processing_status: str | None = None
 
@@ -71,17 +74,17 @@ async def list_documents(
 ) -> Dict[str, Any]:
     """
     List documents in organization.
-    
+
     Optional filters:
     - status: Filter by processing status
     - owner_id: Filter by document owner
-    
+
     All users can list documents in their org.
     """
     require_org_membership(auth, org_id)
-    
+
     repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
-    
+
     # Apply filters
     if owner_id:
         documents = await repo.get_by_owner(owner_id, skip=skip, limit=limit)
@@ -92,7 +95,7 @@ async def list_documents(
     else:
         documents = await repo.get_multi(skip=skip, limit=limit)
         total = await repo.count()
-    
+
     return {
         "documents": [
             DocumentResponse(
@@ -123,26 +126,26 @@ async def create_document(
 ) -> DocumentResponse:
     """
     Create a new document.
-    
+
     Requires member role or higher.
     Document is automatically assigned to the creating user.
-    
+
     Feature flag: bulk_document_operations
     """
     require_org_membership(auth, org_id)
-    
+
     # Feature gate: require bulk_document_operations feature
     require_feature(auth, "bulk_document_operations")
-    
+
     # Check if user can create documents
     if not can_create_resource(auth):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to create documents"
+            detail="Insufficient permissions to create documents",
         )
-    
+
     repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
-    
+
     # Create document (org_id auto-injected by TenantRepository)
     doc = await repo.create(
         filename=document.filename,
@@ -152,9 +155,9 @@ async def create_document(
         processing_status=document.processing_status,
         owner_id=auth.user_id,  # Assign to current user
     )
-    
+
     await db.commit()
-    
+
     return DocumentResponse(
         id=str(doc.id),
         filename=doc.filename,
@@ -177,20 +180,19 @@ async def get_document(
 ) -> DocumentResponse:
     """
     Get a document by ID.
-    
+
     User must be in the organization.
     """
     require_org_membership(auth, org_id)
-    
+
     repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
     doc = await repo.get(document_id)
-    
+
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
-    
+
     return DocumentResponse(
         id=str(doc.id),
         filename=doc.filename,
@@ -214,44 +216,42 @@ async def update_document(
 ) -> DocumentResponse:
     """
     Update a document.
-    
+
     Only the document owner or admins can update documents.
     """
     require_org_membership(auth, org_id)
-    
+
     repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
     doc = await repo.get(document_id)
-    
+
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
-    
+
     # Check if user can edit this document
     if not can_edit_resource(auth, doc):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to edit this document"
+            detail="Insufficient permissions to edit this document",
         )
-    
+
     # Build update dict
     update_data = {}
     if updates.filename is not None:
         update_data["filename"] = updates.filename
     if updates.processing_status is not None:
         update_data["processing_status"] = updates.processing_status
-    
+
     doc = await repo.update(document_id, **update_data)
-    
+
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
-    
+
     await db.commit()
-    
+
     return DocumentResponse(
         id=str(doc.id),
         filename=doc.filename,
@@ -274,31 +274,30 @@ async def delete_document(
 ) -> Dict[str, str]:
     """
     Delete a document (soft delete).
-    
+
     Only the document owner or admins can delete documents.
     """
     require_org_membership(auth, org_id)
-    
+
     repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
     doc = await repo.get(document_id)
-    
+
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
-    
+
     # Check if user can delete this document
     if not can_delete_resource(auth, doc):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to delete this document"
+            detail="Insufficient permissions to delete this document",
         )
-    
+
     # Soft delete
     await repo.soft_delete(document_id)
     await db.commit()
-    
+
     return {"message": "Document deleted successfully"}
 
 
@@ -310,15 +309,15 @@ async def get_storage_usage(
 ) -> Dict[str, Any]:
     """
     Get organization's storage usage.
-    
+
     Returns total bytes used and number of documents.
     """
     require_org_membership(auth, org_id)
-    
+
     repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
     total_bytes = await repo.get_total_storage_bytes()
     total_documents = await repo.count()
-    
+
     return {
         "org_id": str(org_id),
         "total_bytes": total_bytes,

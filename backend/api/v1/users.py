@@ -19,6 +19,7 @@ router = APIRouter(prefix="/users")
 
 class UserProfileResponse(BaseModel):
     """User profile response model"""
+
     id: str
     auth0_id: str
     email: str
@@ -26,13 +27,14 @@ class UserProfileResponse(BaseModel):
     picture_url: str | None
     created_at: str
     last_login_at: str | None
-    
+
     class Config:
         from_attributes = True
 
 
 class UserProfileUpdate(BaseModel):
     """User profile update request"""
+
     name: str | None = Field(None, min_length=1, max_length=100)
     picture_url: str | None = None
 
@@ -44,18 +46,17 @@ async def get_my_profile(
 ) -> UserProfileResponse:
     """
     Get current user's profile.
-    
+
     Returns complete user profile information.
     """
     repo = UserRepository(db)
     user = await repo.get(auth.user_id)
-    
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    
+
     return UserProfileResponse(
         id=str(user.id),
         auth0_id=user.auth0_id,
@@ -75,28 +76,27 @@ async def update_my_profile(
 ) -> UserProfileResponse:
     """
     Update current user's profile.
-    
+
     Users can only update their own profile.
     """
     repo = UserRepository(db)
-    
+
     # Build update dict
     update_data = {}
     if updates.name is not None:
         update_data["name"] = updates.name
     if updates.picture_url is not None:
         update_data["picture_url"] = updates.picture_url
-    
+
     user = await repo.update(auth.user_id, **update_data)
-    
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    
+
     await db.commit()
-    
+
     return UserProfileResponse(
         id=str(user.id),
         auth0_id=user.auth0_id,
@@ -116,19 +116,18 @@ async def get_user_profile(
 ) -> UserProfileResponse:
     """
     Get another user's profile (public info only).
-    
+
     Only available to authenticated users.
     Returns limited public information.
     """
     repo = UserRepository(db)
     user = await repo.get(user_id)
-    
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    
+
     # Return public profile only
     return UserProfileResponse(
         id=str(user.id),

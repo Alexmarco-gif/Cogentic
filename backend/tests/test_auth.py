@@ -45,13 +45,13 @@ def create_mock_token(
     missing_claims: list[str] = None,
 ) -> str:
     """Create a mock JWT token for testing"""
-    
+
     if roles is None:
         roles = ["member"]
-    
+
     now = int(datetime.utcnow().timestamp())
     exp = now - 3600 if expired else now + 3600
-    
+
     payload = {
         "iss": f"https://{settings.auth0_domain}/",
         "sub": sub,
@@ -59,19 +59,19 @@ def create_mock_token(
         "exp": exp,
         "iat": now,
     }
-    
+
     # Add custom claims (unless testing missing claims)
     missing = missing_claims or []
-    
+
     if "org_id" not in missing:
         payload["https://cogent-ai.com/org_id"] = org_id
-    
+
     if "roles" not in missing:
         payload["https://cogent-ai.com/roles"] = roles
-    
+
     if "plan" not in missing:
         payload["https://cogent-ai.com/plan"] = plan
-    
+
     # Note: This creates an unsigned token for testing
     # In real tests with signature verification, you'd use a test private key
     return jwt.encode(payload, "test-secret", algorithm="HS256")
@@ -79,43 +79,43 @@ def create_mock_token(
 
 class TestExtractTokenFromHeader:
     """Test token extraction from Authorization header"""
-    
+
     def test_extract_valid_bearer_token(self):
         """Should extract token from valid Bearer header"""
         mock_request = MagicMock()
         mock_request.headers = {"Authorization": "Bearer test_token_123"}
-        
+
         token = extract_token_from_header(mock_request)
         assert token == "test_token_123"
-    
+
     def test_missing_authorization_header(self):
         """Should raise MissingTokenError if header missing"""
         mock_request = MagicMock()
         mock_request.headers = {}
-        
+
         with pytest.raises(MissingTokenError):
             extract_token_from_header(mock_request)
-    
+
     def test_malformed_authorization_header_no_bearer(self):
         """Should raise InvalidTokenError if not Bearer scheme"""
         mock_request = MagicMock()
         mock_request.headers = {"Authorization": "Basic test_token"}
-        
+
         with pytest.raises(InvalidTokenError, match="Invalid token"):
             extract_token_from_header(mock_request)
-    
+
     def test_malformed_authorization_header_no_token(self):
         """Should raise InvalidTokenError if token missing"""
         mock_request = MagicMock()
         mock_request.headers = {"Authorization": "Bearer"}
-        
+
         with pytest.raises(InvalidTokenError, match="Invalid token"):
             extract_token_from_header(mock_request)
 
 
 class TestValidateCustomClaims:
     """Test custom claims validation"""
-    
+
     def test_valid_claims(self):
         """Should pass with all required claims"""
         payload = TokenPayload(
@@ -128,10 +128,10 @@ class TestValidateCustomClaims:
             roles=["member"],
             plan="free",
         )
-        
+
         # Should not raise
         validate_custom_claims(payload)
-    
+
     def test_missing_org_id(self):
         """Should raise InvalidClaimsError if org_id missing"""
         payload = TokenPayload(
@@ -144,12 +144,12 @@ class TestValidateCustomClaims:
             roles=["member"],
             plan="free",
         )
-        
+
         with pytest.raises(InvalidClaimsError) as exc_info:
             validate_custom_claims(payload)
-        
+
         assert "org_id" in exc_info.value.details["missing_claims"]
-    
+
     def test_empty_roles_allowed(self):
         """Should allow empty roles (valid for viewer)"""
         payload = TokenPayload(
@@ -162,19 +162,19 @@ class TestValidateCustomClaims:
             roles=[],
             plan="free",
         )
-        
+
         # Should not raise
         validate_custom_claims(payload)
 
 
 class TestParseJWTClaims:
     """Test JWT claims parsing"""
-    
+
     def test_parse_valid_payload(self):
         """Should parse TokenPayload to JWTClaims"""
         now = datetime.utcnow()
         exp = now + timedelta(hours=1)
-        
+
         payload = TokenPayload(
             iss=f"https://{settings.auth0_domain}/",
             sub=TEST_AUTH0_ID,
@@ -185,9 +185,9 @@ class TestParseJWTClaims:
             roles=["admin", "member"],
             plan="pro",
         )
-        
+
         claims = parse_jwt_claims(payload)
-        
+
         assert isinstance(claims, JWTClaims)
         assert claims.auth0_id == TEST_AUTH0_ID
         assert str(claims.org_id) == TEST_ORG_ID
@@ -199,7 +199,7 @@ class TestParseJWTClaims:
 
 class TestAuthContext:
     """Test AuthContext model"""
-    
+
     def test_create_auth_context(self):
         """Should create valid AuthContext"""
         context = AuthContext(
@@ -211,11 +211,11 @@ class TestAuthContext:
             plan="pro",
             token_expires_at=datetime.utcnow() + timedelta(hours=1),
         )
-        
+
         assert context.user_id == TEST_USER_ID
         assert context.role == "admin"
         assert context.plan == "pro"
-    
+
     def test_is_owner_property(self):
         """Should correctly identify owner role"""
         context = AuthContext(
@@ -227,11 +227,11 @@ class TestAuthContext:
             plan="free",
             token_expires_at=datetime.utcnow() + timedelta(hours=1),
         )
-        
+
         assert context.is_owner is True
         assert context.is_admin_or_higher is True
         assert context.is_member_or_higher is True
-    
+
     def test_is_admin_or_higher_property(self):
         """Should correctly identify admin+ roles"""
         admin_context = AuthContext(
@@ -243,7 +243,7 @@ class TestAuthContext:
             plan="free",
             token_expires_at=datetime.utcnow() + timedelta(hours=1),
         )
-        
+
         member_context = AuthContext(
             user_id=TEST_USER_ID,
             auth0_id=TEST_AUTH0_ID,
@@ -253,10 +253,10 @@ class TestAuthContext:
             plan="free",
             token_expires_at=datetime.utcnow() + timedelta(hours=1),
         )
-        
+
         assert admin_context.is_admin_or_higher is True
         assert member_context.is_admin_or_higher is False
-    
+
     def test_is_member_or_higher_property(self):
         """Should correctly identify member+ roles"""
         member_context = AuthContext(
@@ -268,7 +268,7 @@ class TestAuthContext:
             plan="free",
             token_expires_at=datetime.utcnow() + timedelta(hours=1),
         )
-        
+
         viewer_context = AuthContext(
             user_id=TEST_USER_ID,
             auth0_id=TEST_AUTH0_ID,
@@ -278,7 +278,7 @@ class TestAuthContext:
             plan="free",
             token_expires_at=datetime.utcnow() + timedelta(hours=1),
         )
-        
+
         assert member_context.is_member_or_higher is True
         assert viewer_context.is_member_or_higher is False
 

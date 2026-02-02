@@ -17,7 +17,7 @@ router = APIRouter(prefix="/health")
 async def health_check() -> Dict[str, Any]:
     """
     Basic health check endpoint (no authentication required).
-    
+
     Returns:
         System health status and timestamp
     """
@@ -35,7 +35,7 @@ async def health_check_with_auth(
 ) -> Dict[str, Any]:
     """
     Health check with optional authentication info.
-    
+
     If authenticated, returns user context. Otherwise, returns basic health status.
     Useful for debugging auth issues without requiring authentication.
     """
@@ -45,7 +45,7 @@ async def health_check_with_auth(
         "service": "cogent-api",
         "version": "1.0.0",
     }
-    
+
     if auth:
         response["authenticated"] = "true"
         response["user_id"] = str(auth.user_id)
@@ -53,5 +53,5 @@ async def health_check_with_auth(
         response["role"] = auth.role
     else:
         response["authenticated"] = "false"
-    
+
     return response

@@ -18,21 +18,21 @@ async def get_current_user_info(
 ) -> Dict[str, Any]:
     """
     Get current authenticated user information.
-    
+
     Returns user context including:
     - User ID and email
     - Organization context
     - Role and permissions
     - Token expiration
     - Subscription plan
-    
+
     This endpoint is useful for:
     - Frontend to check authentication status
     - Getting user's current organization context
     - Determining UI permissions
     """
     permissions = get_user_permissions(auth)
-    
+
     return {
         "user": {
             "id": str(auth.user_id),
@@ -59,14 +59,14 @@ async def get_permissions(
 ) -> Dict[str, Any]:
     """
     Get detailed permission matrix for current user.
-    
+
     Useful for:
     - Frontend feature flags
     - Conditional UI rendering
     - Permission debugging
     """
     permissions = get_user_permissions(auth)
-    
+
     return {
         "user_id": str(auth.user_id),
         "org_id": str(auth.org_id),
@@ -81,7 +81,7 @@ async def verify_token(
 ) -> Dict[str, Any]:
     """
     Verify token is valid and return basic info.
-    
+
     Lightweight endpoint for token validation without full user context.
     """
     return {
