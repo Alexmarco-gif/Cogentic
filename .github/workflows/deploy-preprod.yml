@@ -1,0 +1,182 @@
+name: Deploy to Pre-Prod
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  REGISTRY_NAME: ${{ secrets.AZURE_REGISTRY_NAME }}
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  KEYVAULT_NAME: ${{ secrets.KEYVAULT_NAME }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.REGISTRY_NAME }}
+      
+      - name: Build and push API image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          az acr build \
+            --registry ${{ env.REGISTRY_NAME }} \
+            --image api:${IMAGE_TAG} \
+            --image api:latest \
+            --file Dockerfile \
+            .
+      
+      - name: Build and push Worker image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          az acr build \
+            --registry ${{ env.REGISTRY_NAME }} \
+            --image worker:${IMAGE_TAG} \
+            --image worker:latest \
+            --file Dockerfile.worker \
+            .
+      
+      - name: Get secrets from Key Vault
+        id: secrets
+        run: |
+          DATABASE_URL=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name database-url --query value -o tsv)
+          AUTH0_SECRET=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name auth0-m2m-client-secret --query value -o tsv)
+          SECRET_KEY=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name secret-key --query value -o tsv)
+          REDIS_URL=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name redis-url --query value -o tsv)
+          
+          # Mask secrets in logs
+          echo "::add-mask::$DATABASE_URL"
+          echo "::add-mask::$AUTH0_SECRET"
+          echo "::add-mask::$SECRET_KEY"
+          echo "::add-mask::$REDIS_URL"
+          
+          # Set as outputs
+          echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
+          echo "auth0_secret=$AUTH0_SECRET" >> $GITHUB_OUTPUT
+          echo "secret_key=$SECRET_KEY" >> $GITHUB_OUTPUT
+          echo "redis_url=$REDIS_URL" >> $GITHUB_OUTPUT
+      
+      - name: Deploy API Container App
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          
+          # Check if container app exists
+          if az containerapp show --name cogent-api --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
+            # Update existing
+            az containerapp update \
+              --name cogent-api \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ env.REGISTRY_NAME }}.azurecr.io/api:${IMAGE_TAG}
+          else
+            # Create new (first deployment)
+            REGISTRY_PASSWORD=$(az acr credential show -n ${{ env.REGISTRY_NAME }} --query passwords[0].value -o tsv)
+            
+            az containerapp create \
+              --name cogent-api \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --environment cogent-preprod-env \
+              --image ${{ env.REGISTRY_NAME }}.azurecr.io/api:${IMAGE_TAG} \
+              --target-port 8000 \
+              --ingress external \
+              --min-replicas 0 \
+              --max-replicas 2 \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --secrets \
+                database-url="${{ steps.secrets.outputs.database_url }}" \
+                auth0-m2m-client-secret="${{ steps.secrets.outputs.auth0_secret }}" \
+                secret-key="${{ steps.secrets.outputs.secret_key }}" \
+                redis-url="${{ steps.secrets.outputs.redis_url }}" \
+              --env-vars \
+                ENVIRONMENT=preprod \
+                DATABASE_URL=secretref:database-url \
+                AUTH0_M2M_CLIENT_SECRET=secretref:auth0-m2m-client-secret \
+                SECRET_KEY=secretref:secret-key \
+                REDIS_URL=secretref:redis-url \
+                AUTH0_DOMAIN="${{ secrets.AUTH0_DOMAIN }}" \
+                AUTH0_AUDIENCE="${{ secrets.AUTH0_AUDIENCE }}" \
+                AUTH0_M2M_CLIENT_ID="${{ secrets.AUTH0_M2M_CLIENT_ID }}" \
+              --registry-server ${{ env.REGISTRY_NAME }}.azurecr.io \
+              --registry-username ${{ env.REGISTRY_NAME }} \
+              --registry-password "$REGISTRY_PASSWORD"
+          fi
+      
+      - name: Deploy Worker Container App
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          
+          # Check if container app exists
+          if az containerapp show --name cogent-worker --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
+            # Update existing
+            az containerapp update \
+              --name cogent-worker \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ env.REGISTRY_NAME }}.azurecr.io/worker:${IMAGE_TAG}
+          else
+            # Create new (first deployment)
+            REGISTRY_PASSWORD=$(az acr credential show -n ${{ env.REGISTRY_NAME }} --query passwords[0].value -o tsv)
+            
+            az containerapp create \
+              --name cogent-worker \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --environment cogent-preprod-env \
+              --image ${{ env.REGISTRY_NAME }}.azurecr.io/worker:${IMAGE_TAG} \
+              --min-replicas 0 \
+              --max-replicas 1 \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --secrets \
+                database-url="${{ steps.secrets.outputs.database_url }}" \
+                redis-url="${{ steps.secrets.outputs.redis_url }}" \
+              --env-vars \
+                ENVIRONMENT=preprod \
+                DATABASE_URL=secretref:database-url \
+                REDIS_URL=secretref:redis-url \
+              --registry-server ${{ env.REGISTRY_NAME }}.azurecr.io \
+              --registry-username ${{ env.REGISTRY_NAME }} \
+              --registry-password "$REGISTRY_PASSWORD"
+          fi
+      
+      - name: Get API URL
+        id: api_url
+        run: |
+          API_URL=$(az containerapp show \
+            --name cogent-api \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          
+          echo "url=https://$API_URL" >> $GITHUB_OUTPUT
+          echo "✅ Deployed to: https://$API_URL"
+      
+      - name: Health check
+        run: |
+          echo "Waiting 30s for containers to start..."
+          sleep 30
+          
+          curl -f "${{ steps.api_url.outputs.url }}/health" || echo "⚠️  Health check failed - container may still be starting"
+      
+      - name: Deployment summary
+        run: |
+          echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Pre-Prod" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** ${{ steps.api_url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Test endpoint: \`curl ${{ steps.api_url.outputs.url }}/health\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Run smoke tests: \`pytest tests/test_preprod.py\`" >> $GITHUB_STEP_SUMMARY
+          echo "- View logs: \`az containerapp logs show --name cogent-api -g ${{ env.RESOURCE_GROUP }} --follow\`" >> $GITHUB_STEP_SUMMARY

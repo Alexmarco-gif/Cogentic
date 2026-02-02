@@ -1,0 +1,97 @@
+"""
+Authentication schemas and models
+
+Defines the structure of JWT claims and auth context used throughout the application.
+"""
+
+from datetime import datetime
+from typing import Literal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class TokenPayload(BaseModel):
+    """Raw JWT token payload from Auth0"""
+    
+    model_config = ConfigDict(populate_by_name=True)
+    
+    # Standard JWT claims
+    iss: str = Field(..., description="Issuer (Auth0 domain)")
+    sub: str = Field(..., description="Subject (Auth0 user ID)")
+    aud: str | list[str] = Field(..., description="Audience")
+    exp: int = Field(..., description="Expiration timestamp")
+    iat: int = Field(..., description="Issued at timestamp")
+    azp: str | None = Field(None, description="Authorized party")
+    scope: str | None = Field(None, description="OAuth scopes")
+    
+    # Custom claims (namespaced)
+    org_id: str | None = Field(None, alias="https://cogent-ai.com/org_id")
+    roles: list[str] = Field(default_factory=list, alias="https://cogent-ai.com/roles")
+    plan: Literal["free", "pro", "enterprise"] = Field("free", alias="https://cogent-ai.com/plan")
+    is_super_admin: bool = Field(False, alias="https://cogent-ai.com/is_super_admin")
+
+
+class JWTClaims(BaseModel):
+    """Validated JWT claims after verification"""
+    
+    # Identity
+    auth0_id: str = Field(..., description="Auth0 user ID (sub claim)")
+    email: str | None = Field(None, description="User email")
+    
+    # Multi-tenant context
+    org_id: UUID | None = Field(None, description="Primary organization ID")
+    
+    # Authorization
+    roles: list[str] = Field(default_factory=list, description="User roles in org")
+    plan: Literal["free", "pro", "enterprise"] = Field("free", description="Subscription plan")
+    is_super_admin: bool = Field(False, description="Whether user is a super admin")
+    
+    # Token metadata
+    issued_at: datetime = Field(..., description="Token issued timestamp")
+    expires_at: datetime = Field(..., description="Token expiration timestamp")
+
+
+class AuthContext(BaseModel):
+    """
+    Authentication context injected into request handlers via Depends(get_current_user).
+    
+    Contains all information needed for authorization decisions.
+    """
+    
+    # Identity (from local DB after Auth0 sync)
+    user_id: UUID = Field(..., description="Local user UUID")
+    auth0_id: str = Field(..., description="Auth0 user ID")
+    email: str = Field(..., description="User email")
+    
+    # Multi-tenant context
+    org_id: UUID = Field(..., description="Current organization ID")
+    
+    # Authorization
+    role: str = Field(..., description="User role in current org (owner/admin/member/viewer)")
+    plan: Literal["free", "pro", "enterprise"] = Field("free", description="Organization plan")
+    is_super_admin: bool = Field(False, description="Whether user is a super admin with override privileges")
+    
+    # Token metadata
+    token_expires_at: datetime = Field(..., description="Token expiration time")
+    
+    # Request metadata
+    request_id: str | None = Field(None, description="X-Request-ID for tracing")
+    
+    @property
+    def is_owner(self) -> bool:
+        """Check if user is an owner"""
+        return self.role == "owner"
+    
+    @property
+    def is_admin_or_higher(self) -> bool:
+        """Check if user is admin or owner (or super admin)"""
+        return self.is_super_admin or self.role in ("owner", "admin")
+    
+    @property
+    def is_member_or_higher(self) -> bool:
+        """Check if user is member, admin, or owner"""
+        return self.role in ("owner", "admin", "member")
+    
+    def __repr__(self) -> str:
+        return f"<AuthContext user={self.user_id} org={self.org_id} role={self.role}>"

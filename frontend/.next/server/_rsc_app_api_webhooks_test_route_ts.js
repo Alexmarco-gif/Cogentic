@@ -1,0 +1,25 @@
+"use strict";
+/*
+ * ATTENTION: An "eval-source-map" devtool has been used.
+ * This devtool is neither made for production nor for readable output files.
+ * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
+ * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
+ * or disable the default devtool with "devtool: false".
+ * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
+ */
+exports.id = "_rsc_app_api_webhooks_test_route_ts";
+exports.ids = ["_rsc_app_api_webhooks_test_route_ts"];
+exports.modules = {
+
+/***/ "(rsc)/./app/api/webhooks/test/route.ts":
+/*!****************************************!*\
+  !*** ./app/api/webhooks/test/route.ts ***!
+  \****************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   DELETE: () => (/* binding */ DELETE),\n/* harmony export */   GET: () => (/* binding */ GET),\n/* harmony export */   addWebhookEvent: () => (/* binding */ addWebhookEvent)\n/* harmony export */ });\n/* harmony import */ var next_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! next/server */ \"(rsc)/./node_modules/next/dist/api/server.js\");\n\n/**\r\n * Webhook Test Endpoint\r\n * \r\n * GET /api/webhooks/test\r\n * \r\n * Returns recent webhook events for debugging\r\n * (In production, store these in a database)\r\n */ // In-memory storage for recent events (last 50)\nconst recentEvents = [];\nconst MAX_EVENTS = 50;\nfunction addWebhookEvent(event) {\n    recentEvents.unshift({\n        ...event,\n        receivedAt: new Date().toISOString()\n    });\n    // Keep only last 50 events\n    if (recentEvents.length > MAX_EVENTS) {\n        recentEvents.pop();\n    }\n}\nasync function GET() {\n    return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n        status: \"ok\",\n        totalEvents: recentEvents.length,\n        events: recentEvents\n    });\n}\nasync function DELETE() {\n    recentEvents.length = 0;\n    return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n        status: \"ok\",\n        message: \"All events cleared\"\n    });\n}\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9hcHAvYXBpL3dlYmhvb2tzL3Rlc3Qvcm91dGUudHMiLCJtYXBwaW5ncyI6Ijs7Ozs7OztBQUEyQztBQUUzQzs7Ozs7OztDQU9DLEdBRUQsZ0RBQWdEO0FBQ2hELE1BQU1DLGVBQXNCLEVBQUU7QUFDOUIsTUFBTUMsYUFBYTtBQUVaLFNBQVNDLGdCQUFnQkMsS0FBVTtJQUN4Q0gsYUFBYUksT0FBTyxDQUFDO1FBQ25CLEdBQUdELEtBQUs7UUFDUkUsWUFBWSxJQUFJQyxPQUFPQyxXQUFXO0lBQ3BDO0lBRUEsMkJBQTJCO0lBQzNCLElBQUlQLGFBQWFRLE1BQU0sR0FBR1AsWUFBWTtRQUNwQ0QsYUFBYVMsR0FBRztJQUNsQjtBQUNGO0FBRU8sZUFBZUM7SUFDcEIsT0FBT1gscURBQVlBLENBQUNZLElBQUksQ0FBQztRQUN2QkMsUUFBUTtRQUNSQyxhQUFhYixhQUFhUSxNQUFNO1FBQ2hDTSxRQUFRZDtJQUNWO0FBQ0Y7QUFFTyxlQUFlZTtJQUNwQmYsYUFBYVEsTUFBTSxHQUFHO0lBQ3RCLE9BQU9ULHFEQUFZQSxDQUFDWSxJQUFJLENBQUM7UUFDdkJDLFFBQVE7UUFDUkksU0FBUztJQUNYO0FBQ0YiLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly9jb2dlbnQtYWktZnJvbnRlbmQvLi9hcHAvYXBpL3dlYmhvb2tzL3Rlc3Qvcm91dGUudHM/YzcyMCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOZXh0UmVzcG9uc2UgfSBmcm9tICduZXh0L3NlcnZlcic7XHJcblxyXG4vKipcclxuICogV2ViaG9vayBUZXN0IEVuZHBvaW50XHJcbiAqIFxyXG4gKiBHRVQgL2FwaS93ZWJob29rcy90ZXN0XHJcbiAqIFxyXG4gKiBSZXR1cm5zIHJlY2VudCB3ZWJob29rIGV2ZW50cyBmb3IgZGVidWdnaW5nXHJcbiAqIChJbiBwcm9kdWN0aW9uLCBzdG9yZSB0aGVzZSBpbiBhIGRhdGFiYXNlKVxyXG4gKi9cclxuXHJcbi8vIEluLW1lbW9yeSBzdG9yYWdlIGZvciByZWNlbnQgZXZlbnRzIChsYXN0IDUwKVxyXG5jb25zdCByZWNlbnRFdmVudHM6IGFueVtdID0gW107XHJcbmNvbnN0IE1BWF9FVkVOVFMgPSA1MDtcclxuXHJcbmV4cG9ydCBmdW5jdGlvbiBhZGRXZWJob29rRXZlbnQoZXZlbnQ6IGFueSkge1xyXG4gIHJlY2VudEV2ZW50cy51bnNoaWZ0KHtcclxuICAgIC4uLmV2ZW50LFxyXG4gICAgcmVjZWl2ZWRBdDogbmV3IERhdGUoKS50b0lTT1N0cmluZygpLFxyXG4gIH0pO1xyXG4gIFxyXG4gIC8vIEtlZXAgb25seSBsYXN0IDUwIGV2ZW50c1xyXG4gIGlmIChyZWNlbnRFdmVudHMubGVuZ3RoID4gTUFYX0VWRU5UUykge1xyXG4gICAgcmVjZW50RXZlbnRzLnBvcCgpO1xyXG4gIH1cclxufVxyXG5cclxuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIEdFVCgpIHtcclxuICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oe1xyXG4gICAgc3RhdHVzOiAnb2snLFxyXG4gICAgdG90YWxFdmVudHM6IHJlY2VudEV2ZW50cy5sZW5ndGgsXHJcbiAgICBldmVudHM6IHJlY2VudEV2ZW50cyxcclxuICB9KTtcclxufVxyXG5cclxuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIERFTEVURSgpIHtcclxuICByZWNlbnRFdmVudHMubGVuZ3RoID0gMDtcclxuICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oe1xyXG4gICAgc3RhdHVzOiAnb2snLFxyXG4gICAgbWVzc2FnZTogJ0FsbCBldmVudHMgY2xlYXJlZCcsXHJcbiAgfSk7XHJcbn1cclxuIl0sIm5hbWVzIjpbIk5leHRSZXNwb25zZSIsInJlY2VudEV2ZW50cyIsIk1BWF9FVkVOVFMiLCJhZGRXZWJob29rRXZlbnQiLCJldmVudCIsInVuc2hpZnQiLCJyZWNlaXZlZEF0IiwiRGF0ZSIsInRvSVNPU3RyaW5nIiwibGVuZ3RoIiwicG9wIiwiR0VUIiwianNvbiIsInN0YXR1cyIsInRvdGFsRXZlbnRzIiwiZXZlbnRzIiwiREVMRVRFIiwibWVzc2FnZSJdLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///(rsc)/./app/api/webhooks/test/route.ts\n");
+
+/***/ })
+
+};
+;

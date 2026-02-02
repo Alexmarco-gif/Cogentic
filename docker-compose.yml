@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Redis for job queue and caching
+  redis:
+    image: redis:7-alpine
+    container_name: cogent-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # PostgreSQL (local development only - use Neon for prod)
+  postgres:
+    image: postgres:15-alpine
+    container_name: cogent-postgres
+    environment:
+      POSTGRES_DB: cogent
+      POSTGRES_USER: cogent
+      POSTGRES_PASSWORD: cogent_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cogent"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    command: >
+      postgres
+      -c shared_preload_libraries=vector
+      -c log_statement=all
+
+volumes:
+  redis_data:
+  postgres_data:

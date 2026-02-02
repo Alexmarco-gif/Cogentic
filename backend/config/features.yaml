@@ -1,0 +1,116 @@
+# Feature Flags Configuration
+#
+# Stage 1 (MVP): Boolean flags for feature gating
+# - enabled: true/false to control feature access
+# - description: Human-readable description of the feature
+#
+# Future stages will enforce:
+# - required_plan: Minimum plan required (free/pro/enterprise)
+# - enabled_for_users: User IDs with beta access
+# - enabled_for_orgs: Org IDs with custom access (enterprise contracts)
+#
+# HOW TO USE:
+# 1. Add new feature here when building it
+# 2. Start with enabled: false for new features
+# 3. Enable when ready for production
+# 4. Toggle without code changes (requires app restart in Stage 1)
+#
+# IMPORTANT: Any feature that may become paid, experimental, or restricted
+# MUST be implemented behind a feature flag from day one.
+
+features:
+  # Document Management Features
+  advanced_document_search:
+    enabled: true
+    description: "Advanced document search with filters and facets"
+    required_plan: null  # Available to all plans
+  
+  bulk_document_operations:
+    enabled: true
+    description: "Bulk upload, delete, and update operations for documents"
+    required_plan: null
+  
+  document_versioning:
+    enabled: false
+    description: "Track document version history and allow rollbacks"
+    required_plan: pro  # Will be enforced in Stage 2
+  
+  # AI & Processing Features
+  ai_document_summarization:
+    enabled: false
+    description: "AI-powered document summarization using LLMs"
+    required_plan: pro
+  
+  ai_semantic_search:
+    enabled: false
+    description: "Semantic search using embeddings and vector similarity"
+    required_plan: pro
+  
+  custom_ai_models:
+    enabled: false
+    description: "Use custom AI models for document processing"
+    required_plan: enterprise
+  
+  # Collaboration Features
+  document_sharing:
+    enabled: true
+    description: "Share documents with team members"
+    required_plan: null
+  
+  external_sharing:
+    enabled: false
+    description: "Share documents with external users via links"
+    required_plan: pro
+  
+  real_time_collaboration:
+    enabled: false
+    description: "Real-time collaborative document editing"
+    required_plan: enterprise
+  
+  # Analytics & Insights
+  basic_analytics:
+    enabled: true
+    description: "Basic usage analytics and document statistics"
+    required_plan: null
+  
+  advanced_analytics:
+    enabled: false
+    description: "Advanced analytics dashboard with custom reports"
+    required_plan: pro
+  
+  audit_logs:
+    enabled: true
+    description: "Comprehensive audit logging for compliance"
+    required_plan: null  # Required for security, available to all
+  
+  # Integration Features
+  api_access:
+    enabled: true
+    description: "REST API access for integrations"
+    required_plan: null
+  
+  webhooks:
+    enabled: false
+    description: "Outbound webhooks for event notifications"
+    required_plan: pro
+  
+  sso_saml:
+    enabled: false
+    description: "SAML-based Single Sign-On (SSO)"
+    required_plan: enterprise
+  
+  scim_provisioning:
+    enabled: false
+    description: "SCIM user provisioning for enterprise directory sync"
+    required_plan: enterprise
+  
+  # Beta/Experimental Features
+  experimental_ui:
+    enabled: false
+    description: "New experimental UI design (beta testers only)"
+    enabled_for_users: []  # Add user IDs here for beta access
+  
+  ai_chat_assistant:
+    enabled: false
+    description: "AI chat assistant for document queries (experimental)"
+    enabled_for_users: []
