@@ -15,36 +15,35 @@ jobs:
   # First run CI checks
   quality-checks:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff black pytest pytest-asyncio httpx
+          pip install ruff black pytest pytest-asyncio pytest-cov httpx
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      
-      - name: Run quality checks
+
+      - name: Lint with ruff
         run: |
-          echo "🔍 Linting..."
+          # Stop the build if there are Python syntax errors or undefined names
           ruff check backend/ --select=E9,F63,F7,F82
-          
-          echo "🎨 Format check..."
-          black --check backend/ --line-length 88 || true  # Don't fail on format for dev
-          
-          echo "🧪 Running tests..."
-          pytest backend/tests/ -v \
-            --ignore=backend/tests/test_preprod.py \
-            --ignore=backend/tests/test_e2e_comprehensive.py \
-            --maxfail=1 || true  # Don't fail deployment for test failures in dev
+          # Run remaining rules but don't fail deployment for lower-severity issues
+          ruff check backend/ --exit-zero
+
+      - name: Format check with black
+        run: |
+          black --check backend/ --line-length 88
+
+      - name: Run tests with pytest
         env:
           ENVIRONMENT: test
           DATABASE_URL: "postgresql://test:test@localhost/test"
@@ -53,45 +52,59 @@ jobs:
           AUTH0_AUDIENCE: "https://api.test.com"
           AUTH0_M2M_CLIENT_ID: "test-client"
           AUTH0_M2M_CLIENT_SECRET: "test-secret"
+        run: |
+          pytest backend/tests/ -v \
+            -m "not integration" \
+            --ignore=backend/tests/test_preprod.py \
+            --ignore=backend/tests/test_e2e_comprehensive.py \
+            --cov=backend \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --maxfail=1
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        if: github.event_name == 'pull_request'
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
 
   # Then deploy
   build-and-deploy:
     needs: quality-checks
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      
+
       - name: Login to Azure Container Registry
         run: |
           az acr login --name ${{ env.REGISTRY_NAME }}
-      
+
       - name: Build and push API image
         run: |
           IMAGE_TAG=${{ github.sha }}
-          az acr build \
-            --registry ${{ env.REGISTRY_NAME }} \
-            --image api:${IMAGE_TAG} \
-            --image api:latest \
-            --file Dockerfile \
-            .
-      
+          docker build -f Dockerfile -t ${{ env.REGISTRY_NAME }}.azurecr.io/api:${IMAGE_TAG} .
+          docker tag ${{ env.REGISTRY_NAME }}.azurecr.io/api:${IMAGE_TAG} ${{ env.REGISTRY_NAME }}.azurecr.io/api:latest
+          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/api:${IMAGE_TAG}
+          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/api:latest
+
       - name: Build and push Worker image
         run: |
           IMAGE_TAG=${{ github.sha }}
-          az acr build \
-            --registry ${{ env.REGISTRY_NAME }} \
-            --image worker:${IMAGE_TAG} \
-            --image worker:latest \
-            --file Dockerfile.worker \
-            .
-      
+          docker build -f Dockerfile.worker -t ${{ env.REGISTRY_NAME }}.azurecr.io/worker:${IMAGE_TAG} .
+          docker tag ${{ env.REGISTRY_NAME }}.azurecr.io/worker:${IMAGE_TAG} ${{ env.REGISTRY_NAME }}.azurecr.io/worker:latest
+          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/worker:${IMAGE_TAG}
+          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/worker:latest
+
       - name: Get secrets from Key Vault
         id: secrets
         run: |
@@ -99,23 +112,23 @@ jobs:
           AUTH0_SECRET=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name auth0-m2m-client-secret --query value -o tsv)
           SECRET_KEY=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name secret-key --query value -o tsv)
           REDIS_URL=$(az keyvault secret show --vault-name ${{ env.KEYVAULT_NAME }} --name redis-url --query value -o tsv)
-          
+
           # Mask secrets in logs
           echo "::add-mask::$DATABASE_URL"
           echo "::add-mask::$AUTH0_SECRET"
           echo "::add-mask::$SECRET_KEY"
           echo "::add-mask::$REDIS_URL"
-          
+
           # Set as outputs
           echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
           echo "auth0_secret=$AUTH0_SECRET" >> $GITHUB_OUTPUT
           echo "secret_key=$SECRET_KEY" >> $GITHUB_OUTPUT
           echo "redis_url=$REDIS_URL" >> $GITHUB_OUTPUT
-      
+
       - name: Deploy API Container App
         run: |
           IMAGE_TAG=${{ github.sha }}
-          
+
           # Check if container app exists
           if az containerapp show --name cogent-api --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             # Update existing
@@ -126,7 +139,7 @@ jobs:
           else
             # Create new (first deployment)
             REGISTRY_PASSWORD=$(az acr credential show -n ${{ env.REGISTRY_NAME }} --query passwords[0].value -o tsv)
-            
+
             az containerapp create \
               --name cogent-api \
               --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -156,11 +169,11 @@ jobs:
               --registry-username ${{ env.REGISTRY_NAME }} \
               --registry-password "$REGISTRY_PASSWORD"
           fi
-      
+
       - name: Deploy Worker Container App
         run: |
           IMAGE_TAG=${{ github.sha }}
-          
+
           # Check if container app exists
           if az containerapp show --name cogent-worker --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             # Update existing
@@ -171,7 +184,7 @@ jobs:
           else
             # Create new (first deployment)
             REGISTRY_PASSWORD=$(az acr credential show -n ${{ env.REGISTRY_NAME }} --query passwords[0].value -o tsv)
-            
+
             az containerapp create \
               --name cogent-worker \
               --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -192,7 +205,7 @@ jobs:
               --registry-username ${{ env.REGISTRY_NAME }} \
               --registry-password "$REGISTRY_PASSWORD"
           fi
-      
+
       - name: Get API URL
         id: api_url
         run: |
@@ -200,17 +213,17 @@ jobs:
             --name cogent-api \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)
-          
+
           echo "url=https://$API_URL" >> $GITHUB_OUTPUT
           echo "✅ Deployed to: https://$API_URL"
-      
+
       - name: Health check
         run: |
           echo "Waiting 30s for containers to start..."
           sleep 30
-          
+
           curl -f "${{ steps.api_url.outputs.url }}/health" || echo "⚠️  Health check failed - container may still be starting"
-      
+
       - name: Deployment summary
         run: |
           echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY

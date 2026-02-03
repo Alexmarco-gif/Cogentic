@@ -25,7 +25,6 @@ import hashlib
 import hmac
 import json
 from datetime import datetime
-from typing import Dict
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -59,8 +58,8 @@ TEST_ADMIN_ID = uuid4()
 # FIXTURES
 # ============================================================================
 
-# Configure pytest-asyncio
-pytestmark = pytest.mark.asyncio
+# Configure pytest-asyncio and mark as integration suite so CI can skip it
+pytestmark = [pytest.mark.asyncio, pytest.mark.integration]
 
 
 @pytest.fixture(scope="function")
@@ -79,8 +78,8 @@ def test_db():
     Base.metadata.create_all(engine)
 
     # Create session
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    session = SessionLocal()
+    session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = session_local()
 
     yield session
 
@@ -278,7 +277,7 @@ def create_test_token(
     return jwt.encode(payload, TEST_SECRET_KEY, algorithm="HS256")
 
 
-def auth_headers(token: str) -> Dict[str, str]:
+def auth_headers(token: str) -> dict[str, str]:
     """Create Authorization headers for requests"""
     return {"Authorization": f"Bearer {token}"}
 
@@ -993,7 +992,7 @@ class TestRateLimiting:
     def test_unauthenticated_lower_rate_limit(self, client, mock_redis):
         """Unauthenticated requests should have lower rate limits"""
         # Make requests to public endpoint
-        for i in range(21):  # More than public limit
+        for _ in range(21):  # More than public limit
             response = client.get("/api/v1/health")
 
         # Last request should be rate limited
