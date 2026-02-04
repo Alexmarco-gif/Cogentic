@@ -14,13 +14,14 @@ Prerequisites:
 """
 
 import os
+
 import pytest
 import requests
-from typing import Optional
 
 # Configuration
 PREPROD_API_URL = os.getenv(
-    "PREPROD_API_URL", "https://cogent-api.azurecontainerapps.io"
+    "PREPROD_API_URL",
+    "https://cogent-api.yellowtree-0cde5f74.eastus.azurecontainerapps.io",
 )
 AUTH0_TEST_TOKEN = os.getenv("AUTH0_TEST_TOKEN")  # Optional
 
@@ -168,11 +169,9 @@ class TestEnvironmentConfig:
     def test_environment_is_preprod(self):
         """Environment is correctly set to preprod"""
         response = requests.get(f"{PREPROD_API_URL}/health", timeout=TIMEOUT)
-        data = response.json()
-
+        assert response.status_code == 200
         # Add environment to health endpoint if not present
-        # assert data.get("environment") == "preprod"
-        pass
+        # assert response.json().get("environment") == "preprod"
 
     def test_debug_mode_disabled(self):
         """Debug mode is disabled in pre-prod"""
