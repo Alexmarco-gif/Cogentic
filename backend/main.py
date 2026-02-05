@@ -218,6 +218,8 @@ async def health_check():
 
     return {
         "status": "healthy" if db_healthy and redis_healthy else "degraded",
+        "version": settings.app_version,
+        "environment": settings.environment,
         "services": {
             "database": "up" if db_healthy else "down",
             "redis": "up" if redis_healthy else "down",
