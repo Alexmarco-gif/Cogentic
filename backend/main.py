@@ -1,35 +1,35 @@
 """FastAPI main application"""
 
-import uuid
 import time
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from prometheus_client import make_asgi_app
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from prometheus_client import make_asgi_app
+from starlette.middleware.base import BaseHTTPMiddleware
 
+from backend.api.v1 import api_v1_router
 from backend.auth.exceptions import AuthError, ForbiddenError
+from backend.auth.jwks import close_jwks_client
 from backend.auth.middleware import (
     JWTMiddleware,
     auth_exception_handler,
     forbidden_exception_handler,
 )
-from backend.auth.jwks import close_jwks_client
 from backend.auth.rate_limit import limiter
 from backend.config import get_settings
 from backend.database import engine
-from backend.redis_client import close_redis, get_redis
-from backend.api.v1 import api_v1_router
-from backend.webhooks import auth0_router
 from backend.observability import (
-    init_observability,
     get_logger,
-    http_requests_total,
     http_request_duration_seconds,
+    http_requests_total,
+    init_observability,
 )
+from backend.redis_client import close_redis, get_redis
+from backend.webhooks import auth0_router
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -78,7 +78,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
         # Record metrics
         http_requests_total.labels(
-            method=method, endpoint=endpoint, status_code=status_code
+            method=method, endpoint=endpoint, status=str(status_code)
         ).inc()
 
         http_request_duration_seconds.labels(method=method, endpoint=endpoint).observe(
@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
 
     # Test database connection
     try:
-        async with engine.connect() as conn:
+        async with engine.connect():
             logger.info("database_connected")
             print("✅ Database connected")
     except Exception as e:
@@ -202,7 +202,7 @@ async def health_check():
     # Test database
     db_healthy = False
     try:
-        async with engine.connect() as conn:
+        async with engine.connect():
             db_healthy = True
     except Exception:
         pass

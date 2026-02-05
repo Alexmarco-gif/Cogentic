@@ -1,6 +1,7 @@
 """Observability configuration for logging, metrics, and tracing"""
 
 import logging
+
 import structlog
 from prometheus_client import Counter, Histogram
 
@@ -18,11 +19,13 @@ structlog.configure(
 
 # Prometheus metrics
 http_requests_total = Counter(
-    "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
+    "cogent_http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"],
 )
 
 http_request_duration_seconds = Histogram(
-    "http_request_duration_seconds",
+    "cogent_http_request_duration_seconds",
     "HTTP request duration in seconds",
     ["method", "endpoint"],
 )
