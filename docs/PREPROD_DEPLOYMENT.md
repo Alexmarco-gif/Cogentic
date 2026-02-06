@@ -1,7 +1,7 @@
 # Phase 2: Azure Pre-Prod Deployment Guide
 
-**Status:** Infrastructure Validation Phase  
-**Environment:** PRE-PROD (No real users)  
+**Status:** Infrastructure Validation Phase
+**Environment:** PRE-PROD (No real users)
 **Monthly Cost:** ~$20
 
 ---
@@ -177,8 +177,8 @@ export PREPROD_API_URL="https://cogent-api.azurecontainerapps.io"
 # Optional: Add test token for authenticated tests
 export AUTH0_TEST_TOKEN="your-test-token"
 
-# Run tests
-pytest backend/tests/test_preprod.py -v
+# Run E2E tests
+pytest backend/tests/ -v -m "e2e"
 ```
 
 ### Scale Containers
@@ -436,7 +436,7 @@ az containerapp update \
 
 **Self-service:**
 1. Check logs: `az containerapp logs`
-2. Run smoke tests: `pytest tests/test_preprod.py`
+2. Run E2E tests: `pytest backend/tests/ -v -m "e2e"`
 3. Review recent commits: `git log --oneline -10`
 
 **Need help:**
@@ -457,7 +457,7 @@ az group delete --name cogent-preprod-rg --yes --no-wait
 
 ## What's Next?
 
-**Current Phase:** PHASE 2 ✅  
+**Current Phase:** PHASE 2 ✅
 **Next Phase:** PHASE 3 (Product & Features)
 
 Before moving to Phase 3:

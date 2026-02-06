@@ -4,25 +4,24 @@ Document management endpoints.
 Handles document CRUD operations with ownership and org scoping.
 """
 
-from typing import List, Dict, Any
+from typing import Any
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth import (
-    get_current_user,
     AuthContext,
-    require_org_membership,
-    require_resource_ownership,
-    require_feature,
-    can_edit_resource,
-    can_delete_resource,
     can_create_resource,
+    can_delete_resource,
+    can_edit_resource,
+    get_current_user,
+    require_feature,
+    require_org_membership,
 )
 from backend.database import get_db
 from backend.repositories.document import DocumentRepository
-from backend.models.document import Document
 
 router = APIRouter(prefix="/orgs/{org_id}/documents")
 
@@ -71,7 +70,7 @@ async def list_documents(
     owner_id: UUID | None = None,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List documents in organization.
 
@@ -271,7 +270,7 @@ async def delete_document(
     document_id: UUID,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete a document (soft delete).
 
@@ -306,7 +305,7 @@ async def get_storage_usage(
     org_id: UUID,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get organization's storage usage.
 

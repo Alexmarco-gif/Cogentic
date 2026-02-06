@@ -3,13 +3,13 @@
 import time
 from uuid import UUID
 
-from sqlalchemy import and_, select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.organization import Organization
 from backend.models.org_user import OrgUser
-from backend.repositories.base import BaseRepository
+from backend.models.organization import Organization
 from backend.repositories.audit import audit_logger
+from backend.repositories.base import BaseRepository
 
 
 class OrganizationRepository(BaseRepository[Organization]):

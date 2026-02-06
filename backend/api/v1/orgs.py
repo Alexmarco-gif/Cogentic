@@ -4,23 +4,23 @@ Organization management endpoints.
 Handles organization CRUD operations and member management.
 """
 
-from typing import List, Dict, Any
+from typing import Any
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth import (
-    get_current_user,
     AuthContext,
+    get_current_user,
     require_admin,
-    require_owner,
     require_can_manage_member,
+    require_owner,
 )
 from backend.auth.guards import can_manage_member
 from backend.database import get_db
 from backend.repositories.organization import OrganizationRepository
-from backend.models.organization import Organization
 
 router = APIRouter(prefix="/orgs")
 
@@ -163,7 +163,7 @@ async def list_members(
     role: str | None = None,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List organization members.
 
@@ -290,7 +290,7 @@ async def remove_member(
     user_id: UUID,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Remove a member from the organization.
 
@@ -349,7 +349,7 @@ async def delete_organization(
     org_id: UUID,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete an organization (soft delete).
 

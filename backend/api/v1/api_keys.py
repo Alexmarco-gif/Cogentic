@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
-from backend.auth.guards import require_role, require_org_membership
+from backend.auth.guards import require_org_membership, require_role
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.repositories.api_key import APIKeyRepository
@@ -227,7 +227,7 @@ async def revoke_api_key(
     # Verify key belongs to org
     if api_key.org_id != org_id:
         logger.warning(
-            f"Attempted to revoke API key from different org",
+            "Attempted to revoke API key from different org",
             extra={
                 "user_id": str(auth.user_id),
                 "user_org": str(org_id),

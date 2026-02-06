@@ -73,9 +73,9 @@ Write-Host "   git add ."
 Write-Host "   git commit -m 'Phase 2: Azure pre-prod infrastructure'"
 Write-Host "   git push origin main"
 Write-Host ""
-Write-Host "6. Run Smoke Tests:" -ForegroundColor Yellow
+Write-Host "6. Run E2E Smoke Tests:" -ForegroundColor Yellow
 Write-Host "   `$env:PREPROD_API_URL='https://your-api.azurecontainerapps.io'"
-Write-Host "   pytest backend/tests/test_preprod.py -v"
+Write-Host "   pytest backend/tests/ -v -m 'e2e'"
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Documentation:" -ForegroundColor Cyan

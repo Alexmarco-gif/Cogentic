@@ -11,7 +11,6 @@ from typing import Any
 
 import httpx
 from jose import jwk
-from jose.backends import RSAKey
 
 from backend.config import get_settings
 

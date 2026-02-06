@@ -4,10 +4,11 @@ Auth introspection endpoints.
 Provides information about the authenticated user and their permissions.
 """
 
-from typing import Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, Depends
 
-from backend.auth import get_current_user, AuthContext, get_user_permissions
+from backend.auth import AuthContext, get_current_user, get_user_permissions
 
 router = APIRouter(prefix="/auth")
 
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/auth")
 @router.get("/me")
 async def get_current_user_info(
     auth: AuthContext = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get current authenticated user information.
 
@@ -56,7 +57,7 @@ async def get_current_user_info(
 @router.get("/permissions")
 async def get_permissions(
     auth: AuthContext = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get detailed permission matrix for current user.
 
@@ -78,7 +79,7 @@ async def get_permissions(
 @router.get("/token/verify")
 async def verify_token(
     auth: AuthContext = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Verify token is valid and return basic info.
 

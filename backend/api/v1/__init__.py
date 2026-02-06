@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from backend.api.v1 import auth, health, orgs, documents, users, api_keys, features
+from backend.api.v1 import api_keys, auth, documents, features, health, orgs, users
 
 api_v1_router = APIRouter(prefix="/api/v1")
 

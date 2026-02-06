@@ -11,22 +11,14 @@ from uuid import UUID
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.auth import utils as auth_utils
 from backend.auth.exceptions import (
-    InvalidClaimsError,
     InvalidTokenError,
     MissingTokenError,
     NotOrgMemberError,
 )
 from backend.auth.schemas import AuthContext, TokenPayload
-from backend.auth.utils import (
-    extract_token_from_header,
-    verify_token,
-    validate_custom_claims,
-    get_request_id,
-)
 from backend.database import get_db
-from backend.models.user import User
-from backend.models.org_user import OrgUser
 from backend.repositories.user import UserRepository
 
 logger = logging.getLogger(__name__)
@@ -53,8 +45,8 @@ async def get_token_payload(request: Request) -> TokenPayload:
         return request.state.token_payload
 
     # Fallback: verify token directly (if middleware not enabled)
-    token = extract_token_from_header(request)
-    payload = await verify_token(token)
+    token = auth_utils.extract_token_from_header(request)
+    payload = await auth_utils.verify_token(token)
     return payload
 
 
@@ -94,7 +86,7 @@ async def get_current_user(
     payload = await get_token_payload(request)
 
     # Validate custom claims
-    validate_custom_claims(payload)
+    auth_utils.validate_custom_claims(payload)
 
     # Get or create user from local DB
     user_repo = UserRepository(db)
@@ -149,7 +141,7 @@ async def get_current_user(
         plan=payload.plan,
         is_super_admin=payload.is_super_admin,
         token_expires_at=datetime.fromtimestamp(payload.exp),
-        request_id=get_request_id(request),
+        request_id=auth_utils.get_request_id(request),
     )
 
     logger.debug(
@@ -323,7 +315,7 @@ async def get_current_user_or_api_key(
         plan="free",  # API keys don't have plan context
         is_super_admin=False,  # API keys never have super admin
         token_expires_at=api_key_model.expires_at or datetime(2099, 1, 1),
-        request_id=get_request_id(request),
+        request_id=auth_utils.get_request_id(request),
     )
 
     logger.info(

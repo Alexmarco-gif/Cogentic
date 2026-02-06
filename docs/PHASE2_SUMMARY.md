@@ -16,7 +16,8 @@
 - [.github/workflows/deploy-preprod.yml](../.github/workflows/deploy-preprod.yml) - Automated deployment on push to main
 
 ### 4. **Testing**
-- [test_preprod.py](../backend/tests/test_preprod.py) - End-to-end smoke tests for pre-prod
+- E2E tests to be created in `backend/tests/` for pre-prod validation
+- Run manually with `PREPROD_API_URL` environment variable
 
 ### 5. **Documentation**
 - [PREPROD_DEPLOYMENT.md](PREPROD_DEPLOYMENT.md) - Complete operations runbook
@@ -90,8 +91,8 @@ git push origin main
 # Get API URL from deployment output
 export PREPROD_API_URL="https://cogent-api.azurecontainerapps.io"
 
-# Run smoke tests
-pytest backend/tests/test_preprod.py -v
+# Run E2E smoke tests (when created)
+pytest backend/tests/ -v -m "e2e"
 
 # Manual test
 curl $PREPROD_API_URL/health
@@ -204,8 +205,9 @@ az containerapp logs show --name cogent-api -g cogent-preprod-rg --follow
 # Check status
 az containerapp list -g cogent-preprod-rg -o table
 
-# Run tests
-pytest backend/tests/test_preprod.py -v
+# Run E2E tests
+export PREPROD_API_URL="https://cogent-api.yellowtree-0cde5f74.eastus.azurecontainerapps.io"
+pytest backend/tests/ -v -m "e2e"
 
 # Scale down (save costs)
 az containerapp update --name cogent-api -g cogent-preprod-rg --min-replicas 0
@@ -220,7 +222,7 @@ az group delete --name cogent-preprod-rg --yes
 
 ---
 
-**Status:** PHASE 2 COMPLETE ✅  
-**Next:** Product features (Phase 3) - when ready  
-**Time Investment:** 7 hours  
+**Status:** PHASE 2 COMPLETE ✅
+**Next:** Product features (Phase 3) - when ready
+**Time Investment:** 7 hours
 **Monthly Cost:** $20

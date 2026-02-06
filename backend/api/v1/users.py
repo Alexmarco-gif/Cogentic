@@ -4,13 +4,13 @@ User profile endpoints.
 Handles user profile retrieval and updates.
 """
 
-from typing import Dict, Any
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth import get_current_user, AuthContext
+from backend.auth import AuthContext, get_current_user
 from backend.database import get_db
 from backend.repositories.user import UserRepository
 

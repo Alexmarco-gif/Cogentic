@@ -3,16 +3,16 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Integer, String, JSON
+from sqlalchemy import JSON, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
+    from backend.models.api_key import APIKey
     from backend.models.org_user import OrgUser
     from backend.models.subscription import Subscription
-    from backend.models.api_key import APIKey
 
 
 class Organization(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

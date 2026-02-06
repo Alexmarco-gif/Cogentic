@@ -1,7 +1,7 @@
 """Background job queue setup using Redis Queue (RQ)"""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from rq import Queue
 from rq.job import Job
@@ -53,7 +53,7 @@ def enqueue_job(
     return job
 
 
-def get_job_status(job_id: str) -> Dict[str, Any]:
+def get_job_status(job_id: str) -> dict[str, Any]:
     """
     Get the status of a background job.
 
@@ -101,7 +101,7 @@ def cancel_job(job_id: str) -> bool:
 
 
 # Queue statistics
-def get_queue_stats() -> Dict[str, Any]:
+def get_queue_stats() -> dict[str, Any]:
     """
     Get statistics for all queues.
 

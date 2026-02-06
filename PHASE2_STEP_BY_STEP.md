@@ -1,7 +1,7 @@
 # Phase 2 Deployment - Step by Step Guide
 
-**Current Status:** Azure infrastructure created, secrets added, git initialized  
-**Goal:** Deploy to Azure Pre-Prod via GitHub Actions  
+**Current Status:** Azure infrastructure created, secrets added, git initialized
+**Goal:** Deploy to Azure Pre-Prod via GitHub Actions
 **Time:** ~30 minutes
 
 ---
@@ -32,7 +32,7 @@ git remote -v
 # Push staging branch
 git push origin staging
 
-# Push production branch  
+# Push production branch
 git push origin production
 ```
 
@@ -222,8 +222,8 @@ $env:PREPROD_API_URL = "https://<API_URL>"
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1
 
-# Run tests
-pytest backend/tests/test_preprod.py -v
+# Run E2E tests
+pytest backend/tests/ -v -m "e2e"
 ```
 
 ---
@@ -381,7 +381,7 @@ You've completed Phase 2 when:
 
 ---
 
-**Repository:** https://github.com/Alexmarco-gif/Cogentic  
-**Key Vault:** cogent-kv-20260202031440  
-**Resource Group:** cogent-preprod-rg  
+**Repository:** https://github.com/Alexmarco-gif/Cogentic
+**Key Vault:** cogent-kv-20260202031440
+**Resource Group:** cogent-preprod-rg
 **Estimated Completion Time:** 30 minutes

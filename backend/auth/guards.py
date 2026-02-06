@@ -11,11 +11,11 @@ from uuid import UUID
 
 from backend.auth.enums import Role, role_hierarchy_check
 from backend.auth.exceptions import (
+    FeatureDisabledError,
     ForbiddenError,
     InsufficientRoleError,
     NotOrgMemberError,
     NotResourceOwnerError,
-    FeatureDisabledError,
 )
 from backend.auth.schemas import AuthContext
 

@@ -2,10 +2,10 @@
 
 import time
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 from uuid import UUID
 
-from sqlalchemy import Select, and_, delete, desc, func, select
+from sqlalchemy import and_, delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.base import Base
@@ -17,7 +17,7 @@ ModelType = TypeVar("ModelType", bound=Base)
 class BaseRepository(Generic[ModelType]):
     """Generic repository with common CRUD operations"""
 
-    def __init__(self, model: Type[ModelType], db: AsyncSession):
+    def __init__(self, model: type[ModelType], db: AsyncSession):
         self.model = model
         self.db = db
 
@@ -26,7 +26,7 @@ class BaseRepository(Generic[ModelType]):
         result = await self.db.execute(select(self.model).where(self.model.id == id))
         return result.scalar_one_or_none()
 
-    async def get_by_ids(self, ids: List[UUID]) -> List[ModelType]:
+    async def get_by_ids(self, ids: list[UUID]) -> list[ModelType]:
         """Get multiple records by their IDs (bulk fetch)"""
         if not ids:
             return []
@@ -39,10 +39,10 @@ class BaseRepository(Generic[ModelType]):
         *,
         skip: int = 0,
         limit: int = 100,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[dict[str, Any]] = None,
         sort_by: str = "created_at",
         sort_desc: bool = True,
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Get multiple records with pagination, filtering, and sorting.
 
@@ -75,7 +75,7 @@ class BaseRepository(Generic[ModelType]):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: Optional[dict[str, Any]] = None) -> int:
         """
         Count records matching filters.
 
@@ -104,7 +104,7 @@ class BaseRepository(Generic[ModelType]):
         await self.db.refresh(db_obj)
         return db_obj
 
-    async def create_many(self, items: List[Dict[str, Any]]) -> List[ModelType]:
+    async def create_many(self, items: list[dict[str, Any]]) -> list[ModelType]:
         """
         Create multiple records in a single transaction (bulk insert).
 
@@ -138,7 +138,7 @@ class BaseRepository(Generic[ModelType]):
         await self.db.refresh(db_obj)
         return db_obj
 
-    async def update_many(self, updates: List[Dict[str, Any]]) -> int:
+    async def update_many(self, updates: list[dict[str, Any]]) -> int:
         """
         Update multiple records in a single transaction (bulk update).
         Each dict must include 'id' field.
@@ -178,7 +178,7 @@ class BaseRepository(Generic[ModelType]):
         await self.db.flush()
         return True
 
-    async def delete_many(self, ids: List[UUID]) -> int:
+    async def delete_many(self, ids: list[UUID]) -> int:
         """
         Delete multiple records in a single transaction (bulk delete).
 
@@ -221,7 +221,7 @@ class TenantRepository(BaseRepository[ModelType]):
 
     def __init__(
         self,
-        model: Type[ModelType],
+        model: type[ModelType],
         db: AsyncSession,
         org_id: UUID,
         user_id: UUID | None = None,
@@ -263,7 +263,7 @@ class TenantRepository(BaseRepository[ModelType]):
 
         return record
 
-    async def get_by_ids(self, ids: List[UUID]) -> List[ModelType]:
+    async def get_by_ids(self, ids: list[UUID]) -> list[ModelType]:
         """Get multiple records by IDs (tenant-scoped)"""
         if not ids:
             return []
@@ -280,10 +280,10 @@ class TenantRepository(BaseRepository[ModelType]):
         *,
         skip: int = 0,
         limit: int = 100,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[dict[str, Any]] = None,
         sort_by: str = "created_at",
         sort_desc: bool = True,
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """Get multiple records (tenant-scoped with filtering)"""
         start_time = time.time()
 
@@ -320,7 +320,7 @@ class TenantRepository(BaseRepository[ModelType]):
 
         return records
 
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: Optional[dict[str, Any]] = None) -> int:
         """Count records in tenant (with optional filters)"""
         query = select(func.count(self.model.id)).where(
             self.model.org_id == self.org_id
@@ -356,7 +356,7 @@ class TenantRepository(BaseRepository[ModelType]):
 
         return record
 
-    async def create_many(self, items: List[Dict[str, Any]]) -> List[ModelType]:
+    async def create_many(self, items: list[dict[str, Any]]) -> list[ModelType]:
         """Create multiple records with automatic org_id injection"""
         # Inject org_id into all items
         for item in items:
@@ -431,7 +431,7 @@ class TenantRepository(BaseRepository[ModelType]):
 
         return True
 
-    async def delete_many(self, ids: List[UUID]) -> int:
+    async def delete_many(self, ids: list[UUID]) -> int:
         """Delete multiple records (tenant-scoped)"""
         if not ids:
             return 0
@@ -504,7 +504,7 @@ class TenantRepository(BaseRepository[ModelType]):
 
         return True
 
-    async def list_by_owner(self, owner_id: UUID, limit: int = 100) -> List[ModelType]:
+    async def list_by_owner(self, owner_id: UUID, limit: int = 100) -> list[ModelType]:
         """
         List resources owned by a specific user (within current org).
         Useful for 'My Documents', 'My Tasks', etc.

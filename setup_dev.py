@@ -1,7 +1,6 @@
 """Development setup script"""
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -56,10 +55,10 @@ async def create_tables():
         async with engine.begin() as conn:
             # Enable pgvector extension
             await conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS vector"))
-            
+
             # Create all tables
             await conn.run_sync(Base.metadata.create_all)
-        
+
         print("✅ Database tables created")
         return True
     except Exception as e:
@@ -74,7 +73,7 @@ async def main():
     print("=" * 50)
     print("🚀 Cogent Backend Setup")
     print("=" * 50)
-    
+
     # Check .env file
     env_path = Path(".env")
     if not env_path.exists():
@@ -82,15 +81,16 @@ async def main():
         print("📝 Creating .env from .env.example...")
         try:
             import shutil
+
             shutil.copy(".env.example", ".env")
             print("✅ .env created - PLEASE EDIT WITH YOUR CREDENTIALS")
             return
         except Exception as e:
             print(f"❌ Failed to create .env: {e}")
             return
-    
+
     print("✅ .env file found")
-    
+
     # Load settings
     try:
         settings = get_settings()
@@ -99,15 +99,15 @@ async def main():
         print(f"❌ Failed to load configuration: {e}")
         print("📝 Check your .env file for errors")
         return
-    
+
     # Check connections
     db_ok = await check_database()
     redis_ok = await check_redis()
-    
+
     if not (db_ok and redis_ok):
         print("\n❌ Setup incomplete - fix issues above")
         return
-    
+
     print("\n" + "=" * 50)
     print("✅ All checks passed!")
     print("=" * 50)
@@ -119,4 +119,5 @@ async def main():
 
 if __name__ == "__main__":
     import sqlalchemy as sa
+
     asyncio.run(main())

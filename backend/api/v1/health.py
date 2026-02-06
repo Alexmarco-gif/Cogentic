@@ -4,17 +4,18 @@ Health check endpoints.
 Provides system health status with optional authentication checks.
 """
 
-from typing import Dict, Any
-from fastapi import APIRouter, Depends
 from datetime import datetime
+from typing import Any
 
-from backend.auth import get_optional_user, AuthContext
+from fastapi import APIRouter, Depends
+
+from backend.auth import AuthContext, get_optional_user
 
 router = APIRouter(prefix="/health")
 
 
 @router.get("")
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """
     Basic health check endpoint (no authentication required).
 
@@ -32,7 +33,7 @@ async def health_check() -> Dict[str, Any]:
 @router.get("/auth")
 async def health_check_with_auth(
     auth: AuthContext = Depends(get_optional_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Health check with optional authentication info.
 

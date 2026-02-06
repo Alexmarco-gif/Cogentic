@@ -18,7 +18,7 @@ Future stages will add:
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Literal
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -71,7 +71,7 @@ class FeatureFlagService:
             config_path = backend_dir / "config" / "features.yaml"
 
         self.config_path = config_path
-        self.features: Dict[str, FeatureDefinition] = {}
+        self.features: dict[str, FeatureDefinition] = {}
         self._load_config()
 
     def _load_config(self) -> None:
@@ -84,7 +84,7 @@ class FeatureFlagService:
                 self.features = {}
                 return
 
-            with open(self.config_path, "r") as f:
+            with open(self.config_path) as f:
                 data = yaml.safe_load(f)
 
             if not data or "features" not in data:
@@ -216,7 +216,7 @@ class FeatureFlagService:
         """Get feature definition by name"""
         return self.features.get(feature_name)
 
-    def list_features(self) -> Dict[str, FeatureDefinition]:
+    def list_features(self) -> dict[str, FeatureDefinition]:
         """Get all feature definitions"""
         return self.features.copy()
 
@@ -233,7 +233,7 @@ class FeatureFlagService:
         Useful for frontend feature detection.
         """
         enabled = []
-        for feature_name in self.features.keys():
+        for feature_name in self.features:
             if self.is_enabled(feature_name, user_id=user_id, org_id=org_id, plan=plan):
                 enabled.append(feature_name)
         return enabled

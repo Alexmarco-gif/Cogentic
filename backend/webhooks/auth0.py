@@ -15,19 +15,19 @@ Security:
 import hashlib
 import hmac
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Request, HTTPException, status, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings
 from backend.database import get_db
 from backend.redis_client import get_redis
-from backend.repositories.user import UserRepository
 from backend.repositories.organization import OrganizationRepository
+from backend.repositories.user import UserRepository
 
 router = APIRouter(prefix="/webhooks/auth0")
 settings = get_settings()
@@ -132,7 +132,7 @@ async def handle_user_signup(
     name: str | None,
     picture: str | None,
     db: AsyncSession,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Handle user signup event from Auth0.
 
@@ -208,7 +208,7 @@ async def handle_user_login(
     user_id: str,
     email: str,
     db: AsyncSession,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Handle user login event from Auth0.
 
@@ -256,7 +256,7 @@ async def handle_user_deletion(
     user_id: str,
     email: str,
     db: AsyncSession,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Handle user deletion event from Auth0.
 
@@ -292,10 +292,11 @@ async def handle_user_deletion(
 
 
 @router.post("")
+@router.post("/events")
 async def auth0_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Auth0 webhook endpoint.
 

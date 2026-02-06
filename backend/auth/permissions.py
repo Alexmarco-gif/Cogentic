@@ -87,10 +87,7 @@ def can_edit_resource(auth: AuthContext, resource: Any) -> bool:
         return True
 
     # Admin+ can edit any resource
-    if caps["can_edit_all"]:
-        return True
-
-    return False
+    return bool(caps["can_edit_all"])
 
 
 def can_delete_resource(auth: AuthContext, resource: Any) -> bool:
@@ -125,10 +122,7 @@ def can_delete_resource(auth: AuthContext, resource: Any) -> bool:
         return True
 
     # Admin+ can delete any resource
-    if caps["can_delete_all"]:
-        return True
-
-    return False
+    return bool(caps["can_delete_all"])
 
 
 def can_create_resource(auth: AuthContext) -> bool:

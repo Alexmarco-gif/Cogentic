@@ -5,13 +5,13 @@ Allows programmatic access to the API without user JWT tokens.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING
+from uuid import UUID
 
-from sqlalchemy import ForeignKey, String, Text, Integer
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
+from backend.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from backend.models.organization import Organization
@@ -82,10 +82,7 @@ class APIKey(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
             return False
 
         # Expired keys are inactive
-        if self.expires_at is not None and self.expires_at < now:
-            return False
-
-        return True
+        return not (self.expires_at is not None and self.expires_at < now)
 
     @property
     def scopes_list(self) -> list[str]:

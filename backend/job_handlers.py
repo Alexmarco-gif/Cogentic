@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # === TEST JOB FOR DEVELOPMENT ===
 
 
-def simple_test_job(name: str, message: str) -> Dict[str, Any]:
+def simple_test_job(name: str, message: str) -> dict[str, Any]:
     """
     A simple test job for verifying the queue works.
 
@@ -37,7 +37,7 @@ def simple_test_job(name: str, message: str) -> Dict[str, Any]:
 
 def process_document_analysis(
     org_id: str, document_id: str, job_id: str, analysis_type: str = "summary"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Process AI document analysis in background.
 
@@ -50,9 +50,10 @@ def process_document_analysis(
     Returns:
         Analysis results
     """
+    from sqlalchemy import select
+
     from backend.database import get_db_context
     from backend.models.ai_job import AIJob
-    from sqlalchemy import select
 
     logger.info(f"Starting document analysis: {document_id} (type: {analysis_type})")
 
@@ -92,7 +93,7 @@ def process_document_analysis(
 
 def batch_document_import(
     org_id: str, user_id: str, file_paths: list[str]
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Import multiple documents in bulk.
 
@@ -140,7 +141,7 @@ def batch_document_import(
     }
 
 
-def cleanup_expired_documents(days: int = 30) -> Dict[str, Any]:
+def cleanup_expired_documents(days: int = 30) -> dict[str, Any]:
     """
     Clean up soft-deleted documents older than specified days.
 
@@ -151,9 +152,11 @@ def cleanup_expired_documents(days: int = 30) -> Dict[str, Any]:
         Cleanup results
     """
     from datetime import timedelta
+
+    from sqlalchemy import select
+
     from backend.database import get_db_context
     from backend.models.document import Document
-    from sqlalchemy import select
 
     logger.info(f"Starting cleanup of documents deleted > {days} days ago")
 
@@ -186,7 +189,7 @@ def cleanup_expired_documents(days: int = 30) -> Dict[str, Any]:
 
 def generate_analytics_report(
     org_id: str, report_type: str, start_date: str, end_date: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate analytics reports in background.
 
@@ -225,7 +228,7 @@ def generate_analytics_report(
 
 def send_email_notification(
     to_email: str, subject: str, body: str, template: str | None = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Send email notification via SendGrid/SES.
 
@@ -254,8 +257,8 @@ def send_email_notification(
 
 
 def send_webhook_notification(
-    webhook_url: str, event_type: str, payload: Dict[str, Any]
-) -> Dict[str, Any]:
+    webhook_url: str, event_type: str, payload: dict[str, Any]
+) -> dict[str, Any]:
     """
     Send webhook notification to external service.
 

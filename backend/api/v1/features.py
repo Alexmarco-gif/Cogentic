@@ -5,12 +5,11 @@ Provides API endpoints for querying available features and their status.
 Useful for frontend feature detection and debugging.
 """
 
-from typing import Dict, List
 from fastapi import APIRouter, Depends
-
-from backend.auth import get_current_user, AuthContext
-from backend.services.feature_flags import FeatureFlagService, get_feature_flags_service
 from pydantic import BaseModel, Field
+
+from backend.auth import AuthContext, get_current_user
+from backend.services.feature_flags import FeatureFlagService, get_feature_flags_service
 
 router = APIRouter(prefix="/features", tags=["features"])
 
@@ -27,10 +26,10 @@ class FeatureInfo(BaseModel):
 class FeaturesResponse(BaseModel):
     """Response containing all features and their status"""
 
-    enabled_features: List[str] = Field(
+    enabled_features: list[str] = Field(
         ..., description="List of enabled feature names"
     )
-    all_features: Dict[str, FeatureInfo] = Field(
+    all_features: dict[str, FeatureInfo] = Field(
         ..., description="All features with details"
     )
 
@@ -82,7 +81,7 @@ async def check_feature(
     feature_name: str,
     auth: AuthContext = Depends(get_current_user),
     flags: FeatureFlagService = Depends(get_feature_flags_service),
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """
     Check if a specific feature is enabled for current user.
 

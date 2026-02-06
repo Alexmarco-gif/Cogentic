@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.document import Document
-from backend.repositories.base import TenantRepository
 from backend.repositories.audit import audit_logger
+from backend.repositories.base import TenantRepository
 
 
 class DocumentRepository(TenantRepository[Document]):

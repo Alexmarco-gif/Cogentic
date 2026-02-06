@@ -4,20 +4,19 @@ Utility functions for JWT token handling and validation.
 
 import logging
 from datetime import datetime
-from typing import Any
 
 from fastapi import Request
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 from backend.auth.exceptions import (
+    InvalidClaimsError,
     InvalidTokenError,
     MissingTokenError,
     TokenExpiredError,
-    InvalidClaimsError,
 )
 from backend.auth.jwks import get_jwks_client
-from backend.auth.schemas import TokenPayload, JWTClaims
+from backend.auth.schemas import JWTClaims, TokenPayload
 from backend.config import get_settings
 
 settings = get_settings()
@@ -138,12 +137,18 @@ def validate_custom_claims(payload: TokenPayload) -> None:
         InvalidClaimsError: If required claims missing
     """
     missing_claims = []
+    fields_set = getattr(payload, "model_fields_set", set())
 
     if not payload.org_id:
         missing_claims.append("org_id")
 
-    # Note: roles can be empty list (valid for viewer)
-    # Note: plan has default value "free"
+    # Note: roles can be empty list (valid for viewer), but must be present
+    if "roles" not in fields_set:
+        missing_claims.append("roles")
+
+    # Note: plan has default value "free", but must be present
+    if "plan" not in fields_set:
+        missing_claims.append("plan")
 
     if missing_claims:
         logger.error(f"Token missing required claims: {missing_claims}")

@@ -6,7 +6,7 @@ Logs all database operations with user, org, and resource context.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class QueryAuditLogger:
         org_id: UUID | None,
         table: str,
         action: str,
-        filters: Dict[str, Any] | None = None,
+        filters: dict[str, Any] | None = None,
         result_count: int | None = None,
         duration_ms: float | None = None,
         request_id: str | None = None,
