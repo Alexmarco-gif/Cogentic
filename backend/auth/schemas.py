@@ -18,20 +18,32 @@ class TokenPayload(BaseModel):
 
     # Standard JWT claims
     iss: str = Field(..., description="Issuer (Auth0 domain)")
-    sub: str = Field(..., description="Subject (Auth0 user ID)")
+    sub: str = Field(..., description="Subject (Auth0 user ID or client ID for M2M)")
     aud: str | list[str] = Field(..., description="Audience")
     exp: int = Field(..., description="Expiration timestamp")
     iat: int = Field(..., description="Issued at timestamp")
     azp: str | None = Field(None, description="Authorized party")
     scope: str | None = Field(None, description="OAuth scopes")
+    gty: str | None = Field(None, description="Grant type (client-credentials for M2M)")
 
-    # Custom claims (namespaced)
-    org_id: str | None = Field(None, alias="https://cogent-ai.com/org_id")
-    roles: list[str] = Field(default_factory=list, alias="https://cogent-ai.com/roles")
-    plan: Literal["free", "pro", "enterprise"] = Field(
-        "free", alias="https://cogent-ai.com/plan"
+    # Custom claims (namespaced) - set by Auth0 Actions
+    # Namespace: https://cogent.ai/claims/
+    org_id: str | None = Field(None, alias="https://cogent.ai/claims/org_id")
+    user_id: str | None = Field(None, alias="https://cogent.ai/claims/user_id")
+    email: str | None = Field(None, alias="https://cogent.ai/claims/email")
+    roles: list[str] = Field(
+        default_factory=list, alias="https://cogent.ai/claims/roles"
     )
-    is_super_admin: bool = Field(False, alias="https://cogent-ai.com/is_super_admin")
+    role: str | None = Field(None, alias="https://cogent.ai/claims/role")
+    plan: Literal["free", "pro", "enterprise"] = Field(
+        "free", alias="https://cogent.ai/claims/plan"
+    )
+    is_super_admin: bool = Field(False, alias="https://cogent.ai/claims/is_super_admin")
+
+    @property
+    def is_m2m_token(self) -> bool:
+        """Check if this is a machine-to-machine (client credentials) token"""
+        return self.gty == "client-credentials"
 
 
 class JWTClaims(BaseModel):

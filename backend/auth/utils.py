@@ -100,35 +100,40 @@ async def verify_token(token: str) -> TokenPayload:
         logger.debug(f"Token verified for user: {token_payload.sub}")
         return token_payload
 
-    except ExpiredSignatureError:
+    except ExpiredSignatureError as e:
         logger.warning("Token expired")
-        raise TokenExpiredError(expired_at=datetime.utcnow().isoformat())
+        raise TokenExpiredError(expired_at=datetime.utcnow().isoformat()) from e
 
     except JWTClaimsError as e:
         logger.error(f"JWT claims validation failed: {e}")
-        raise InvalidTokenError(f"Invalid JWT claims: {e}")
+        raise InvalidTokenError(f"Invalid JWT claims: {e}") from e
 
     except JWTError as e:
         logger.error(f"JWT verification failed: {e}")
-        raise InvalidTokenError(f"Token verification failed: {e}")
+        raise InvalidTokenError(f"Token verification failed: {e}") from e
 
     except ValueError as e:
         logger.error(f"JWKS error: {e}")
-        raise InvalidTokenError(f"Failed to verify token signature: {e}")
+        raise InvalidTokenError(f"Failed to verify token signature: {e}") from e
 
     except Exception as e:
         logger.error(f"Unexpected error verifying token: {e}", exc_info=True)
-        raise InvalidTokenError(f"Token verification failed: {e}")
+        raise InvalidTokenError(f"Token verification failed: {e}") from e
 
 
 def validate_custom_claims(payload: TokenPayload) -> None:
     """
     Validate that required custom claims are present.
 
-    Required claims:
+    For regular (user) tokens:
     - org_id: User's primary organization
     - roles: User's roles (can be empty for viewer)
     - plan: Organization's subscription plan
+
+    For M2M (client-credentials) tokens:
+    - org_id: Organization the service account acts on behalf of
+    - user_id: Service user ID (from Auth0 Action)
+    - role: Role for the service account
 
     Args:
         payload: Validated token payload
@@ -139,6 +144,25 @@ def validate_custom_claims(payload: TokenPayload) -> None:
     missing_claims = []
     fields_set = getattr(payload, "model_fields_set", set())
 
+    # M2M tokens have different claim requirements
+    if payload.is_m2m_token:
+        # M2M tokens need org_id, user_id, and role from Auth0 Action
+        if not payload.org_id:
+            missing_claims.append("org_id")
+        if not payload.user_id:
+            missing_claims.append("user_id")
+        if not payload.role:
+            missing_claims.append("role")
+
+        if missing_claims:
+            logger.error(
+                f"M2M token missing required claims: {missing_claims}. "
+                "Configure Auth0 Client Credentials Exchange Action to add these claims."
+            )
+            raise InvalidClaimsError(missing_claims)
+        return
+
+    # Regular user tokens
     if not payload.org_id:
         missing_claims.append("org_id")
 

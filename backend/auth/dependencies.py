@@ -60,9 +60,12 @@ async def get_current_user(
     This is the main dependency used by route handlers. It:
     1. Verifies JWT token
     2. Validates custom claims (org_id, roles, plan)
-    3. Fetches user from local DB
-    4. Verifies org membership
+    3. For M2M tokens: Uses claims directly from token
+    4. For user tokens: Fetches user from local DB and verifies org membership
     5. Returns complete auth context
+
+    Supports both regular user tokens and M2M (client-credentials) tokens.
+    M2M tokens must have custom claims set via Auth0 Client Credentials Exchange Action.
 
     Usage:
         @router.get("/protected")
@@ -88,6 +91,76 @@ async def get_current_user(
     # Validate custom claims
     auth_utils.validate_custom_claims(payload)
 
+    # Handle M2M (client-credentials) tokens differently
+    if payload.is_m2m_token:
+        return await _handle_m2m_token(payload, request)
+
+    # Regular user token flow
+    return await _handle_user_token(payload, request, db)
+
+
+async def _handle_m2m_token(payload: TokenPayload, request: Request) -> AuthContext:
+    """
+    Handle M2M (client-credentials) token authentication.
+
+    M2M tokens contain all required claims set by Auth0 Client Credentials Exchange Action:
+    - org_id: Organization the service acts on behalf of
+    - user_id: Service user ID
+    - role: Role for authorization
+    - email: Service account email (optional)
+
+    Args:
+        payload: Validated M2M token payload
+        request: FastAPI request
+
+    Returns:
+        AuthContext built from M2M token claims
+    """
+    org_id = UUID(payload.org_id)
+    user_id = UUID(payload.user_id)
+    role = payload.role or "member"
+    email = payload.email or f"m2m-{payload.sub}@service.cogent-ai.com"
+
+    auth_context = AuthContext(
+        user_id=user_id,
+        auth0_id=payload.sub,  # For M2M, this is the client ID
+        email=email,
+        org_id=org_id,
+        role=role,
+        plan=payload.plan,
+        is_super_admin=payload.is_super_admin,
+        token_expires_at=datetime.fromtimestamp(payload.exp),
+        request_id=auth_utils.get_request_id(request),
+    )
+
+    logger.info(
+        f"M2M auth context created: client={payload.sub}, org={org_id}, role={role}",
+        extra={
+            "client_id": payload.sub,
+            "org_id": str(org_id),
+            "user_id": str(user_id),
+            "role": role,
+            "grant_type": "client-credentials",
+        },
+    )
+
+    return auth_context
+
+
+async def _handle_user_token(
+    payload: TokenPayload, request: Request, db: AsyncSession
+) -> AuthContext:
+    """
+    Handle regular user token authentication.
+
+    Args:
+        payload: Validated user token payload
+        request: FastAPI request
+        db: Database session
+
+    Returns:
+        AuthContext with user identity from local DB
+    """
     # Get or create user from local DB
     user_repo = UserRepository(db)
     user = await user_repo.get_by_auth0_id(payload.sub)
