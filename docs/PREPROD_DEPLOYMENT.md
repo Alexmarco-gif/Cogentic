@@ -55,7 +55,7 @@ chmod +x setup-azure-preprod.sh
 - Resource Group: `cogent-preprod-rg`
 - Container Registry: `cogentregistry.azurecr.io`
 - Redis Cache: `cogent-redis.redis.cache.windows.net`
-- Key Vault: `cogent-kv-<timestamp>.vault.azure.net`
+- Key Vault: `cogent-kv-20260202031440.vault.azure.net`
 - Container Apps Environment: `cogent-preprod-env`
 
 **Time:** ~10 minutes (Redis takes longest)
@@ -65,7 +65,7 @@ chmod +x setup-azure-preprod.sh
 After infrastructure is created, add your secrets:
 
 ```bash
-KEYVAULT_NAME="cogent-kv-<your-timestamp>"  # From setup output
+KEYVAULT_NAME="cogent-kv-20260202031440"
 
 # Database
 az keyvault secret set \
@@ -97,7 +97,7 @@ Follow: [`scripts/setup-github-secrets.md`](../scripts/setup-github-secrets.md)
 - `AZURE_CREDENTIALS` (Service Principal JSON)
 - `AZURE_REGISTRY_NAME` = `cogentregistry`
 - `AZURE_RESOURCE_GROUP` = `cogent-preprod-rg`
-- `KEYVAULT_NAME` = `cogent-kv-<timestamp>`
+- `KEYVAULT_NAME` = `cogent-kv-20260202031440`
 - `AUTH0_DOMAIN`
 - `AUTH0_AUDIENCE`
 - `AUTH0_M2M_CLIENT_ID`

@@ -69,6 +69,7 @@ chmod +x *.sh
 ./setup-azure-preprod.sh
 
 # Follow prompts to add secrets to Key Vault
+# Key Vault: cogent-kv-20260202031440.vault.azure.net
 ```
 
 ### 3. **GitHub Configuration** (10 minutes)
@@ -125,15 +126,15 @@ curl $PREPROD_API_URL/health
 Before moving to Phase 3, verify:
 
 - [ ] Docker containers build successfully
-- [ ] Azure infrastructure provisioned
-- [ ] Secrets stored in Key Vault
-- [ ] GitHub Actions workflow runs without errors
-- [ ] API accessible via HTTPS
-- [ ] Health endpoint returns 200
-- [ ] Auth0 → API flow works
-- [ ] Database queries succeed
+- [x] Azure infrastructure provisioned
+- [x] Secrets stored in Key Vault
+- [x] GitHub Actions workflow runs without errors
+- [x] API accessible via HTTPS
+- [x] Health endpoint returns 200
+- [x] Auth0 → API flow works
+- [x] Database queries succeed
 - [ ] Worker processes jobs (if applicable)
-- [ ] Smoke tests pass
+- [x] Smoke tests pass
 - [ ] Can rollback to previous revision
 - [ ] Monthly cost < $30
 - [ ] Team understands deployment process
