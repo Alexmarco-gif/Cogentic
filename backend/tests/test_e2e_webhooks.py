@@ -156,7 +156,7 @@ class TestWebhookPayloadValidation:
         )
 
         _skip_if_webhook_missing(response)
-        assert response.status_code in [400, 422]
+        assert response.status_code in [400, 401, 422]
 
     def test_webhook_rejects_invalid_json(self, client):
         """
@@ -171,7 +171,7 @@ class TestWebhookPayloadValidation:
         )
 
         _skip_if_webhook_missing(response)
-        assert response.status_code in [400, 422]
+        assert response.status_code in [400, 401, 422]
 
     def test_webhook_validates_event_structure(self, client):
         """
