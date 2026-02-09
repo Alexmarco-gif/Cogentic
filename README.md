@@ -22,9 +22,9 @@ Multi-tenant SaaS application with Auth0 authentication, role-based access contr
    ```
 
 2. **Configure Auth0**
-   
+
    Follow the complete setup guide: [`docs/auth/auth0-setup.md`](docs/auth/auth0-setup.md)
-   
+
    Quick summary:
    - Create Auth0 tenant
    - Create Regular Web App (Next.js)
@@ -33,7 +33,7 @@ Multi-tenant SaaS application with Auth0 authentication, role-based access contr
    - Add test user metadata
 
 3. **Configure environment variables**
-   
+
    Create `frontend/.env.local`:
    ```bash
    # Auth0 Configuration
@@ -43,22 +43,22 @@ Multi-tenant SaaS application with Auth0 authentication, role-based access contr
    AUTH0_CLIENT_ID='<your-client-id>'
    AUTH0_CLIENT_SECRET='<your-client-secret>'
    AUTH0_AUDIENCE='https://api.cogent-ai.com'
-   
+
    # Optional: Webhook secret
    AUTH0_WEBHOOK_SECRET='<generate with: openssl rand -hex 32>'
-   
+
    # Environment
    NODE_ENV='development'
    ```
 
 4. **Install dependencies**
-   
+
    Frontend:
    ```bash
    cd frontend
    npm install
    ```
-   
+
    Backend (Python):
    ```bash
    cd ..
@@ -68,13 +68,13 @@ Multi-tenant SaaS application with Auth0 authentication, role-based access contr
    ```
 
 5. **Start development servers**
-   
+
    Frontend:
    ```bash
    cd frontend
    npm run dev
    ```
-   
+
    Backend (coming in Stage 1.5):
    ```bash
    # Not yet implemented
@@ -83,7 +83,7 @@ Multi-tenant SaaS application with Auth0 authentication, role-based access contr
    ```
 
 6. **Test authentication**
-   
+
    Open http://localhost:3000/auth-test and verify:
    - ✅ Login/logout works
    - ✅ JWT contains custom claims at `/jwt-test`
@@ -138,17 +138,17 @@ Cogent/
   - Google OAuth
   - GitHub OAuth
   - Email verification
-  
+
 - ✅ **Custom JWT Claims**
   - `org_id` - Organization ID
   - `roles` - User roles array
   - `plan` - Subscription tier
-  
+
 - ✅ **Protected Routes**
   - Middleware-based route protection
   - Role-based access control examples
   - Token verification on every request
-  
+
 - ✅ **Webhook Events**
   - User signup tracking
   - Login event logging
@@ -251,8 +251,8 @@ Full guide: [`docs/auth/webhooks-setup.md`](docs/auth/webhooks-setup.md)
 ### Authentication Flow
 
 ```
-User → Auth0 Universal Login → Authorization Code Flow → 
-→ Auth0 Action (Add Custom Claims) → JWT with Claims → 
+User → Auth0 Universal Login → Authorization Code Flow →
+→ Auth0 Action (Add Custom Claims) → JWT with Claims →
 → Next.js Session (httpOnly cookie) → Protected Routes
 ```
 
@@ -387,5 +387,7 @@ git push origin feature/your-feature-name
 
 ---
 
-**Last Updated**: January 30, 2026  
+**Last Updated**: January 30, 2026
 **Current Version**: Stage 1 Complete, Stage 1.5 In Progress
+
+# Deployment Test
