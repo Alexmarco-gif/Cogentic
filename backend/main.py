@@ -136,11 +136,32 @@ async def lifespan(app: FastAPI):
     logger.info("app_startup_complete", environment=settings.environment)
     print("✅ Auth system initialized")
 
+    # Start signal acquisition scheduler
+    try:
+        from backend.signals.scheduler import get_scheduler
+
+        scheduler = get_scheduler()
+        scheduler.start()
+        print("✅ Signal scheduler started")
+    except Exception as e:
+        logger.error("scheduler_start_failed", error=str(e))
+        print(f"⚠️ Signal scheduler failed to start: {e}")
+
     yield
 
     # Shutdown
     logger.info("app_shutdown_started")
     print("🛑 Shutting down Cogent API...")
+
+    # Stop scheduler
+    try:
+        from backend.signals.scheduler import get_scheduler
+
+        scheduler = get_scheduler()
+        scheduler.stop()
+    except Exception:
+        pass
+
     await close_redis()
     await close_jwks_client()
     await engine.dispose()

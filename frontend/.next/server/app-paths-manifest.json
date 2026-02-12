@@ -1,8 +1,0 @@
-{
-  "/page": "app/page.js",
-  "/webhook-test/page": "app/webhook-test/page.js",
-  "/api/auth/[auth0]/route": "app/api/auth/[auth0]/route.js",
-  "/api/webhooks/auth0/route": "app/api/webhooks/auth0/route.js",
-  "/auth-test/page": "app/auth-test/page.js",
-  "/api/webhooks/test/route": "app/api/webhooks/test/route.js"
-}

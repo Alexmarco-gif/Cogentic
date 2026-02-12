@@ -1,4 +1,13 @@
-"""Background job handlers for AI processing and other async tasks"""
+"""
+Background job handlers for AI processing and other async tasks.
+
+Phase 1 handlers — most contain placeholder logic.
+TODO: Replace with real implementations in Phase 3 sprints:
+  - process_document_analysis → Sprint 4 (AI Synthesis Engine)
+  - batch_document_import → Sprint 2 (Signal Acquisition Pipeline)
+  - generate_analytics_report → Sprint 6 (Intelligence Briefs)
+  - send_email_notification → Sprint 8 (Notifications)
+"""
 
 import logging
 from datetime import datetime
@@ -57,19 +66,22 @@ def process_document_analysis(
 
     logger.info(f"Starting document analysis: {document_id} (type: {analysis_type})")
 
-    # In a real implementation, this would:
+    # TODO [Sprint 4]: Replace with real AI analysis pipeline
     # 1. Fetch document from Azure Blob
-    # 2. Send to OpenAI/Azure OpenAI
-    # 3. Process response
+    # 2. Send to OpenAI GPT-4o via backend.ai.synthesis
+    # 3. Process response + compute confidence
     # 4. Update job status
+    logger.warning(
+        f"PLACEHOLDER: Document analysis for {document_id} returns stub result"
+    )
 
-    # For now, simulate processing
     result = {
         "analysis_type": analysis_type,
         "document_id": document_id,
         "processed_at": datetime.utcnow().isoformat(),
-        "summary": f"AI analysis completed for document {document_id}",
-        "confidence": 0.95,
+        "summary": f"[PLACEHOLDER] AI analysis not yet implemented for document {document_id}",
+        "confidence": 0.0,
+        "_placeholder": True,
     }
 
     # Update job status in database
@@ -114,16 +126,18 @@ def batch_document_import(
 
     for file_path in file_paths:
         try:
-            # In real implementation:
+            # TODO [Sprint 2]: Replace with real import pipeline
             # 1. Upload to Azure Blob
-            # 2. Create document record
+            # 2. Create document record in DB
             # 3. Trigger analysis job if needed
+            logger.warning(f"PLACEHOLDER: Skipping real import for {file_path}")
 
             imported.append(
                 {
                     "file_path": file_path,
                     "status": "success",
-                    "document_id": "simulated-uuid",
+                    "document_id": "placeholder-not-imported",
+                    "_placeholder": True,
                 }
             )
         except Exception as e:
@@ -172,9 +186,12 @@ def cleanup_expired_documents(days: int = 30) -> dict[str, Any]:
             count = len(documents)
 
             for doc in documents:
-                # In real implementation:
-                # 1. Delete from Azure Blob
+                # TODO [Sprint 8]: Add Azure Blob deletion before DB delete
+                # 1. Delete from Azure Blob (not yet implemented)
                 # 2. Delete from database
+                logger.info(
+                    f"Deleting expired document {doc.id} (blob cleanup not yet implemented)"
+                )
                 await db.delete(doc)
 
             await db.commit()
@@ -204,12 +221,13 @@ def generate_analytics_report(
     """
     logger.info(f"Generating {report_type} report for org {org_id}")
 
-    # In real implementation:
+    # TODO [Sprint 6]: Replace with real analytics pipeline
     # 1. Query database for metrics
     # 2. Generate charts/visualizations
     # 3. Export to PDF/Excel
     # 4. Store in Azure Blob
     # 5. Send notification to user
+    logger.warning(f"PLACEHOLDER: Report generation returns stub for {report_type}")
 
     return {
         "report_type": report_type,
@@ -243,10 +261,11 @@ def send_email_notification(
     """
     logger.info(f"Sending email to {to_email}: {subject}")
 
-    # In real implementation:
+    # TODO [Sprint 8]: Integrate SendGrid or AWS SES
     # 1. Use SendGrid/AWS SES API
     # 2. Apply template if specified
     # 3. Track delivery status
+    logger.warning(f"PLACEHOLDER: Email to {to_email} NOT actually sent")
 
     return {
         "to": to_email,

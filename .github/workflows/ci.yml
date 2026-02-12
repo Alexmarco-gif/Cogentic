@@ -1,92 +1,146 @@
-name: CI - Code Quality
+name: CI — Lint, Test, Type Check
 
 on:
   push:
-    branches:
-      - '**'  # Run on all branches
+    branches: [main, develop]
   pull_request:
-    branches:
-      - dev
-      - staging
-      - production
+    branches: [main, develop]
 
 jobs:
-  quality-checks:
+  # ── Backend Lint & Format ─────────────────────────────────
+  backend-lint:
+    name: Backend Lint & Format
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+          cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff black pytest pytest-asyncio pytest-cov httpx
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
-      - name: Lint with ruff
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          ruff check backend/ --select=E9,F63,F7,F82
-          # Check all other rules (but don't fail)
-          ruff check backend/ --exit-zero
+      - name: Ruff lint
+        run: ruff check backend/
 
-      - name: Format check with black
-        run: |
-          black --check backend/ --line-length 88
+      - name: Ruff format check
+        run: ruff format --check backend/
 
-      - name: Run tests with pytest
+  # ── Backend Tests ─────────────────────────────────────────
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
         env:
-          ENVIRONMENT: test
-          DATABASE_URL: "postgresql://test:test@localhost/test"
-          SECRET_KEY: "test-secret-key-for-ci"
-          AUTH0_DOMAIN: "test.auth0.com"
-          AUTH0_AUDIENCE: "https://api.test.com"
-          AUTH0_M2M_CLIENT_ID: "test-client-id"
-          AUTH0_M2M_CLIENT_SECRET: "test-client-secret"
+          POSTGRES_DB: cogent_test
+          POSTGRES_USER: cogent
+          POSTGRES_PASSWORD: cogent_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 3
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
         run: |
-          # Run tests (E2E tests require PREPROD_API_URL to be set)
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://cogent:cogent_test_password@localhost:5432/cogent_test
+          REDIS_URL: redis://localhost:6379/0
+          APP_ENV: testing
+          AUTH0_DOMAIN: test.auth0.com
+          AUTH0_AUDIENCE: https://api.cogent.ai
+          AUTH0_ISSUER: https://test.auth0.com/
+          AUTH0_CLAIMS_NAMESPACE: https://cogent.ai/claims/
+          SECRET_KEY: test-secret-key-for-ci
+        run: |
           pytest backend/tests/ -v \
             -m "not e2e" \
             --cov=backend \
             --cov-report=term-missing \
             --cov-report=xml \
-            --maxfail=1 \
+            --maxfail=3 \
             || echo "No tests found or all tests skipped"
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: actions/upload-artifact@v4
         if: github.event_name == 'pull_request'
         with:
-          files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false  # Don't fail CI if codecov upload fails
+          name: coverage-report
+          path: coverage.xml
 
-  # Optional: Security check (runs in parallel)
+  # ── Frontend Lint & Type Check ────────────────────────────
+  frontend-lint:
+    name: Frontend Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+  # ── Security Check ───────────────────────────────────────
   security-check:
+    name: Security Audit
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install safety
-        run: pip install safety
-
-      - name: Check for security vulnerabilities
+      - name: Install & audit
         run: |
           pip install -r requirements.txt
+          pip install safety
           safety check --continue-on-error

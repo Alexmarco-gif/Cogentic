@@ -4,10 +4,10 @@ import { DevGate } from '@/lib/dev-gate';
 
 /**
  * JWT Token Inspector
- * 
+ *
  * Displays raw JWT tokens and decoded claims for verification
  * Use this to verify Stage 1.3 custom claims implementation
- * 
+ *
  * ⚠️ Development Only - Not accessible in production
  */
 export default async function JWTTestPage() {
@@ -19,7 +19,7 @@ export default async function JWTTestPage() {
     try {
       const parts = token.split('.');
       if (parts.length !== 3) return null;
-      
+
       const payload = JSON.parse(
         Buffer.from(parts[1], 'base64').toString('utf-8')
       );
@@ -31,12 +31,12 @@ export default async function JWTTestPage() {
 
   const accessToken = session?.accessToken as string | undefined;
   const idToken = session?.idToken as string | undefined;
-  
+
   const decodedAccess = accessToken ? decodeJWT(accessToken) : null;
   const decodedId = idToken ? decodeJWT(idToken) : null;
 
   // Check for custom claims
-  const customClaimsNamespace = 'https://cogent-ai.com';
+  const customClaimsNamespace = 'https://cogent.ai/claims';
   const hasOrgId = decodedAccess?.[`${customClaimsNamespace}/org_id`] !== undefined;
   const hasRoles = decodedAccess?.[`${customClaimsNamespace}/roles`] !== undefined;
   const hasPlan = decodedAccess?.[`${customClaimsNamespace}/plan`] !== undefined;
@@ -47,7 +47,7 @@ export default async function JWTTestPage() {
       <div className="min-h-screen bg-gray-50 py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">🔍 JWT Token Inspector</h1>
-          
+
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-2">⚠️ Not Authenticated</h2>
             <p className="mb-4">You need to log in first to inspect JWT tokens.</p>
@@ -95,7 +95,7 @@ export default async function JWTTestPage() {
           <h2 className="text-2xl font-bold mb-4">
             {hasOrgId && hasRoles && hasPlan ? '✅ Stage 1.3 COMPLETE!' : '❌ Custom Claims Missing'}
           </h2>
-          
+
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className={hasOrgId ? 'text-green-700' : 'text-red-700'}>
@@ -108,7 +108,7 @@ export default async function JWTTestPage() {
                 {hasOrgId ? '(Present)' : '(Missing - Check Auth0 Action)'}
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className={hasRoles ? 'text-green-700' : 'text-red-700'}>
                 {hasRoles ? '✅' : '❌'}
@@ -120,7 +120,7 @@ export default async function JWTTestPage() {
                 {hasRoles ? '(Present)' : '(Missing - Check Auth0 Action)'}
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className={hasPlan ? 'text-green-700' : 'text-red-700'}>
                 {hasPlan ? '✅' : '❌'}
@@ -183,7 +183,7 @@ export default async function JWTTestPage() {
         {/* Access Token */}
         <div className="bg-white p-6 rounded-lg shadow mb-8">
           <h2 className="text-xl font-semibold mb-4">🎫 Access Token</h2>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Raw Token (truncated for display):
@@ -208,7 +208,7 @@ export default async function JWTTestPage() {
         {/* ID Token */}
         <div className="bg-white p-6 rounded-lg shadow mb-8">
           <h2 className="text-xl font-semibold mb-4">🪪 ID Token</h2>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Raw Token (truncated for display):

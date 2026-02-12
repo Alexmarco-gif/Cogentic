@@ -353,9 +353,20 @@ ESIP’s vision explicitly includes **regional intelligence realism** — signal
 - **Financial Services & Fintech**
 - **Media, Marketing, Consumer & Brand Behavior**
 - **Telecommunications, Digital Services and Infrastructure**
-- **Agriculture & Agri-Business Data Insights**
+- **Agriculture & Agritech (AgriBusiness)**
 
 **These wedges demonstrate ESIP's ability to handle volatile, under-instrumented markets and build enterprise trust.**
+
+**Agriculture & Agritech Strategic Rationale:**
+Agriculture employs 35-40% of Nigeria's workforce and represents a critical economic sector with fragmented, analog systems. The domain presents strong opportunities for data-driven intelligence across:
+- **Yield Forecasting** - Crop production predictions based on weather, soil, and historical patterns
+- **Weather Patterns** - Rainfall, drought/flood risk, seasonal shift tracking
+- **Soil Health** - Nutrient levels, degradation monitoring, fertilizer optimization
+- **Market Pricing** - Commodity price trends, arbitrage opportunities, price volatility prediction
+- **Supply Chain Efficiency** - Logistics bottlenecks, storage losses, transport delays
+- **Supply Chain Bottlenecks** - Infrastructure gaps, border delays, processing capacity constraints
+
+This domain aligns perfectly with ESIP's Nigeria-first, high-depth regional intelligence strategy and creates synergies with existing FMCG (supply chain), Fintech (agri-lending), and Infrastructure (logistics) verticals.
 
 **Regional Depth Strategy**
 

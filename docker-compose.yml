@@ -40,6 +40,26 @@ services:
       -c shared_preload_libraries=vector
       -c log_statement=all
 
+  # Neo4j for causal knowledge graph (intelligence moat)
+  neo4j:
+    image: neo4j:5-community
+    container_name: cogent-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/cogent_neo4j_dev
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt protocol
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   redis_data:
   postgres_data:
+  neo4j_data:

@@ -119,7 +119,7 @@ async def _handle_m2m_token(payload: TokenPayload, request: Request) -> AuthCont
     org_id = UUID(payload.org_id)
     user_id = UUID(payload.user_id)
     role = payload.role or "member"
-    email = payload.email or f"m2m-{payload.sub}@service.cogent-ai.com"
+    email = payload.email or f"m2m-{payload.sub}@service.cogent.ai"
 
     auth_context = AuthContext(
         user_id=user_id,

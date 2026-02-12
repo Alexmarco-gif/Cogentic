@@ -51,7 +51,7 @@ your-tenant.auth0.com
 ### 6. AUTH0_AUDIENCE
 
 ```
-https://api.cogent-ai.com
+https://api.cogent.ai
 ```
 
 ### 7. AUTH0_M2M_CLIENT_ID

@@ -1,0 +1,17 @@
+﻿.venv\Scripts\python.exe : Traceback (most recent call last):
+At line:1 char:44
++ ... ts\Cogent"; .venv\Scripts\python.exe scripts\test_regulatory_smoke.py ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last) 
+   ::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Alex 
+Marco\Documents\Cogent\scripts\test_regulatory_smoke.py", line 25, in <module>
+    from backend.services.regulatory_intelligence import 
+RegulatoryIntelligenceService
+  File "C:\Users\Alex 
+Marco\Documents\Cogent\backend\services\regulatory_intelligence.py", line 19, 
+in <module>
+    from rapidfuzz import fuzz
+ModuleNotFoundError: No module named 'rapidfuzz'

@@ -42,7 +42,7 @@ Multi-tenant SaaS application with Auth0 authentication, role-based access contr
    AUTH0_ISSUER_BASE_URL='https://<your-tenant>.auth0.com'
    AUTH0_CLIENT_ID='<your-client-id>'
    AUTH0_CLIENT_SECRET='<your-client-secret>'
-   AUTH0_AUDIENCE='https://api.cogent-ai.com'
+   AUTH0_AUDIENCE='https://api.cogent.ai'
 
    # Optional: Webhook secret
    AUTH0_WEBHOOK_SECRET='<generate with: openssl rand -hex 32>'

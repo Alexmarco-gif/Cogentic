@@ -1,0 +1,83 @@
+name: Deploy — Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: cogentacr.azurecr.io
+  API_IMAGE: cogentacr.azurecr.io/cogent-api
+  WORKER_IMAGE: cogentacr.azurecr.io/cogent-worker
+  RESOURCE_GROUP: cogent-rg
+  CONTAINER_APP_API: cogent-api-prod
+  CONTAINER_APP_WORKER: cogent-worker-prod
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production  # Requires manual approval
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name cogentacr
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push API image
+        run: |
+          docker build \
+            -t ${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+            -t ${{ env.API_IMAGE }}:production \
+            -f Dockerfile .
+          docker push ${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          docker push ${{ env.API_IMAGE }}:production
+
+      - name: Build & Push Worker image
+        run: |
+          docker build \
+            -t ${{ env.WORKER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+            -t ${{ env.WORKER_IMAGE }}:production \
+            -f Dockerfile.worker .
+          docker push ${{ env.WORKER_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          docker push ${{ env.WORKER_IMAGE }}:production
+
+      - name: Deploy API to Container Apps (Production)
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_API }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
+
+      - name: Deploy Worker to Container Apps (Production)
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_WORKER }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.WORKER_IMAGE }}:${{ steps.version.outputs.VERSION }}
+
+      - name: Health check
+        run: |
+          sleep 30
+          curl -f https://api.cogent.ai/api/v1/health || exit 1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
