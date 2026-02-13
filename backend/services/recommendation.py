@@ -60,9 +60,7 @@ class RecommendationService:
             List of recommendation dicts.
         """
         # Get source signal with embedding
-        result = await self.db.execute(
-            select(Signal).where(Signal.id == signal_id)
-        )
+        result = await self.db.execute(select(Signal).where(Signal.id == signal_id))
         source = result.scalar_one_or_none()
 
         if not source or source.embedding is None:
@@ -93,16 +91,17 @@ class RecommendationService:
             # Composite score
             sim_score = candidate["similarity"]
             entity_overlap = self._calc_entity_overlap(source_entities, cand_entities)
-            industry_match = 1.0 if (
-                source_industry_id and cand_industry_id
-                and source_industry_id == cand_industry_id
-            ) else 0.0
-
-            composite = (
-                sim_score * 0.60
-                + entity_overlap * 0.25
-                + industry_match * 0.15
+            industry_match = (
+                1.0
+                if (
+                    source_industry_id
+                    and cand_industry_id
+                    and source_industry_id == cand_industry_id
+                )
+                else 0.0
             )
+
+            composite = sim_score * 0.60 + entity_overlap * 0.25 + industry_match * 0.15
 
             if composite < min_score:
                 continue
@@ -117,15 +116,17 @@ class RecommendationService:
                 reason_parts.append("Same industry")
             reason = ". ".join(reason_parts) if reason_parts else "Related content"
 
-            recommendations.append({
-                "source_type": "signal",
-                "source_id": str(signal_id),
-                "target_type": "signal",
-                "target_id": candidate["id"],
-                "score": round(composite, 4),
-                "reason": reason,
-                "algorithm_version": ALGORITHM_VERSION,
-            })
+            recommendations.append(
+                {
+                    "source_type": "signal",
+                    "source_id": str(signal_id),
+                    "target_type": "signal",
+                    "target_id": candidate["id"],
+                    "score": round(composite, 4),
+                    "reason": reason,
+                    "algorithm_version": ALGORITHM_VERSION,
+                }
+            )
 
         # Sort by score and take top max_recs
         recommendations.sort(key=lambda r: r["score"], reverse=True)
@@ -157,7 +158,8 @@ class RecommendationService:
 
         # Find signals with embeddings that need recommendations
         result = await self.db.execute(
-            select(Signal.id).where(
+            select(Signal.id)
+            .where(
                 Signal.embedding.isnot(None),
                 Signal.confidence >= min_confidence,
             )
@@ -201,7 +203,8 @@ class RecommendationService:
     ) -> list[Recommendation]:
         """Get existing recommendations for a signal."""
         result = await self.db.execute(
-            select(Recommendation).where(
+            select(Recommendation)
+            .where(
                 Recommendation.source_type == "signal",
                 Recommendation.source_id == signal_id,
             )
@@ -219,7 +222,8 @@ class RecommendationService:
     ) -> list[Recommendation]:
         """Get active high-scoring recommendations."""
         result = await self.db.execute(
-            select(Recommendation).where(
+            select(Recommendation)
+            .where(
                 Recommendation.source_type == source_type,
                 Recommendation.score >= min_score,
             )
@@ -238,10 +242,13 @@ class RecommendationService:
         limit: int = 20,
     ) -> list[dict[str, Any]]:
         """Find similar signals via pgvector, excluding source."""
-        embedding_list = list(embedding) if not isinstance(embedding, list) else embedding
+        embedding_list = (
+            list(embedding) if not isinstance(embedding, list) else embedding
+        )
         embedding_str = "[" + ",".join(str(v) for v in embedding_list) + "]"
 
-        query = text("""
+        query = text(
+            """
             SELECT
                 s.id, s.title, s.confidence,
                 s.embedding <=> :embedding AS distance
@@ -251,7 +258,8 @@ class RecommendationService:
               AND s.confidence >= 0.50
             ORDER BY s.embedding <=> :embedding
             LIMIT :limit
-        """)
+        """
+        )
 
         result = await self.db.execute(
             query,
@@ -276,9 +284,7 @@ class RecommendationService:
     async def _get_signal_entities(self, signal_id: UUID) -> set[UUID]:
         """Get entity IDs linked to a signal."""
         result = await self.db.execute(
-            text(
-                "SELECT entity_id FROM signal_entities WHERE signal_id = :sid"
-            ),
+            text("SELECT entity_id FROM signal_entities WHERE signal_id = :sid"),
             {"sid": signal_id},
         )
         return {row[0] for row in result.all()}
@@ -286,12 +292,14 @@ class RecommendationService:
     async def _get_signal_industry(self, signal_id: UUID) -> UUID | None:
         """Get industry_id for a signal via its contract."""
         result = await self.db.execute(
-            text("""
+            text(
+                """
                 SELECT sc.industry_id
                 FROM signals s
                 JOIN signal_contracts sc ON s.contract_id = sc.id
                 WHERE s.id = :sid
-            """),
+            """
+            ),
             {"sid": signal_id},
         )
         row = result.first()
@@ -326,15 +334,17 @@ class RecommendationService:
                 old.reason = rec["reason"]
                 old.algorithm_version = rec["algorithm_version"]
             else:
-                self.db.add(Recommendation(
-                    source_type=rec["source_type"],
-                    source_id=UUID(rec["source_id"]),
-                    target_type=rec["target_type"],
-                    target_id=UUID(rec["target_id"]),
-                    score=rec["score"],
-                    reason=rec["reason"],
-                    algorithm_version=rec["algorithm_version"],
-                ))
+                self.db.add(
+                    Recommendation(
+                        source_type=rec["source_type"],
+                        source_id=UUID(rec["source_id"]),
+                        target_type=rec["target_type"],
+                        target_id=UUID(rec["target_id"]),
+                        score=rec["score"],
+                        reason=rec["reason"],
+                        algorithm_version=rec["algorithm_version"],
+                    )
+                )
         await self.db.flush()
 
 

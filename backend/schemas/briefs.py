@@ -9,7 +9,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 # ── Brief Response Schemas ───────────────────────────────────────────
 
 
@@ -117,6 +116,4 @@ class BriefRefreshBatchResponse(BaseModel):
 class BriefStatusUpdate(BaseModel):
     """Update brief status (publish, archive)."""
 
-    status: str = Field(
-        ..., pattern=r"^(draft|published|archived)$"
-    )
+    status: str = Field(..., pattern=r"^(draft|published|archived)$")

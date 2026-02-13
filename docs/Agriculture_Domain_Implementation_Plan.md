@@ -497,16 +497,16 @@ VALUES (
 ```sql
 INSERT INTO entities (id, name, entity_type, industry_id, aliases, description)
 VALUES
-  (gen_random_uuid(), 'Flour Mills of Nigeria', 'company', 
+  (gen_random_uuid(), 'Flour Mills of Nigeria', 'company',
    (SELECT id FROM industries WHERE slug = 'agriculture-agritech'),
    '["FMN", "Flour Mills", "Golden Penny"]',
    'Nigerian food and agro-allied conglomerate'),
-  
+
   (gen_random_uuid(), 'Rice (Ofada)', 'product',
    (SELECT id FROM industries WHERE slug = 'crop-farming'),
    '["Ofada rice", "Ofada", "Local rice"]',
    'Nigerian indigenous short-grain rice variety'),
-  
+
   -- ... repeat for 18 more entities
 ```
 

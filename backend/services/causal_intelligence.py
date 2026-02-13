@@ -184,14 +184,18 @@ class CausalIntelligenceService:
         cutoff = event.event_timestamp - timedelta(days=lookback_days)
 
         # Find prior events within time window
-        prior_query = select(CausalEvent).where(
-            and_(
-                CausalEvent.event_timestamp >= cutoff,
-                CausalEvent.event_timestamp < event.event_timestamp,
-                CausalEvent.id != event.id,
-                CausalEvent.confidence >= min_confidence,
+        prior_query = (
+            select(CausalEvent)
+            .where(
+                and_(
+                    CausalEvent.event_timestamp >= cutoff,
+                    CausalEvent.event_timestamp < event.event_timestamp,
+                    CausalEvent.id != event.id,
+                    CausalEvent.confidence >= min_confidence,
+                )
             )
-        ).order_by(desc(CausalEvent.event_timestamp))
+            .order_by(desc(CausalEvent.event_timestamp))
+        )
 
         result = await self.db.execute(prior_query)
         prior_events = result.scalars().all()
@@ -324,7 +328,8 @@ class CausalIntelligenceService:
             List of causal chain dicts with sequence, lags, and confidence.
         """
         # Use recursive CTE for BFS of causal graph
-        cte_query = text(f"""
+        cte_query = text(
+            """
             WITH RECURSIVE causal_chain AS (
                 -- Base case: edges starting from events of given type
                 SELECT
@@ -376,7 +381,8 @@ class CausalIntelligenceService:
             WHERE depth >= 1
             ORDER BY chain, depth DESC
             LIMIT :limit
-        """)
+        """
+        )
 
         result = await self.db.execute(
             cte_query,
@@ -395,21 +401,21 @@ class CausalIntelligenceService:
             avg_conf = sum(conf_list) / len(conf_list) if conf_list else 0
             total_lag = sum(row.lags) if row.lags else 0
 
-            chains.append({
-                "chain": row.chain,
-                "lags_days": [round(l, 1) for l in row.lags],
-                "confidences": [round(c, 4) for c in conf_list],
-                "avg_confidence": round(avg_conf, 4),
-                "total_lag_days": round(total_lag, 1),
-                "depth": row.depth,
-            })
+            chains.append(
+                {
+                    "chain": row.chain,
+                    "lags_days": [round(l, 1) for l in row.lags],
+                    "confidences": [round(c, 4) for c in conf_list],
+                    "avg_confidence": round(avg_conf, 4),
+                    "total_lag_days": round(total_lag, 1),
+                    "depth": row.depth,
+                }
+            )
 
         # Sort by average confidence descending
         chains.sort(key=lambda c: c["avg_confidence"], reverse=True)
 
-        logger.info(
-            f"Found {len(chains)} causal chains starting from '{event_type}'"
-        )
+        logger.info(f"Found {len(chains)} causal chains starting from '{event_type}'")
         return chains
 
     # ── Prediction Engine ────────────────────────────────────────────
@@ -522,16 +528,22 @@ class CausalIntelligenceService:
             formatted = []
             for key, val in impacts.items():
                 obs = val["observations"]
-                formatted.append({
-                    "event_type": val["event_type"],
-                    "probability": round(
-                        min((obs / max(len(chains), 1)) * (val["total_confidence"] / obs), 0.95),
-                        3,
-                    ),
-                    "avg_lag_days": round(val["total_lag"] / obs, 1),
-                    "historical_observations": obs,
-                    "avg_confidence": round(val["total_confidence"] / obs, 4),
-                })
+                formatted.append(
+                    {
+                        "event_type": val["event_type"],
+                        "probability": round(
+                            min(
+                                (obs / max(len(chains), 1))
+                                * (val["total_confidence"] / obs),
+                                0.95,
+                            ),
+                            3,
+                        ),
+                        "avg_lag_days": round(val["total_lag"] / obs, 1),
+                        "historical_observations": obs,
+                        "avg_confidence": round(val["total_confidence"] / obs, 4),
+                    }
+                )
             return sorted(formatted, key=lambda x: x["probability"], reverse=True)
 
         return {
@@ -588,24 +600,28 @@ class CausalIntelligenceService:
             )
             consequences = []
             for edge, effect_event in edges_result:
-                consequences.append({
-                    "effect_type": effect_event.event_type,
-                    "effect_category": effect_event.event_category,
-                    "effect_summary": effect_event.event_summary[:200],
-                    "lag_days": edge.lag_days_avg,
-                    "confidence": edge.confidence,
-                })
+                consequences.append(
+                    {
+                        "effect_type": effect_event.event_type,
+                        "effect_category": effect_event.event_category,
+                        "effect_summary": effect_event.event_summary[:200],
+                        "lag_days": edge.lag_days_avg,
+                        "confidence": edge.confidence,
+                    }
+                )
 
-            precedents.append({
-                "event_id": str(event.id),
-                "event_type": event.event_type,
-                "event_summary": event.event_summary[:200],
-                "timestamp": event.event_timestamp.isoformat(),
-                "confidence": event.confidence,
-                "entity_ids": event.entity_ids,
-                "consequences": consequences,
-                "attributes": event.attributes,
-            })
+            precedents.append(
+                {
+                    "event_id": str(event.id),
+                    "event_type": event.event_type,
+                    "event_summary": event.event_summary[:200],
+                    "timestamp": event.event_timestamp.isoformat(),
+                    "confidence": event.confidence,
+                    "entity_ids": event.entity_ids,
+                    "consequences": consequences,
+                    "attributes": event.attributes,
+                }
+            )
 
         return precedents
 
@@ -638,32 +654,34 @@ class CausalIntelligenceService:
         cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
         # Build daily time series for cause events
-        cause_query = select(
-            CausalEvent.event_timestamp,
-            func.count(CausalEvent.id).label("count"),
-        ).where(
-            and_(
-                CausalEvent.event_type == cause_event_type,
-                CausalEvent.event_timestamp >= cutoff,
+        cause_query = (
+            select(
+                CausalEvent.event_timestamp,
+                func.count(CausalEvent.id).label("count"),
             )
-        ).group_by(
-            func.date_trunc("day", CausalEvent.event_timestamp)
-        ).order_by(
-            func.date_trunc("day", CausalEvent.event_timestamp)
+            .where(
+                and_(
+                    CausalEvent.event_type == cause_event_type,
+                    CausalEvent.event_timestamp >= cutoff,
+                )
+            )
+            .group_by(func.date_trunc("day", CausalEvent.event_timestamp))
+            .order_by(func.date_trunc("day", CausalEvent.event_timestamp))
         )
 
-        effect_query = select(
-            CausalEvent.event_timestamp,
-            func.count(CausalEvent.id).label("count"),
-        ).where(
-            and_(
-                CausalEvent.event_type == effect_event_type,
-                CausalEvent.event_timestamp >= cutoff,
+        effect_query = (
+            select(
+                CausalEvent.event_timestamp,
+                func.count(CausalEvent.id).label("count"),
             )
-        ).group_by(
-            func.date_trunc("day", CausalEvent.event_timestamp)
-        ).order_by(
-            func.date_trunc("day", CausalEvent.event_timestamp)
+            .where(
+                and_(
+                    CausalEvent.event_type == effect_event_type,
+                    CausalEvent.event_timestamp >= cutoff,
+                )
+            )
+            .group_by(func.date_trunc("day", CausalEvent.event_timestamp))
+            .order_by(func.date_trunc("day", CausalEvent.event_timestamp))
         )
 
         cause_result = await self.db.execute(cause_query)
@@ -692,7 +710,9 @@ class CausalIntelligenceService:
             }
 
         cause_series = np.array([cause_daily.get(d, 0) for d in all_days], dtype=float)
-        effect_series = np.array([effect_daily.get(d, 0) for d in all_days], dtype=float)
+        effect_series = np.array(
+            [effect_daily.get(d, 0) for d in all_days], dtype=float
+        )
 
         # Add small noise to avoid singular matrices
         cause_series += np.random.normal(0, 0.01, len(cause_series))

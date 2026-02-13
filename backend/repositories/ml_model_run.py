@@ -1,6 +1,5 @@
 """ML Model Run repository"""
 
-
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

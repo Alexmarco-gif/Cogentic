@@ -147,6 +147,17 @@ async def lifespan(app: FastAPI):
         logger.error("scheduler_start_failed", error=str(e))
         print(f"⚠️ Signal scheduler failed to start: {e}")
 
+    # Start Situation Room WebSocket manager (Redis Pub/Sub listener)
+    try:
+        from backend.services.ws_manager import get_connection_manager
+
+        ws_manager = get_connection_manager()
+        await ws_manager.start_pubsub_listener()
+        print("✅ Situation Room WebSocket manager started")
+    except Exception as e:
+        logger.error("ws_manager_start_failed", error=str(e))
+        print(f"⚠️ WebSocket manager failed to start: {e}")
+
     yield
 
     # Shutdown
@@ -159,6 +170,15 @@ async def lifespan(app: FastAPI):
 
         scheduler = get_scheduler()
         scheduler.stop()
+    except Exception:
+        pass
+
+    # Stop WebSocket manager
+    try:
+        from backend.services.ws_manager import get_connection_manager
+
+        ws_manager = get_connection_manager()
+        await ws_manager.stop_pubsub_listener()
     except Exception:
         pass
 

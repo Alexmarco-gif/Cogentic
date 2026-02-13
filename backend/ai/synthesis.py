@@ -12,7 +12,6 @@ Intelligence differentiation layers (what makes output unreplicable):
   5. Regulatory intelligence — Nigerian regulatory context, rules, and precedents
 """
 
-import asyncio
 import hashlib
 import json
 import logging
@@ -149,7 +148,9 @@ class SynthesisService:
                 ),
                 "sources": [],
                 "confidence": 0.0,
-                "limitations": ["No signals matched the query with sufficient confidence"],
+                "limitations": [
+                    "No signals matched the query with sufficient confidence"
+                ],
                 "cached": False,
                 "query_hash": query_hash,
                 "response_time_ms": int((time.monotonic() - start) * 1000),
@@ -175,9 +176,7 @@ class SynthesisService:
         synthesis_result["intelligence_layers"] = intelligence_context.get(
             "layers_applied", []
         )
-        synthesis_result["response_time_ms"] = int(
-            (time.monotonic() - start) * 1000
-        )
+        synthesis_result["response_time_ms"] = int((time.monotonic() - start) * 1000)
 
         # Cache result
         await self._set_cached(query_hash, synthesis_result)
@@ -206,7 +205,7 @@ class SynthesisService:
         conditions = [
             "s.embedding IS NOT NULL",
             f"s.confidence >= {min_confidence}",
-            "s.deleted_at IS NULL" if hasattr(self, '_has_deleted_at') else "1=1",
+            "s.deleted_at IS NULL" if hasattr(self, "_has_deleted_at") else "1=1",
         ]
 
         if org_id:
@@ -219,7 +218,8 @@ class SynthesisService:
 
         where_clause = " AND ".join(conditions)
 
-        query = text(f"""
+        query = text(
+            f"""
             SELECT
                 s.id,
                 s.title,
@@ -233,7 +233,8 @@ class SynthesisService:
             WHERE {where_clause}
             ORDER BY s.embedding <=> :embedding
             LIMIT :top_k
-        """)
+        """
+        )
 
         result = await self.db.execute(
             query,
@@ -244,16 +245,20 @@ class SynthesisService:
         signals = []
         for row in rows:
             similarity = 1.0 - (row.distance or 1.0)  # cosine distance → similarity
-            signals.append({
-                "id": str(row.id),
-                "title": row.title or "Untitled Signal",
-                "summary": row.summary or "",
-                "confidence": float(row.confidence),
-                "signal_type": row.signal_type,
-                "source_url": row.source_url,
-                "published_at": row.published_at.isoformat() if row.published_at else None,
-                "similarity": round(similarity, 4),
-            })
+            signals.append(
+                {
+                    "id": str(row.id),
+                    "title": row.title or "Untitled Signal",
+                    "summary": row.summary or "",
+                    "confidence": float(row.confidence),
+                    "signal_type": row.signal_type,
+                    "source_url": row.source_url,
+                    "published_at": (
+                        row.published_at.isoformat() if row.published_at else None
+                    ),
+                    "similarity": round(similarity, 4),
+                }
+            )
 
         logger.info(
             f"Retrieved {len(signals)} signals for synthesis query "
@@ -318,9 +323,7 @@ class SynthesisService:
 
         # --- Layer 4: Regulatory Context ---
         try:
-            regulatory_context = await self._get_regulatory_context(
-                query, signal_ids
-            )
+            regulatory_context = await self._get_regulatory_context(query, signal_ids)
             if regulatory_context:
                 context["regulatory_intelligence"] = regulatory_context
                 context["layers_applied"].append("regulatory_intelligence")
@@ -335,8 +338,8 @@ class SynthesisService:
         signal_ids: list[UUID],
     ) -> dict[str, Any] | None:
         """Extract entity relationship context for enrichment."""
-        from backend.models.signal_entity import SignalEntity
         from backend.models.entity import Entity
+        from backend.models.signal_entity import SignalEntity
 
         # Get entities mentioned in retrieved signals
         if not signal_ids:
@@ -361,22 +364,22 @@ class SynthesisService:
                 network = await self.entity_service.get_entity_network(
                     entity_id, max_depth=1, min_strength=0.3
                 )
-                profile = await self.entity_service.get_entity_full_profile(
-                    entity_id
-                )
+                profile = await self.entity_service.get_entity_full_profile(entity_id)
                 if profile:
-                    entity_profiles.append({
-                        "name": name,
-                        "type": entity_type,
-                        "relationships": len(network.get("edges", [])),
-                        "connected_to": [
-                            n["name"]
-                            for n in network.get("nodes", [])
-                            if n.get("id") != str(entity_id)
-                        ][:5],
-                        "data_richness": profile.get("data_richness", 0),
-                        "source_count": len(profile.get("source_profiles", [])),
-                    })
+                    entity_profiles.append(
+                        {
+                            "name": name,
+                            "type": entity_type,
+                            "relationships": len(network.get("edges", [])),
+                            "connected_to": [
+                                n["name"]
+                                for n in network.get("nodes", [])
+                                if n.get("id") != str(entity_id)
+                            ][:5],
+                            "data_richness": profile.get("data_richness", 0),
+                            "source_count": len(profile.get("source_profiles", [])),
+                        }
+                    )
             except Exception:
                 entity_profiles.append({"name": name, "type": entity_type})
 
@@ -414,14 +417,16 @@ class SynthesisService:
                     event_type, time_horizon_days=30
                 )
                 if predictions.get("immediate_impacts"):
-                    all_predictions.append({
-                        "trigger": event_type,
-                        "immediate": predictions["immediate_impacts"][:3],
-                        "secondary": predictions.get("secondary_impacts", [])[:2],
-                        "chains_analyzed": predictions.get(
-                            "total_chains_analyzed", 0
-                        ),
-                    })
+                    all_predictions.append(
+                        {
+                            "trigger": event_type,
+                            "immediate": predictions["immediate_impacts"][:3],
+                            "secondary": predictions.get("secondary_impacts", [])[:2],
+                            "chains_analyzed": predictions.get(
+                                "total_chains_analyzed", 0
+                            ),
+                        }
+                    )
             except Exception:
                 pass
 
@@ -431,10 +436,8 @@ class SynthesisService:
         # Get historical precedents for the first event type
         precedents = []
         try:
-            precedent_data = (
-                await self.causal_service.find_historical_precedents(
-                    event_types[0], lookback_months=24, limit=3
-                )
+            precedent_data = await self.causal_service.find_historical_precedents(
+                event_types[0], lookback_months=24, limit=3
             )
             precedents = [
                 {
@@ -465,11 +468,13 @@ class SynthesisService:
             try:
                 quality = await self.feedback_service.get_signal_quality_score(sid)
                 if quality["total_votes"] > 0:
-                    quality_scores.append({
-                        "signal_id": str(sid),
-                        "quality_score": quality["quality_score"],
-                        "total_votes": quality["total_votes"],
-                    })
+                    quality_scores.append(
+                        {
+                            "signal_id": str(sid),
+                            "quality_score": quality["quality_score"],
+                            "total_votes": quality["total_votes"],
+                        }
+                    )
             except Exception:
                 pass
 
@@ -479,8 +484,7 @@ class SynthesisService:
         return {
             "signals_with_feedback": len(quality_scores),
             "avg_quality": round(
-                sum(q["quality_score"] for q in quality_scores)
-                / len(quality_scores),
+                sum(q["quality_score"] for q in quality_scores) / len(quality_scores),
                 4,
             ),
             "scores": quality_scores,
@@ -492,7 +496,7 @@ class SynthesisService:
         signal_ids: list[UUID],
     ) -> dict[str, Any] | None:
         """Get Nigerian regulatory context and precedents.
-        
+
         Provides:
         - Applicable regulatory events (CBN, SEC, FIRS, etc.)
         - Active regulatory rules that match query context
@@ -505,31 +509,39 @@ class SynthesisService:
         # Enrich query with regulatory context
         # We create a synthetic signal object for context checking
         regulatory_insights = []
-        
+
         # Check each signal for regulatory implications
         for sid in signal_ids[:5]:  # Check top 5 signals
             try:
                 signal = await self.db.get(Signal, sid)
                 if not signal:
                     continue
-                enrichment = await self.regulatory_service.enrich_signal_with_regulatory_context(
-                    signal
+                enrichment = (
+                    await self.regulatory_service.enrich_signal_with_regulatory_context(
+                        signal
+                    )
                 )
                 if enrichment.get("has_regulatory_implications"):
-                    regulatory_insights.append({
-                        "signal_id": str(sid),
-                        "regulatory_events": [
-                            {
-                                "issuing_body": re["issuing_body"],
-                                "event_type": re["event_type"],
-                                "severity": re.get("severity_score", 0),
-                                "summary": re.get("title", "")[:150],
-                            }
-                            for re in enrichment.get("regulatory_events", [])[:2]
-                        ],
-                        "applicable_rules": len(enrichment.get("applicable_rules", [])),
-                        "interpretation": enrichment.get("interpretation", "")[:200],
-                    })
+                    regulatory_insights.append(
+                        {
+                            "signal_id": str(sid),
+                            "regulatory_events": [
+                                {
+                                    "issuing_body": re["issuing_body"],
+                                    "event_type": re["event_type"],
+                                    "severity": re.get("severity_score", 0),
+                                    "summary": re.get("title", "")[:150],
+                                }
+                                for re in enrichment.get("regulatory_events", [])[:2]
+                            ],
+                            "applicable_rules": len(
+                                enrichment.get("applicable_rules", [])
+                            ),
+                            "interpretation": enrichment.get("interpretation", "")[
+                                :200
+                            ],
+                        }
+                    )
             except Exception as e:
                 logger.debug(f"Regulatory enrichment failed for signal {sid}: {e}")
 
@@ -538,7 +550,7 @@ class SynthesisService:
 
         # Get statistical overview from knowledge base
         from backend.models.regulatory_knowledge import RegulatoryEvent, RegulatoryRule
-        
+
         # Count relevant regulatory events by body
         result = await self.db.execute(
             select(RegulatoryEvent.issuing_body, text("COUNT(*)"))
@@ -649,7 +661,9 @@ class SynthesisService:
                         f"({prec['consequences']} consequences)"
                     )
 
-                intel_sections += "\n\nCAUSAL INTELLIGENCE (from ESIP's proprietary causal graph):\n"
+                intel_sections += (
+                    "\n\nCAUSAL INTELLIGENCE (from ESIP's proprietary causal graph):\n"
+                )
                 intel_sections += "\n".join(pred_lines)
                 if precedent_lines:
                     intel_sections += "\n\nHISTORICAL PRECEDENTS:\n"
@@ -710,7 +724,9 @@ actionable, forward-looking intelligence with specific timelines.
             # Extract token usage
             usage = {
                 "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+                "completion_tokens": (
+                    response.usage.completion_tokens if response.usage else 0
+                ),
                 "total_tokens": response.usage.total_tokens if response.usage else 0,
             }
 
@@ -801,7 +817,9 @@ actionable, forward-looking intelligence with specific timelines.
             key = f"synthesis:{query_hash}"
             # Don't cache error responses
             if result.get("confidence", 0) > 0:
-                await redis.setex(key, SYNTHESIS_CACHE_TTL, json.dumps(result, default=str))
+                await redis.setex(
+                    key, SYNTHESIS_CACHE_TTL, json.dumps(result, default=str)
+                )
                 logger.debug(f"Synthesis cached: {query_hash[:16]}...")
         except Exception as e:
             logger.warning(f"Synthesis cache write failed: {e}")

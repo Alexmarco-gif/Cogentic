@@ -6,7 +6,7 @@ Response models for recommendation endpoints.
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class RecommendationResponse(BaseModel):

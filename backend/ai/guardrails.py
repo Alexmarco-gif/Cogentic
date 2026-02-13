@@ -23,14 +23,21 @@ MAX_BRIEF_TOPIC_LENGTH = 500
 _INJECTION_PATTERNS: list[re.Pattern] = [
     re.compile(r"ignore\s+(previous|above|all)\s+(instructions?|prompts?)", re.I),
     re.compile(r"disregard\s+(previous|above|all)\s+(instructions?|prompts?)", re.I),
-    re.compile(r"forget\s+(previous|above|all)\s+(instructions?|prompts?|context)", re.I),
+    re.compile(
+        r"forget\s+(previous|above|all)\s+(instructions?|prompts?|context)", re.I
+    ),
     re.compile(r"you\s+are\s+now\s+(?:a|an)\s+", re.I),
     re.compile(r"pretend\s+(?:you\s+are|to\s+be)\s+", re.I),
     re.compile(r"act\s+as\s+(?:if|though)?\s*(?:a|an)?\s*", re.I),
     re.compile(r"system\s*:\s*", re.I),
     re.compile(r"\[INST\]|\[/INST\]|<<SYS>>|<\|im_start\|>|<\|im_end\|>", re.I),
-    re.compile(r"(?:reveal|show|print|output)\s+(?:your|the)\s+(?:system\s+)?(?:prompt|instructions?)", re.I),
-    re.compile(r"what\s+(?:are|is)\s+your\s+(?:system\s+)?(?:prompt|instructions?)", re.I),
+    re.compile(
+        r"(?:reveal|show|print|output)\s+(?:your|the)\s+(?:system\s+)?(?:prompt|instructions?)",
+        re.I,
+    ),
+    re.compile(
+        r"what\s+(?:are|is)\s+your\s+(?:system\s+)?(?:prompt|instructions?)", re.I
+    ),
     re.compile(r"do\s+not\s+follow\s+(?:your|the)\s+(?:rules|guidelines)", re.I),
     re.compile(r"override\s+(?:your|the)\s+(?:rules|guidelines|instructions?)", re.I),
     re.compile(r"jailbreak", re.I),
@@ -42,7 +49,9 @@ _INJECTION_PATTERNS: list[re.Pattern] = [
 _PII_PATTERNS: dict[str, re.Pattern] = {
     "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "credit_card": re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b"),
-    "email_in_output": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"),
+    "email_in_output": re.compile(
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+    ),
     "phone_us": re.compile(r"\b(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
     "passport": re.compile(r"\b[A-Z]{1,2}\d{6,9}\b"),
 }
@@ -291,7 +300,8 @@ class GuardrailsService:
     def _strip_control_chars(text: str) -> str:
         """Remove control characters and null bytes."""
         return "".join(
-            c for c in text
+            c
+            for c in text
             if c in ("\n", "\r", "\t") or (ord(c) >= 32 and ord(c) != 127)
         )
 
@@ -336,7 +346,9 @@ class GuardrailsService:
         for pii_type, pattern in _PII_PATTERNS.items():
             if pattern.search(redacted):
                 found.append(pii_type)
-                redacted = pattern.sub(replacements.get(pii_type, "[REDACTED]"), redacted)
+                redacted = pattern.sub(
+                    replacements.get(pii_type, "[REDACTED]"), redacted
+                )
         return redacted, found
 
     @staticmethod
@@ -353,8 +365,14 @@ class GuardrailsService:
     def _strip_leaked_prompts(text: str) -> str:
         """Strip any system prompt fragments that may have leaked."""
         leak_patterns = [
-            re.compile(r"(?:my|the)\s+system\s+prompt\s+(?:is|says)\s*:.*?(?:\n|$)", re.I | re.S),
-            re.compile(r"(?:here\s+(?:are|is)\s+)?my\s+(?:instructions?|rules?)\s*:.*?(?:\n\n|$)", re.I | re.S),
+            re.compile(
+                r"(?:my|the)\s+system\s+prompt\s+(?:is|says)\s*:.*?(?:\n|$)",
+                re.I | re.S,
+            ),
+            re.compile(
+                r"(?:here\s+(?:are|is)\s+)?my\s+(?:instructions?|rules?)\s*:.*?(?:\n\n|$)",
+                re.I | re.S,
+            ),
         ]
         cleaned = text
         for pattern in leak_patterns:

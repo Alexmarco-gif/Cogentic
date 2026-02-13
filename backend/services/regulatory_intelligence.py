@@ -17,15 +17,15 @@ from uuid import UUID, uuid4
 
 import numpy as np
 from rapidfuzz import fuzz
-from sqlalchemy import and_, or_, select, func, desc
+from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.ai.embeddings import EmbeddingService
 from backend.models.regulatory_knowledge import (
     RegulatoryEvent,
-    RegulatoryRule,
     RegulatoryImpact,
     RegulatoryPattern,
+    RegulatoryRule,
 )
 from backend.models.signal import Signal
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class RegulatoryIntelligenceService:
     """Dynamic regulatory knowledge base and contextual interpretation engine."""
-    
+
     # Regulatory body names and variants (for automatic detection)
     REGULATORY_BODIES = {
         "CBN": ["Central Bank of Nigeria", "CBN", "central bank"],
@@ -49,41 +49,63 @@ class RegulatoryIntelligenceService:
         "PENCOM": ["National Pension Commission", "PENCOM"],
         "BPE": ["Bureau of Public Enterprises", "BPE"],
     }
-    
+
     # Event type detection patterns
     EVENT_PATTERNS = {
         "policy_change": [
-            r"new policy", r"policy change", r"policy update", r"revised policy",
-            r"policy framework", r"regulatory framework"
+            r"new policy",
+            r"policy change",
+            r"policy update",
+            r"revised policy",
+            r"policy framework",
+            r"regulatory framework",
         ],
         "rate_adjustment": [
-            r"rate (increase|decrease|adjustment)", r"MPR", r"monetary policy rate",
-            r"interest rate", r"CRR", r"cash reserve ratio"
+            r"rate (increase|decrease|adjustment)",
+            r"MPR",
+            r"monetary policy rate",
+            r"interest rate",
+            r"CRR",
+            r"cash reserve ratio",
         ],
         "license_requirement": [
-            r"licens(e|ing) requirement", r"applies? for licens", r"obtain.*licens",
-            r"registration requirement"
+            r"licens(e|ing) requirement",
+            r"applies? for licens",
+            r"obtain.*licens",
+            r"registration requirement",
         ],
         "enforcement_action": [
-            r"penalti(es|zed)", r"sanction(ed|s)", r"violation", r"non-compliance",
-            r"enforcement", r"revok(ed|ation)", r"suspend(ed|sion)"
+            r"penalti(es|zed)",
+            r"sanction(ed|s)",
+            r"violation",
+            r"non-compliance",
+            r"enforcement",
+            r"revok(ed|ation)",
+            r"suspend(ed|sion)",
         ],
         "compliance_deadline": [
-            r"deadline", r"must comp", r"required.*by", r"within.*days",
-            r"not later than", r"expires?"
+            r"deadline",
+            r"must comp",
+            r"required.*by",
+            r"within.*days",
+            r"not later than",
+            r"expires?",
         ],
         "regulatory_consultation": [
-            r"public consultation", r"stakeholder engagement", r"request.*comment",
-            r"draft.*regulation", r"proposed.*rule"
+            r"public consultation",
+            r"stakeholder engagement",
+            r"request.*comment",
+            r"draft.*regulation",
+            r"proposed.*rule",
         ],
     }
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.embedding_service = EmbeddingService(db)
-    
+
     # ── Automatic Knowledge Extraction ──────────────────────────────
-    
+
     async def extract_regulatory_event_from_signal(
         self,
         signal: Signal,
@@ -91,14 +113,14 @@ class RegulatoryIntelligenceService:
         auto_create: bool = True,
     ) -> RegulatoryEvent | None:
         """Automatically detect and extract regulatory events from signals.
-        
+
         Uses NLP patterns + ML embeddings to identify regulatory content,
         then structures it into the knowledge base.
-        
+
         Args:
             signal: Signal to analyze
             auto_create: If True, create event if detected
-        
+
         Returns:
             RegulatoryEvent if detected, None otherwise
         """
@@ -108,28 +130,28 @@ class RegulatoryIntelligenceService:
         issuing_body = self._detect_regulatory_body(signal_text)
         if not issuing_body:
             return None  # Not a regulatory signal
-        
+
         # Detect event type
         event_type = self._detect_event_type(signal_text)
         if not event_type:
             return None
-        
+
         # Extract temporal information
         temporal_data = self._extract_temporal_data(signal_text)
-        
+
         # Extract affected sectors and entities
         affected_sectors = self._extract_affected_sectors(signal_text)
         affected_entity_types = self._extract_affected_entity_types(signal_text)
-        
+
         # Calculate severity score (ML-based would be better, but heuristic for now)
         severity_score = self._estimate_severity(signal_text, event_type)
-        
+
         # Generate content embedding for semantic search
         content_text = f"{signal.title or ''} {(signal.raw_content or '')[:500]}"
         content_embedding = await self.embedding_service.generate_query_embedding(
             content_text
         )
-        
+
         if not auto_create:
             # Just return detection result
             return {
@@ -138,7 +160,7 @@ class RegulatoryIntelligenceService:
                 "event_type": event_type,
                 "severity_score": severity_score,
             }
-        
+
         # Create regulatory event
         reg_event = RegulatoryEvent(
             id=uuid4(),
@@ -163,15 +185,15 @@ class RegulatoryIntelligenceService:
             verified_by_expert=False,
             content_embedding=content_embedding,
         )
-        
+
         self.db.add(reg_event)
         await self.db.flush()
-        
+
         logger.info(
             f"Extracted regulatory event: {event_type} from {issuing_body} "
             f"(signal {signal.id})"
         )
-        
+
         return reg_event
 
     @staticmethod
@@ -184,22 +206,22 @@ class RegulatoryIntelligenceService:
         if signal.title:
             return signal.title
         return ""
-    
+
     def _detect_regulatory_body(self, text: str) -> str | None:
         """Detect which regulatory body is mentioned."""
         text_lower = text.lower()
-        
+
         for body_code, variants in self.REGULATORY_BODIES.items():
             for variant in variants:
                 if variant.lower() in text_lower:
                     return body_code
-        
+
         return None
-    
+
     def _detect_event_type(self, text: str) -> str | None:
         """Detect event type using pattern matching."""
         text_lower = text.lower()
-        
+
         scores = {}
         for event_type, patterns in self.EVENT_PATTERNS.items():
             score = 0
@@ -207,40 +229,40 @@ class RegulatoryIntelligenceService:
                 if re.search(pattern, text_lower, re.IGNORECASE):
                     score += 1
             scores[event_type] = score
-        
+
         # Return highest scoring type (if score > 0)
         if scores:
             best_type = max(scores, key=scores.get)
             if scores[best_type] > 0:
                 return best_type
-        
+
         return None
-    
+
     def _extract_temporal_data(self, text: str) -> dict[str, Any]:
         """Extract dates and deadlines from text."""
         temporal_data = {}
-        
+
         # Look for "effective from X" patterns
         effective_match = re.search(
             r"effective\s+(?:from\s+)?(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
             text,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if effective_match:
             # TODO: Parse date properly
             temporal_data["effective_date"] = None  # Would parse date string
-        
+
         # Look for deadline patterns
         deadline_match = re.search(
             r"(?:by|before|deadline|not later than)\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
             text,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if deadline_match:
             temporal_data["deadline_date"] = None  # Would parse date string
-        
+
         return temporal_data
-    
+
     def _extract_affected_sectors(self, text: str) -> list[str]:
         """Extract affected industry sectors."""
         sectors = []
@@ -254,14 +276,14 @@ class RegulatoryIntelligenceService:
             "oil_gas": ["oil", "petroleum", "gas", "upstream", "downstream"],
             "insurance": ["insurance", "underwriting", "NAICOM"],
         }
-        
+
         text_lower = text.lower()
         for sector, keywords in sector_keywords.items():
             if any(kw in text_lower for kw in keywords):
                 sectors.append(sector)
-        
+
         return sectors or ["general"]
-    
+
     def _extract_affected_entity_types(self, text: str) -> list[str]:
         """Extract affected entity types."""
         entity_types = []
@@ -273,14 +295,14 @@ class RegulatoryIntelligenceService:
             "oil_companies": ["oil company", "petroleum", "IOC"],
             "manufacturers": ["manufacturer", "factory", "production company"],
         }
-        
+
         text_lower = text.lower()
         for entity_type, keywords in entity_keywords.items():
             if any(kw in text_lower for kw in keywords):
                 entity_types.append(entity_type)
-        
+
         return entity_types or ["all_entities"]
-    
+
     def _estimate_severity(self, text: str, event_type: str) -> float:
         """Estimate regulatory severity (0-1 scale)."""
         # Base severity by event type
@@ -292,7 +314,7 @@ class RegulatoryIntelligenceService:
             "compliance_deadline": 0.5,
             "regulatory_consultation": 0.3,
         }.get(event_type, 0.5)
-        
+
         # Adjust based on content urgency indicators
         text_lower = text.lower()
         urgency_keywords = {
@@ -303,25 +325,26 @@ class RegulatoryIntelligenceService:
             "revoke": 0.15,
             "suspend": 0.1,
         }
-        
+
         severity_boost = sum(
-            boost for keyword, boost in urgency_keywords.items()
+            boost
+            for keyword, boost in urgency_keywords.items()
             if keyword in text_lower
         )
-        
+
         return min(base_severity + severity_boost, 1.0)
-    
+
     # ── Contextual Interpretation ───────────────────────────────────
-    
+
     async def enrich_signal_with_regulatory_context(
         self,
         signal: Signal,
     ) -> dict[str, Any]:
         """Apply regulatory context to a signal for synthesis.
-        
+
         This is what makes ChatGPT-level analysis look basic — we add
         deep regulatory context that generic AI doesn't have.
-        
+
         Returns:
             Rich regulatory context dictionary
         """
@@ -333,20 +356,20 @@ class RegulatoryIntelligenceService:
             "historical_precedents": [],
             "interpretation": None,
         }
-        
+
         # Check if signal has regulatory content
         reg_event = await self.extract_regulatory_event_from_signal(
             signal, auto_create=False
         )
-        
+
         if not reg_event or not reg_event.get("detected"):
             return context
-        
+
         context["has_regulatory_implications"] = True
         context["issuing_body"] = reg_event.get("issuing_body")
         context["event_type"] = reg_event.get("event_type")
         context["severity_score"] = reg_event.get("severity_score")
-        
+
         # Find related regulatory events (semantic similarity)
         related_events = await self._find_related_regulatory_events(signal)
         context["regulatory_events"] = [
@@ -361,7 +384,7 @@ class RegulatoryIntelligenceService:
             }
             for e, similarity in related_events
         ]
-        
+
         # Find applicable rules
         applicable_rules = await self._find_applicable_rules(signal)
         context["applicable_rules"] = [
@@ -374,25 +397,20 @@ class RegulatoryIntelligenceService:
             }
             for r in applicable_rules
         ]
-        
+
         # Find historical precedents and impacts
         precedents = await self._find_historical_precedents(
-            reg_event.get("issuing_body"),
-            reg_event.get("event_type")
+            reg_event.get("issuing_body"), reg_event.get("event_type")
         )
         context["historical_precedents"] = precedents
-        
+
         # Generate contextual interpretation
         context["interpretation"] = await self._generate_interpretation(
-            signal,
-            reg_event,
-            related_events,
-            applicable_rules,
-            precedents
+            signal, reg_event, related_events, applicable_rules, precedents
         )
-        
+
         return context
-    
+
     async def _find_related_regulatory_events(
         self,
         signal: Signal,
@@ -404,7 +422,7 @@ class RegulatoryIntelligenceService:
         query_embedding = await self.embedding_service.generate_query_embedding(
             query_text
         )
-        
+
         # TODO: Implement pgvector cosine similarity search
         # For now, use simple keyword matching
         query = (
@@ -413,25 +431,24 @@ class RegulatoryIntelligenceService:
             .order_by(desc(RegulatoryEvent.announced_at))
             .limit(top_k)
         )
-        
+
         result = await self.db.execute(query)
         events = result.scalars().all()
-        
+
         # Calculate similarity scores (would use embeddings in production)
         scored_events = []
         for event in events:
             # Simple title similarity for now
-            similarity = fuzz.token_set_ratio(
-                signal.title.lower(),
-                event.title.lower()
-            ) / 100.0
+            similarity = (
+                fuzz.token_set_ratio(signal.title.lower(), event.title.lower()) / 100.0
+            )
             scored_events.append((event, similarity))
-        
+
         # Sort by similarity
         scored_events.sort(key=lambda x: x[1], reverse=True)
-        
+
         return scored_events[:top_k]
-    
+
     async def _find_applicable_rules(
         self,
         signal: Signal,
@@ -448,17 +465,17 @@ class RegulatoryIntelligenceService:
                     RegulatoryRule.effective_from <= datetime.utcnow(),
                     or_(
                         RegulatoryRule.effective_until.is_(None),
-                        RegulatoryRule.effective_until >= datetime.utcnow()
-                    )
+                        RegulatoryRule.effective_until >= datetime.utcnow(),
+                    ),
                 )
             )
             .order_by(desc(RegulatoryRule.confidence_score))
             .limit(10)
         )
-        
+
         result = await self.db.execute(query)
         return result.scalars().all()
-    
+
     async def _find_historical_precedents(
         self,
         issuing_body: str,
@@ -467,29 +484,29 @@ class RegulatoryIntelligenceService:
     ) -> list[dict[str, Any]]:
         """Find historical precedents for similar regulatory actions."""
         cutoff = datetime.utcnow() - timedelta(days=lookback_months * 30)
-        
+
         # Find past events from same regulator, same type
         query = (
             select(RegulatoryEvent, RegulatoryImpact)
             .outerjoin(
                 RegulatoryImpact,
-                RegulatoryImpact.regulatory_event_id == RegulatoryEvent.id
+                RegulatoryImpact.regulatory_event_id == RegulatoryEvent.id,
             )
             .where(
                 and_(
                     RegulatoryEvent.issuing_body == issuing_body,
                     RegulatoryEvent.event_type == event_type,
                     RegulatoryEvent.announced_at >= cutoff,
-                    RegulatoryEvent.verified_by_expert == True
+                    RegulatoryEvent.verified_by_expert == True,
                 )
             )
             .order_by(desc(RegulatoryEvent.announced_at))
             .limit(5)
         )
-        
+
         result = await self.db.execute(query)
         rows = result.all()
-        
+
         precedents = []
         for event, impact in rows:
             precedent = {
@@ -498,7 +515,7 @@ class RegulatoryIntelligenceService:
                 "announced_at": event.announced_at.isoformat(),
                 "severity_score": event.severity_score,
             }
-            
+
             if impact:
                 precedent["observed_impact"] = {
                     "impact_type": impact.impact_type,
@@ -506,11 +523,11 @@ class RegulatoryIntelligenceService:
                     "percentage_change": impact.percentage_change,
                     "lag_days": impact.lag_days,
                 }
-            
+
             precedents.append(precedent)
-        
+
         return precedents
-    
+
     async def _generate_interpretation(
         self,
         signal: Signal,
@@ -521,31 +538,33 @@ class RegulatoryIntelligenceService:
     ) -> str:
         """Generate contextual interpretation (what ChatGPT can't do)."""
         interpretation_parts = []
-        
+
         # Event classification
         interpretation_parts.append(
             f"**Regulatory Classification**: {reg_event['event_type'].replace('_', ' ').title()} "
             f"from {reg_event['issuing_body']}"
         )
-        
+
         # Severity assessment
-        severity = reg_event['severity_score']
+        severity = reg_event["severity_score"]
         if severity >= 0.8:
             severity_label = "HIGH IMPACT"
         elif severity >= 0.6:
             severity_label = "MODERATE IMPACT"
         else:
             severity_label = "LOW IMPACT"
-        
-        interpretation_parts.append(f"**Impact Severity**: {severity_label} (score: {severity:.2f})")
-        
+
+        interpretation_parts.append(
+            f"**Impact Severity**: {severity_label} (score: {severity:.2f})"
+        )
+
         # Historical context
         if precedents:
             interpretation_parts.append(
                 f"\n**Historical Context**: Based on {len(precedents)} similar actions "
                 f"by {reg_event['issuing_body']} in the past 24 months:"
             )
-            
+
             for i, prec in enumerate(precedents[:3], 1):
                 if "observed_impact" in prec:
                     impact = prec["observed_impact"]
@@ -554,17 +573,17 @@ class RegulatoryIntelligenceService:
                         f"{impact['impact_type']}: {impact['percentage_change']:.1f}% change "
                         f"in {impact['metric']} within {impact['lag_days']} days"
                     )
-        
+
         # Applicable rules
         if applicable_rules:
             interpretation_parts.append(
                 f"\n**Regulatory Framework**: {len(applicable_rules)} existing rules may apply"
             )
-        
+
         return "\n".join(interpretation_parts)
-    
+
     # ── Learning & Feedback ──────────────────────────────────────────
-    
+
     async def record_regulatory_impact(
         self,
         regulatory_event_id: UUID,
@@ -580,7 +599,7 @@ class RegulatoryIntelligenceService:
         expert_verified: bool = False,
     ) -> RegulatoryImpact:
         """Record observed impact of a regulatory event (learning mechanism).
-        
+
         This is how the system gets smarter over time — we track actual
         outcomes and use them to improve future predictions.
         """
@@ -589,14 +608,14 @@ class RegulatoryIntelligenceService:
             if baseline_value != 0
             else 0.0
         )
-        
+
         # Calculate lag from regulatory event
         reg_event = await self.db.get(RegulatoryEvent, regulatory_event_id)
         if not reg_event:
             raise ValueError(f"Regulatory event {regulatory_event_id} not found")
-        
+
         lag_days = (datetime.utcnow() - reg_event.announced_at).days
-        
+
         impact = RegulatoryImpact(
             id=uuid4(),
             regulatory_event_id=regulatory_event_id,
@@ -615,18 +634,18 @@ class RegulatoryIntelligenceService:
             confidence_score=0.8 if expert_verified else 0.6,
             verified_by_expert=expert_verified,
         )
-        
+
         self.db.add(impact)
         await self.db.flush()
-        
+
         logger.info(
             f"Recorded regulatory impact: {impact_type} "
             f"({percentage_change:+.1f}% in {metric_name}) "
             f"{lag_days} days after event {regulatory_event_id}"
         )
-        
+
         return impact
-    
+
     async def update_rule_accuracy(
         self,
         rule_id: UUID,
@@ -636,28 +655,28 @@ class RegulatoryIntelligenceService:
         rule = await self.db.get(RegulatoryRule, rule_id)
         if not rule:
             return
-        
+
         # Incremental accuracy update (exponential moving average)
         alpha = 0.2  # Learning rate
         new_observation = 1.0 if was_accurate else 0.0
         rule.accuracy_score = (
             alpha * new_observation + (1 - alpha) * rule.accuracy_score
         )
-        
+
         rule.application_count += 1
         rule.updated_at = datetime.utcnow()
-        
+
         await self.db.flush()
-    
+
     # ── ML-Based Pattern Learning ───────────────────────────────────
-    
+
     async def learn_patterns_from_history(
         self,
         lookback_months: int = 36,
         min_occurrences: int = 3,
     ) -> list[RegulatoryPattern]:
         """Discover recurring regulatory sequences using ML pattern mining.
-        
+
         Analyzes historical events to detect:
         - Event sequences (e.g., consultation → policy → enforcement)
         - Temporal patterns (e.g., rate adjustments every 6 weeks)
@@ -665,28 +684,28 @@ class RegulatoryIntelligenceService:
         - Seasonal patterns (e.g., budget-related changes in Q1)
         """
         cutoff = datetime.utcnow() - timedelta(days=lookback_months * 30)
-        
+
         # Get historical events grouped by regulator and type
         query = (
             select(RegulatoryEvent)
             .where(
                 and_(
                     RegulatoryEvent.announced_at >= cutoff,
-                    RegulatoryEvent.verified_by_expert == True
+                    RegulatoryEvent.verified_by_expert == True,
                 )
             )
             .order_by(RegulatoryEvent.announced_at)
         )
-        
+
         result = await self.db.execute(query)
         events = result.scalars().all()
-        
+
         if len(events) < min_occurrences:
             logger.info(f"Not enough events ({len(events)}) to learn patterns")
             return []
-        
+
         discovered_patterns = []
-        
+
         # Pattern 1: Sequential event chains
         # E.g., "consultation → draft policy → final policy"
         sequences = self._detect_event_sequences(events, min_occurrences)
@@ -699,7 +718,7 @@ class RegulatoryIntelligenceService:
                 metadata=seq["metadata"],
             )
             discovered_patterns.append(pattern)
-        
+
         # Pattern 2: Temporal cycles
         # E.g., "MPR adjustment every 45-60 days"
         cycles = self._detect_temporal_cycles(events, min_occurrences)
@@ -712,7 +731,7 @@ class RegulatoryIntelligenceService:
                 metadata=cycle["metadata"],
             )
             discovered_patterns.append(pattern)
-        
+
         # Pattern 3: Cross-regulator cascades
         # E.g., "CBN policy change → FIRS tax adjustment within 30 days"
         cascades = self._detect_regulatory_cascades(events, min_occurrences)
@@ -725,16 +744,16 @@ class RegulatoryIntelligenceService:
                 metadata=cascade["metadata"],
             )
             discovered_patterns.append(pattern)
-        
+
         await self.db.flush()
-        
+
         logger.info(
             f"Learned {len(discovered_patterns)} patterns from {len(events)} events: "
             f"{len(sequences)} sequences, {len(cycles)} cycles, {len(cascades)} cascades"
         )
-        
+
         return discovered_patterns
-    
+
     def _detect_event_sequences(
         self,
         events: list[RegulatoryEvent],
@@ -747,60 +766,64 @@ class RegulatoryIntelligenceService:
             key = event.issuing_body
             if key not in sequences_by_regulator:
                 sequences_by_regulator[key] = []
-            sequences_by_regulator[key].append({
-                "type": event.event_type,
-                "date": event.announced_at,
-            })
-        
+            sequences_by_regulator[key].append(
+                {
+                    "type": event.event_type,
+                    "date": event.announced_at,
+                }
+            )
+
         discovered = []
-        
+
         # Look for 2-grams and 3-grams
         for regulator, event_list in sequences_by_regulator.items():
             if len(event_list) < 3:
                 continue
-            
+
             # Extract sequences with time windows (max 90 days between events)
             for window_size in [2, 3]:
                 sequences = {}
-                
+
                 for i in range(len(event_list) - window_size + 1):
-                    window = event_list[i:i+window_size]
-                    
+                    window = event_list[i : i + window_size]
+
                     # Check time gap
                     time_span = (window[-1]["date"] - window[0]["date"]).days
                     if time_span > 90:  # Max 90 days for sequence
                         continue
-                    
+
                     sig = " → ".join([e["type"] for e in window])
                     if sig not in sequences:
                         sequences[sig] = []
                     sequences[sig].append(time_span)
-                
+
                 # Find sequences that occur at least min_occurrences times
                 for sig, time_spans in sequences.items():
                     if len(time_spans) >= min_occurrences:
                         avg_time_span = np.mean(time_spans)
                         std_time_span = np.std(time_spans)
                         confidence = min(0.95, len(time_spans) / (min_occurrences * 2))
-                        
-                        discovered.append({
-                            "signature": f"{regulator}:{sig}",
-                            "description": (
-                                f"{regulator} typically follows '{sig}' pattern "
-                                f"(avg {avg_time_span:.0f} days, {len(time_spans)} occurrences)"
-                            ),
-                            "confidence": confidence,
-                            "metadata": {
-                                "regulator": regulator,
-                                "sequence": sig,
-                                "avg_time_span_days": avg_time_span,
-                                "std_time_span_days": std_time_span,
-                                "occurrences": len(time_spans),
-                            },
-                        })
-        
+
+                        discovered.append(
+                            {
+                                "signature": f"{regulator}:{sig}",
+                                "description": (
+                                    f"{regulator} typically follows '{sig}' pattern "
+                                    f"(avg {avg_time_span:.0f} days, {len(time_spans)} occurrences)"
+                                ),
+                                "confidence": confidence,
+                                "metadata": {
+                                    "regulator": regulator,
+                                    "sequence": sig,
+                                    "avg_time_span_days": avg_time_span,
+                                    "std_time_span_days": std_time_span,
+                                    "occurrences": len(time_spans),
+                                },
+                            }
+                        )
+
         return discovered
-    
+
     def _detect_temporal_cycles(
         self,
         events: list[RegulatoryEvent],
@@ -814,52 +837,56 @@ class RegulatoryIntelligenceService:
             if key not in event_groups:
                 event_groups[key] = []
             event_groups[key].append(event.announced_at)
-        
+
         discovered = []
-        
+
         for (regulator, event_type), dates in event_groups.items():
             if len(dates) < min_occurrences:
                 continue
-            
+
             # Calculate inter-event intervals
             dates_sorted = sorted(dates)
             intervals = [
-                (dates_sorted[i+1] - dates_sorted[i]).days
+                (dates_sorted[i + 1] - dates_sorted[i]).days
                 for i in range(len(dates_sorted) - 1)
             ]
-            
+
             if not intervals:
                 continue
-            
+
             avg_interval = np.mean(intervals)
             std_interval = np.std(intervals)
-            
+
             # Check if intervals are consistent (low variance = strong pattern)
-            coefficient_of_variation = std_interval / avg_interval if avg_interval > 0 else 1.0
-            
+            coefficient_of_variation = (
+                std_interval / avg_interval if avg_interval > 0 else 1.0
+            )
+
             if coefficient_of_variation < 0.3:  # Consistent pattern
                 confidence = max(0.5, 1.0 - coefficient_of_variation)
-                
-                discovered.append({
-                    "signature": f"{regulator}:{event_type}:cycle_{int(avg_interval)}d",
-                    "description": (
-                        f"{regulator} {event_type} occurs approximately every "
-                        f"{avg_interval:.0f} days (±{std_interval:.0f} days, "
-                        f"{len(dates)} occurrences)"
-                    ),
-                    "confidence": confidence,
-                    "metadata": {
-                        "regulator": regulator,
-                        "event_type": event_type,
-                        "avg_interval_days": avg_interval,
-                        "std_interval_days": std_interval,
-                        "coefficient_of_variation": coefficient_of_variation,
-                        "occurrences": len(dates),
-                    },
-                })
-        
+
+                discovered.append(
+                    {
+                        "signature": f"{regulator}:{event_type}:cycle_{int(avg_interval)}d",
+                        "description": (
+                            f"{regulator} {event_type} occurs approximately every "
+                            f"{avg_interval:.0f} days (±{std_interval:.0f} days, "
+                            f"{len(dates)} occurrences)"
+                        ),
+                        "confidence": confidence,
+                        "metadata": {
+                            "regulator": regulator,
+                            "event_type": event_type,
+                            "avg_interval_days": avg_interval,
+                            "std_interval_days": std_interval,
+                            "coefficient_of_variation": coefficient_of_variation,
+                            "occurrences": len(dates),
+                        },
+                    }
+                )
+
         return discovered
-    
+
     def _detect_regulatory_cascades(
         self,
         events: list[RegulatoryEvent],
@@ -868,50 +895,54 @@ class RegulatoryIntelligenceService:
         """Detect cross-regulator cascades (one event triggers another)."""
         # For each event, look for other events within 30 days
         cascades = {}
-        
+
         for i, trigger_event in enumerate(events):
-            for response_event in events[i+1:]:
+            for response_event in events[i + 1 :]:
                 # Check if response is within 30 days
-                time_diff = (response_event.announced_at - trigger_event.announced_at).days
+                time_diff = (
+                    response_event.announced_at - trigger_event.announced_at
+                ).days
                 if time_diff < 0 or time_diff > 30:
                     continue
-                
+
                 if trigger_event.issuing_body != response_event.issuing_body:
                     # Cross-regulator cascade
                     sig = (
                         f"{trigger_event.issuing_body}:{trigger_event.event_type} → "
                         f"{response_event.issuing_body}:{response_event.event_type}"
                     )
-                    
+
                     if sig not in cascades:
                         cascades[sig] = []
                     cascades[sig].append(time_diff)
-        
+
         discovered = []
-        
+
         for sig, time_diffs in cascades.items():
             if len(time_diffs) >= min_occurrences:
                 avg_lag = np.mean(time_diffs)
                 std_lag = np.std(time_diffs)
                 confidence = min(0.9, len(time_diffs) / (min_occurrences * 2))
-                
-                discovered.append({
-                    "signature": sig,
-                    "description": (
-                        f"Cascade pattern: {sig} "
-                        f"(avg {avg_lag:.0f} day lag, {len(time_diffs)} occurrences)"
-                    ),
-                    "confidence": confidence,
-                    "metadata": {
-                        "cascade_signature": sig,
-                        "avg_lag_days": avg_lag,
-                        "std_lag_days": std_lag,
-                        "occurrences": len(time_diffs),
-                    },
-                })
-        
+
+                discovered.append(
+                    {
+                        "signature": sig,
+                        "description": (
+                            f"Cascade pattern: {sig} "
+                            f"(avg {avg_lag:.0f} day lag, {len(time_diffs)} occurrences)"
+                        ),
+                        "confidence": confidence,
+                        "metadata": {
+                            "cascade_signature": sig,
+                            "avg_lag_days": avg_lag,
+                            "std_lag_days": std_lag,
+                            "occurrences": len(time_diffs),
+                        },
+                    }
+                )
+
         return discovered
-    
+
     async def _create_or_update_pattern(
         self,
         pattern_type: str,
@@ -927,10 +958,12 @@ class RegulatoryIntelligenceService:
         )
         result = await self.db.execute(query)
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             # Update existing pattern
-            existing.occurrence_count = metadata.get("occurrences", existing.occurrence_count)
+            existing.occurrence_count = metadata.get(
+                "occurrences", existing.occurrence_count
+            )
             existing.confidence_score = confidence_score
             existing.last_observed_at = datetime.utcnow()
             existing.metadata_ = metadata
@@ -951,14 +984,14 @@ class RegulatoryIntelligenceService:
             )
             self.db.add(pattern)
             return pattern
-    
+
     async def detect_pattern_in_signal(
         self,
         signal: Signal,
         event: RegulatoryEvent | None = None,
     ) -> list[tuple[RegulatoryPattern, float]]:
         """Check if signal matches any learned patterns.
-        
+
         Returns list of (pattern, match_score) tuples.
         """
         if not event:
@@ -971,133 +1004,147 @@ class RegulatoryIntelligenceService:
         else:
             issuing_body = event.issuing_body
             event_type = event.event_type
-        
+
         if not issuing_body or not event_type:
             return []
-        
+
         # Get all active patterns
         query = select(RegulatoryPattern).where(
             RegulatoryPattern.confidence_score >= 0.5
         )
         result = await self.db.execute(query)
         patterns = result.scalars().all()
-        
+
         matched_patterns = []
-        
+
         for pattern in patterns:
             match_score = 0.0
-            
+
             if pattern.pattern_type == "event_sequence":
                 # Check if this event type appears in the sequence
                 if event_type in pattern.pattern_signature:
                     match_score = 0.7
-                    
+
                     # Bonus if regulator matches
                     if issuing_body in pattern.pattern_signature:
                         match_score = 0.9
-            
+
             elif pattern.pattern_type == "temporal_cycle":
                 # Check if regulator and event type match
-                if (issuing_body in pattern.pattern_signature and 
-                    event_type in pattern.pattern_signature):
+                if (
+                    issuing_body in pattern.pattern_signature
+                    and event_type in pattern.pattern_signature
+                ):
                     match_score = 0.8
-            
+
             elif pattern.pattern_type == "regulatory_cascade":
                 # Check if this could be a trigger or response event
                 if issuing_body in pattern.pattern_signature:
                     match_score = 0.6
-            
+
             if match_score > 0:
                 matched_patterns.append((pattern, match_score))
-        
+
         # Sort by match score
         matched_patterns.sort(key=lambda x: x[1], reverse=True)
-        
+
         return matched_patterns
-    
+
     async def predict_next_regulatory_action(
         self,
         recent_event: RegulatoryEvent,
     ) -> list[dict[str, Any]]:
         """Use learned patterns to predict what regulatory actions might follow.
-        
+
         This is the "intelligence moat" — predicting what comes next based on
         learned patterns that competitors don't have.
         """
         predictions = []
-        
+
         # Find patterns that include this event
         matched_patterns = await self.detect_pattern_in_signal(
             signal=None,  # We'll check using event directly
             event=recent_event,
         )
-        
+
         for pattern, match_score in matched_patterns:
             if pattern.pattern_type == "event_sequence":
                 # Parse sequence to find what comes next
                 sequence_parts = pattern.pattern_signature.split(" → ")
                 event_type_target = recent_event.event_type
-                
+
                 for i, part in enumerate(sequence_parts):
                     if event_type_target in part and i < len(sequence_parts) - 1:
-                        next_event_type = sequence_parts[i+1].split(":")[-1]
-                        
-                        predictions.append({
-                            "prediction_type": "sequence_continuation",
-                            "predicted_event_type": next_event_type,
-                            "predicted_regulator": recent_event.issuing_body,
-                            "confidence": pattern.confidence_score * match_score,
-                            "expected_timeframe_days": pattern.metadata_.get("avg_time_span_days", 30),
-                            "pattern_id": str(pattern.id),
-                            "rationale": f"Based on {pattern.occurrence_count} historical occurrences of this sequence",
-                        })
-            
+                        next_event_type = sequence_parts[i + 1].split(":")[-1]
+
+                        predictions.append(
+                            {
+                                "prediction_type": "sequence_continuation",
+                                "predicted_event_type": next_event_type,
+                                "predicted_regulator": recent_event.issuing_body,
+                                "confidence": pattern.confidence_score * match_score,
+                                "expected_timeframe_days": pattern.metadata_.get(
+                                    "avg_time_span_days", 30
+                                ),
+                                "pattern_id": str(pattern.id),
+                                "rationale": f"Based on {pattern.occurrence_count} historical occurrences of this sequence",
+                            }
+                        )
+
             elif pattern.pattern_type == "temporal_cycle":
                 # Predict next occurrence based on cycle
                 avg_interval = pattern.metadata_.get("avg_interval_days", 60)
                 expected_date = recent_event.announced_at + timedelta(days=avg_interval)
                 days_until = (expected_date - datetime.utcnow()).days
-                
+
                 if days_until > 0:  # Only predict future events
-                    predictions.append({
-                        "prediction_type": "temporal_cycle",
-                        "predicted_event_type": recent_event.event_type,
-                        "predicted_regulator": recent_event.issuing_body,
-                        "confidence": pattern.confidence_score * 0.8,
-                        "expected_date": expected_date.isoformat(),
-                        "days_until_expected": days_until,
-                        "pattern_id": str(pattern.id),
-                        "rationale": f"Based on {pattern.occurrence_count} cycle occurrences (avg {avg_interval:.0f} days)",
-                    })
-            
+                    predictions.append(
+                        {
+                            "prediction_type": "temporal_cycle",
+                            "predicted_event_type": recent_event.event_type,
+                            "predicted_regulator": recent_event.issuing_body,
+                            "confidence": pattern.confidence_score * 0.8,
+                            "expected_date": expected_date.isoformat(),
+                            "days_until_expected": days_until,
+                            "pattern_id": str(pattern.id),
+                            "rationale": f"Based on {pattern.occurrence_count} cycle occurrences (avg {avg_interval:.0f} days)",
+                        }
+                    )
+
             elif pattern.pattern_type == "regulatory_cascade":
                 # Predict cascade response
                 cascade_parts = pattern.pattern_signature.split(" → ")
                 if len(cascade_parts) == 2:
                     trigger_part, response_part = cascade_parts
                     trigger_body = trigger_part.split(":")[0]
-                    
+
                     if trigger_body == recent_event.issuing_body:
                         # This could trigger a cascade
                         response_body = response_part.split(":")[0]
                         response_type = response_part.split(":")[-1]
                         avg_lag = pattern.metadata_.get("avg_lag_days", 15)
-                        expected_date = recent_event.announced_at + timedelta(days=avg_lag)
+                        expected_date = recent_event.announced_at + timedelta(
+                            days=avg_lag
+                        )
                         days_until = (expected_date - datetime.utcnow()).days
-                        
+
                         if days_until > 0:
-                            predictions.append({
-                                "prediction_type": "regulatory_cascade",
-                                "predicted_event_type": response_type,
-                                "predicted_regulator": response_body,
-                                "confidence": pattern.confidence_score * match_score * 0.7,
-                                "expected_date": expected_date.isoformat(),
-                                "days_until_expected": days_until,
-                                "pattern_id": str(pattern.id),
-                                "rationale": f"Based on {pattern.occurrence_count} historical cascades (avg {avg_lag:.0f} day lag)",
-                            })
-        
+                            predictions.append(
+                                {
+                                    "prediction_type": "regulatory_cascade",
+                                    "predicted_event_type": response_type,
+                                    "predicted_regulator": response_body,
+                                    "confidence": pattern.confidence_score
+                                    * match_score
+                                    * 0.7,
+                                    "expected_date": expected_date.isoformat(),
+                                    "days_until_expected": days_until,
+                                    "pattern_id": str(pattern.id),
+                                    "rationale": f"Based on {pattern.occurrence_count} historical cascades (avg {avg_lag:.0f} day lag)",
+                                }
+                            )
+
         # Sort by confidence
         predictions.sort(key=lambda x: x["confidence"], reverse=True)
-        
+
         return predictions[:5]  # Top 5 predictions

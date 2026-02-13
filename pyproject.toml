@@ -83,33 +83,4 @@ extend-exclude = '''
 )/
 '''
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --strict-markers --cov=. --cov-report=term-missing --cov-report=xml"
-markers = [
-    "integration: marks tests as integration tests (require live database/redis)",
-    "unit: marks tests as unit tests (no external dependencies)",
-]
-
-[tool.coverage.run]
-source = ["."]
-omit = [
-    "*/tests/*",
-    "*/test_*.py",
-    "*/.venv/*",
-    "*/venv/*",
-    "*/node_modules/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-]
+# Test configuration will be added when new test suite is created

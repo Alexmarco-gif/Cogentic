@@ -4,11 +4,9 @@ Request/response models for search execution and history endpoints.
 """
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 # ── Search Request/Response ──────────────────────────────────────────
 
@@ -16,12 +14,8 @@ from pydantic import BaseModel, Field
 class SearchRequest(BaseModel):
     """Deep search execution request."""
 
-    query: str = Field(
-        ..., min_length=3, max_length=2000, description="Search query"
-    )
-    max_results: int = Field(
-        default=20, ge=1, le=100, description="Max results"
-    )
+    query: str = Field(..., min_length=3, max_length=2000, description="Search query")
+    max_results: int = Field(default=20, ge=1, le=100, description="Max results")
     min_confidence: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Minimum signal confidence"
     )

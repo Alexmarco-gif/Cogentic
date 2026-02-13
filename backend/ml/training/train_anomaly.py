@@ -10,7 +10,6 @@ Retrains weekly via cron (RQ job).
 """
 
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -119,9 +118,7 @@ def _generate_synthetic_data(n_samples: int = 1000) -> np.ndarray:
     """
     rng = np.random.default_rng(42)
 
-    content_length = rng.lognormal(mean=7, sigma=1.5, size=n_samples).astype(
-        np.float32
-    )
+    content_length = rng.lognormal(mean=7, sigma=1.5, size=n_samples).astype(np.float32)
     hour_of_day = rng.integers(0, 24, size=n_samples).astype(np.float32)
     day_of_week = rng.integers(0, 7, size=n_samples).astype(np.float32)
     source_type = rng.integers(0, 4, size=n_samples).astype(np.float32)

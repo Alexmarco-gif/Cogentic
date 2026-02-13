@@ -11,7 +11,8 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base import Base, TimestampMixin, UUIDMixin
@@ -48,15 +49,9 @@ class CausalEvent(Base, UUIDMixin, TimestampMixin):
     )
 
     # Event classification
-    event_type: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True
-    )
-    event_category: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True
-    )
-    event_summary: Mapped[str] = mapped_column(
-        Text, nullable=False
-    )
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    event_category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    event_summary: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Temporal
     event_timestamp: Mapped[datetime] = mapped_column(
@@ -74,9 +69,7 @@ class CausalEvent(Base, UUIDMixin, TimestampMixin):
     )
 
     # Quality
-    confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.7
-    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.7)
 
     # Relationships
     signal: Mapped["Signal"] = relationship()
@@ -129,31 +122,17 @@ class CausalEdge(Base, UUIDMixin, TimestampMixin):
     )
 
     # Causal metrics
-    confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.5
-    )
-    lag_days_min: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    lag_days_max: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    lag_days_avg: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0
-    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    lag_days_min: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lag_days_max: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lag_days_avg: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
     # Evidence strength
-    observation_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1
-    )
+    observation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Statistical metadata
-    p_value: Mapped[float | None] = mapped_column(
-        Float, nullable=True
-    )
-    correlation: Mapped[float | None] = mapped_column(
-        Float, nullable=True
-    )
+    p_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    correlation: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Discovery metadata
     discovery_method: Mapped[str] = mapped_column(

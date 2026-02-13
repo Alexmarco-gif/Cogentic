@@ -6,7 +6,6 @@ Persists to IntelligenceBrief model with body_json structured content.
 Supports both pre_built and auto_generated brief types.
 """
 
-import asyncio
 import logging
 import time
 from datetime import datetime
@@ -114,7 +113,11 @@ class BriefGenerator:
                 org_id=org_id,
                 status="draft",
                 bluf="Insufficient signal coverage to generate this brief.",
-                body_json={"argument": [], "evidence": [], "limitations": ["No signals available"]},
+                body_json={
+                    "argument": [],
+                    "evidence": [],
+                    "limitations": ["No signals available"],
+                },
                 outlook=None,
                 decision_lens=None,
                 refreshed_at=datetime.utcnow(),
@@ -226,16 +229,13 @@ class BriefGenerator:
 
     # ── Signal Retrieval ─────────────────────────────────────────────
 
-    async def _get_signals_by_ids(
-        self, signal_ids: list[UUID]
-    ) -> list[dict[str, Any]]:
+    async def _get_signals_by_ids(self, signal_ids: list[UUID]) -> list[dict[str, Any]]:
         """Fetch signals by explicit IDs."""
-        from backend.models.signal import Signal
         from sqlalchemy import select
 
-        result = await self.db.execute(
-            select(Signal).where(Signal.id.in_(signal_ids))
-        )
+        from backend.models.signal import Signal
+
+        result = await self.db.execute(select(Signal).where(Signal.id.in_(signal_ids)))
         rows = result.scalars().all()
 
         return [

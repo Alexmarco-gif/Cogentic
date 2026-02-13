@@ -112,9 +112,9 @@ class ReplicabilityBlindTestService:
             return await self._fallback_blind_test()
 
         # Aggregate
-        avg_replicability = sum(
-            r["replicability_pct"] for r in test_results
-        ) / len(test_results)
+        avg_replicability = sum(r["replicability_pct"] for r in test_results) / len(
+            test_results
+        )
 
         return {
             "replicability_score_pct": round(avg_replicability, 2),
@@ -124,11 +124,13 @@ class ReplicabilityBlindTestService:
             "test_results": test_results,
             "dimensions": {
                 "avg_semantic_overlap": round(
-                    sum(r["semantic_overlap"] for r in test_results) / len(test_results),
+                    sum(r["semantic_overlap"] for r in test_results)
+                    / len(test_results),
                     3,
                 ),
                 "avg_entity_overlap": round(
-                    sum(r["entity_overlap_pct"] for r in test_results) / len(test_results),
+                    sum(r["entity_overlap_pct"] for r in test_results)
+                    / len(test_results),
                     1,
                 ),
                 "avg_specificity_gap": round(
@@ -182,9 +184,9 @@ class ReplicabilityBlindTestService:
         baseline_entities = self._extract_entities(baseline_output)
 
         if esip_entities:
-            entity_overlap = len(
-                esip_entities & baseline_entities
-            ) / len(esip_entities) * 100
+            entity_overlap = (
+                len(esip_entities & baseline_entities) / len(esip_entities) * 100
+            )
         else:
             entity_overlap = 0.0
 
@@ -241,20 +243,22 @@ class ReplicabilityBlindTestService:
         pattern = r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b"
         matches = set(re.findall(pattern, text))
         # Also match single-word proper nouns that look like org/person names
-        single_pattern = r"\b([A-Z][a-z]{2,}(?:Corp|Inc|Ltd|Bank|Group|Nigeria|Lagos|Abuja))\b"
+        single_pattern = (
+            r"\b([A-Z][a-z]{2,}(?:Corp|Inc|Ltd|Bank|Group|Nigeria|Lagos|Abuja))\b"
+        )
         matches.update(re.findall(single_pattern, text))
         return matches
 
     def _count_specifics(self, text: str) -> int:
         """Count concrete data points: numbers, percentages, dates, amounts."""
         patterns = [
-            r"\$[\d,.]+[BMK]?\b",          # Dollar amounts
-            r"₦[\d,.]+[BMK]?\b",           # Naira amounts
-            r"\b\d+(?:\.\d+)?%",            # Percentages
+            r"\$[\d,.]+[BMK]?\b",  # Dollar amounts
+            r"₦[\d,.]+[BMK]?\b",  # Naira amounts
+            r"\b\d+(?:\.\d+)?%",  # Percentages
             r"\b(?:January|February|March|April|May|June|July|August"
             r"|September|October|November|December)\s+\d{1,2},?\s*\d{4}",
-            r"\bQ[1-4]\s+\d{4}\b",          # Quarters
-            r"\b\d{1,3}(?:,\d{3})+\b",      # Large numbers
+            r"\bQ[1-4]\s+\d{4}\b",  # Quarters
+            r"\b\d{1,3}(?:,\d{3})+\b",  # Large numbers
         ]
         count = 0
         for pattern in patterns:

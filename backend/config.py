@@ -60,7 +60,9 @@ class Settings(BaseSettings):
         "trending_scorer",
         "confidence_calibrator",
     ]
-    ml_validate_on_startup: bool = False  # Set True in prod to fail fast on missing models
+    ml_validate_on_startup: bool = (
+        False  # Set True in prod to fail fast on missing models
+    )
     ml_inference_timeout_ms: int = 100  # Max inference time per model
     ml_embedding_cache_enabled: bool = True  # Cache OpenAI embeddings in Redis
     ml_embedding_cache_ttl_days: int = 7  # Time-to-live for cached embeddings

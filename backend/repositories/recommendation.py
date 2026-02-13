@@ -1,13 +1,11 @@
 """Recommendation repository"""
 
-import time
 from uuid import UUID
 
-from sqlalchemy import and_, delete, desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.recommendation import Recommendation
-from backend.repositories.audit import audit_logger
 from backend.repositories.base import BaseRepository
 
 

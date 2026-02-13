@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from typing import Union
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 from alembic import op
 
@@ -63,23 +63,56 @@ def upgrade() -> None:
         sa.Column("source_signal_id", UUID(as_uuid=True), nullable=True),
         sa.Column("source_event_id", UUID(as_uuid=True), nullable=True),
         sa.Column("historical_precedents", ARRAY(UUID(as_uuid=True)), nullable=True),
-        sa.Column("content_embedding", sa.dialects.postgresql.VECTOR(1536), nullable=True),
+        sa.Column(
+            "content_embedding", sa.dialects.postgresql.VECTOR(1536), nullable=True
+        ),
         sa.Column("verified_by_expert", sa.Boolean(), default=False, nullable=False),
         sa.Column("confidence_score", sa.Numeric(3, 2), nullable=True),
         sa.Column("created_by", UUID(as_uuid=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), onupdate=sa.text("NOW()"), nullable=False),
-        sa.ForeignKeyConstraint(["source_signal_id"], ["signals.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["source_event_id"], ["regulatory_events.id"], ondelete="SET NULL"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            onupdate=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["source_signal_id"], ["signals.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["source_event_id"], ["regulatory_events.id"], ondelete="SET NULL"
+        ),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Indexes for regulatory_events
-    op.create_index("ix_regulatory_events_effective_from", "regulatory_events", ["effective_from"])
-    op.create_index("ix_regulatory_events_deadline_date", "regulatory_events", ["deadline_date"])
-    op.create_index("ix_regulatory_events_sectors", "regulatory_events", ["affected_sectors"], postgresql_using="gin")
-    op.create_index("ix_regulatory_events_entity_types", "regulatory_events", ["affected_entity_types"], postgresql_using="gin")
-    op.create_index("ix_regulatory_events_verified", "regulatory_events", ["verified_by_expert"])
+    op.create_index(
+        "ix_regulatory_events_effective_from", "regulatory_events", ["effective_from"]
+    )
+    op.create_index(
+        "ix_regulatory_events_deadline_date", "regulatory_events", ["deadline_date"]
+    )
+    op.create_index(
+        "ix_regulatory_events_sectors",
+        "regulatory_events",
+        ["affected_sectors"],
+        postgresql_using="gin",
+    )
+    op.create_index(
+        "ix_regulatory_events_entity_types",
+        "regulatory_events",
+        ["affected_entity_types"],
+        postgresql_using="gin",
+    )
+    op.create_index(
+        "ix_regulatory_events_verified", "regulatory_events", ["verified_by_expert"]
+    )
 
     # =========================================================================
     # 2. REGULATORY_RULES — Dynamic business rules (JSON logic)
@@ -101,16 +134,31 @@ def upgrade() -> None:
         sa.Column("accuracy_score", sa.Numeric(3, 2), nullable=True),
         sa.Column("interpretation_guidance", sa.Text(), nullable=True),
         sa.Column("created_by", UUID(as_uuid=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), onupdate=sa.text("NOW()"), nullable=False),
-        sa.ForeignKeyConstraint(["event_id"], ["regulatory_events.id"], ondelete="CASCADE"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            onupdate=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["event_id"], ["regulatory_events.id"], ondelete="CASCADE"
+        ),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Indexes for regulatory_rules
     op.create_index("ix_regulatory_rules_event_id", "regulatory_rules", ["event_id"])
     op.create_index("ix_regulatory_rules_priority", "regulatory_rules", ["priority"])
-    op.create_index("ix_regulatory_rules_effective_from", "regulatory_rules", ["effective_from"])
+    op.create_index(
+        "ix_regulatory_rules_effective_from", "regulatory_rules", ["effective_from"]
+    )
 
     # =========================================================================
     # 3. REGULATORY_IMPACTS — Observed outcomes (learning loop)
@@ -133,19 +181,42 @@ def upgrade() -> None:
         sa.Column("confounding_factors", JSONB, nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("recorded_by", UUID(as_uuid=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), onupdate=sa.text("NOW()"), nullable=False),
-        sa.ForeignKeyConstraint(["event_id"], ["regulatory_events.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["rule_id"], ["regulatory_rules.id"], ondelete="SET NULL"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            onupdate=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["event_id"], ["regulatory_events.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["rule_id"], ["regulatory_rules.id"], ondelete="SET NULL"
+        ),
         sa.ForeignKeyConstraint(["entity_id"], ["entities.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["recorded_by"], ["users.id"], ondelete="SET NULL"),
     )
 
     # Indexes for regulatory_impacts
-    op.create_index("ix_regulatory_impacts_event_id", "regulatory_impacts", ["event_id"])
+    op.create_index(
+        "ix_regulatory_impacts_event_id", "regulatory_impacts", ["event_id"]
+    )
     op.create_index("ix_regulatory_impacts_rule_id", "regulatory_impacts", ["rule_id"])
-    op.create_index("ix_regulatory_impacts_entity_id", "regulatory_impacts", ["entity_id"])
-    op.create_index("ix_regulatory_impacts_observation_date", "regulatory_impacts", ["observation_date"])
+    op.create_index(
+        "ix_regulatory_impacts_entity_id", "regulatory_impacts", ["entity_id"]
+    )
+    op.create_index(
+        "ix_regulatory_impacts_observation_date",
+        "regulatory_impacts",
+        ["observation_date"],
+    )
 
     # =========================================================================
     # 4. REGULATORY_PATTERNS — Learned sequences and behaviors
@@ -166,13 +237,30 @@ def upgrade() -> None:
         sa.Column("first_observed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_observed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), default=True, nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), onupdate=sa.text("NOW()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            onupdate=sa.text("NOW()"),
+            nullable=False,
+        ),
     )
 
     # Indexes for regulatory_patterns
-    op.create_index("ix_regulatory_patterns_frequency", "regulatory_patterns", ["frequency_count"])
-    op.create_index("ix_regulatory_patterns_accuracy", "regulatory_patterns", ["prediction_accuracy"])
+    op.create_index(
+        "ix_regulatory_patterns_frequency", "regulatory_patterns", ["frequency_count"]
+    )
+    op.create_index(
+        "ix_regulatory_patterns_accuracy",
+        "regulatory_patterns",
+        ["prediction_accuracy"],
+    )
 
 
 def downgrade() -> None:

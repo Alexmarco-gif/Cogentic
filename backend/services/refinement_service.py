@@ -59,6 +59,7 @@ class RefinementService:
         """Lazy-load causal intelligence service."""
         if self._causal_service is None:
             from backend.services.causal_intelligence import CausalIntelligenceService
+
             self._causal_service = CausalIntelligenceService(self.db)
         return self._causal_service
 
@@ -66,7 +67,10 @@ class RefinementService:
     def regulatory_service(self):
         """Lazy-load regulatory intelligence service."""
         if self._regulatory_service is None:
-            from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
+            from backend.services.regulatory_intelligence import (
+                RegulatoryIntelligenceService,
+            )
+
             self._regulatory_service = RegulatoryIntelligenceService(self.db)
         return self._regulatory_service
 
@@ -120,6 +124,7 @@ class RefinementService:
 
             # Persist scores
             from backend.repositories.signal_score import SignalScoreRepository
+
             score_repo = SignalScoreRepository(self.db)
 
             for score_type, score_value in scores.items():
@@ -153,7 +158,11 @@ class RefinementService:
 
         # Step 6: Regulatory event extraction (contextual intelligence)
         try:
-            reg_event = await self.regulatory_service.extract_regulatory_event_from_signal(signal)
+            reg_event = (
+                await self.regulatory_service.extract_regulatory_event_from_signal(
+                    signal
+                )
+            )
             if reg_event:
                 result["regulatory_event_id"] = str(reg_event.id)
                 result["regulatory_event_type"] = reg_event.event_type

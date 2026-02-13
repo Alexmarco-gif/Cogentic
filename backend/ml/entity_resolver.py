@@ -136,13 +136,15 @@ class EntityResolver:
             List of (entity_id, similarity_score) tuples above threshold.
         """
         # pgvector cosine distance: <=> returns 0..2 (0 = identical)
-        query = text("""
+        query = text(
+            """
             SELECT id, 1 - (embedding <=> :embedding) AS similarity
             FROM entities
             WHERE embedding IS NOT NULL
             ORDER BY embedding <=> :embedding
             LIMIT :top_k
-        """)
+        """
+        )
 
         result = await self.db.execute(
             query,
@@ -179,9 +181,7 @@ class EntityResolver:
         # Load all entities (cached in practice; small table)
         from sqlalchemy import select
 
-        result = await self.db.execute(
-            select(Entity.id, Entity.name, Entity.aliases)
-        )
+        result = await self.db.execute(select(Entity.id, Entity.name, Entity.aliases))
 
         signal_lower = signal_text.lower()
         matches = []
@@ -193,7 +193,7 @@ class EntityResolver:
             # Exact name match
             if name_lower in signal_lower:
                 # Check word boundary for precision
-                pattern = r'\b' + re.escape(name_lower) + r'\b'
+                pattern = r"\b" + re.escape(name_lower) + r"\b"
                 if re.search(pattern, signal_lower):
                     best_score = 0.9
                 else:
@@ -206,7 +206,7 @@ class EntityResolver:
                     if not alias_lower or len(alias_lower) < 3:
                         continue
                     if alias_lower in signal_lower:
-                        pattern = r'\b' + re.escape(alias_lower) + r'\b'
+                        pattern = r"\b" + re.escape(alias_lower) + r"\b"
                         if re.search(pattern, signal_lower):
                             best_score = max(best_score, 0.8)
                         else:

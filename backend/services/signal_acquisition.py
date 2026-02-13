@@ -148,8 +148,8 @@ class SignalAcquisitionService:
             if signals:
                 try:
                     signal_ids = [str(s.id) for s in signals]
-                    from backend.queue import enqueue_job
                     from backend.jobs.refinement_job import refine_signals
+                    from backend.queue import enqueue_job
 
                     enqueue_job(
                         refine_signals,

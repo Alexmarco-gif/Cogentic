@@ -21,6 +21,7 @@ router = APIRouter(prefix="/causal")
 
 # ── Schemas ──────────────────────────────────────────────────────────
 
+
 class CausalChainResponse(BaseModel):
     chain: list[str]
     lags_days: list[float]
@@ -67,6 +68,7 @@ class SignalImpactResponse(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
+
 
 @router.get("/chains/{event_type}", response_model=list[CausalChainResponse])
 async def get_causal_chains(
@@ -201,6 +203,7 @@ async def get_historical_precedents(
 
 # ── P1 Feature: Counterfactual Analysis ──────────────────────────────
 
+
 class CounterfactualRequest(BaseModel):
     event_signal_id: str = Field(..., description="Signal ID of the event")
     outcome_metric: str = Field(..., description="Metric to measure (signal type)")
@@ -288,13 +291,16 @@ async def difference_in_differences_analysis(
       - All four cell values (treatment/control × pre/post)
     """
     from datetime import datetime
+
     from backend.ml.causal_inference import CausalInferenceService
 
     # Parse event date
     try:
         event_date = datetime.fromisoformat(body.event_date.replace("Z", "+00:00"))
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid event_date format. Use ISO 8601.")
+        raise HTTPException(
+            status_code=400, detail="Invalid event_date format. Use ISO 8601."
+        )
 
     service = CausalInferenceService(db)
     result = await service.difference_in_differences(

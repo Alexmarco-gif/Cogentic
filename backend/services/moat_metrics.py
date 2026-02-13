@@ -59,9 +59,7 @@ class MoatMetricsService:
         result = await self.db.execute(
             select(
                 func.count(Entity.id).label("total"),
-                func.count(
-                    case((Entity.verified.is_(True), 1))
-                ).label("verified"),
+                func.count(case((Entity.verified.is_(True), 1))).label("verified"),
             )
         )
         row = result.one()
@@ -77,15 +75,11 @@ class MoatMetricsService:
         relationship_count = rel_result.scalar() or 0
 
         # Source profiles
-        sp_result = await self.db.execute(
-            select(func.count(EntitySourceProfile.id))
-        )
+        sp_result = await self.db.execute(select(func.count(EntitySourceProfile.id)))
         source_profile_count = sp_result.scalar() or 0
 
         # Aliases
-        alias_result = await self.db.execute(
-            select(func.count(EntityAlias.id))
-        )
+        alias_result = await self.db.execute(select(func.count(EntityAlias.id)))
         alias_count = alias_result.scalar() or 0
 
         # Entity type breakdown
@@ -144,15 +138,11 @@ class MoatMetricsService:
           - observation_count >= 2 (seen more than once)
         """
         # Total events
-        event_result = await self.db.execute(
-            select(func.count(CausalEvent.id))
-        )
+        event_result = await self.db.execute(select(func.count(CausalEvent.id)))
         event_count = event_result.scalar() or 0
 
         # Total edges
-        edge_result = await self.db.execute(
-            select(func.count(CausalEdge.id))
-        )
+        edge_result = await self.db.execute(select(func.count(CausalEdge.id)))
         edge_count = edge_result.scalar() or 0
 
         # Validated chains (high confidence + multiple observations)
@@ -182,14 +172,10 @@ class MoatMetricsService:
                 func.count(CausalEdge.id).label("count"),
             ).group_by(CausalEdge.discovery_method)
         )
-        method_breakdown = {
-            row.discovery_method: row.count for row in method_result
-        }
+        method_breakdown = {row.discovery_method: row.count for row in method_result}
 
         # Average confidence of edges
-        avg_conf_result = await self.db.execute(
-            select(func.avg(CausalEdge.confidence))
-        )
+        avg_conf_result = await self.db.execute(select(func.avg(CausalEdge.confidence)))
         avg_edge_confidence = avg_conf_result.scalar() or 0
 
         # Distinct event type pairs connected by edges
@@ -209,9 +195,9 @@ class MoatMetricsService:
         unique_connections = pair_result.scalar() or 0
 
         target = TARGETS["causal_chains_discovered"]
-        progress_pct = round(
-            min(validated_chain_count / target * 100, 100), 1
-        ) if target else 0
+        progress_pct = (
+            round(min(validated_chain_count / target * 100, 100), 1) if target else 0
+        )
 
         return {
             "metric": "causal_chains_discovered",
@@ -258,8 +244,7 @@ class MoatMetricsService:
                 func.count(
                     case(
                         (
-                            UserFeedback.feedback_type
-                            == "prediction_inaccurate",
+                            UserFeedback.feedback_type == "prediction_inaccurate",
                             1,
                         ),
                     )
@@ -292,9 +277,9 @@ class MoatMetricsService:
             "metric": "prediction_accuracy",
             "target": target,
             "current": accuracy_pct,
-            "progress_pct": round(accuracy_pct / target * 100, 1)
-            if accuracy_pct
-            else 0,
+            "progress_pct": (
+                round(accuracy_pct / target * 100, 1) if accuracy_pct else 0
+            ),
             "meets_target": meets_target,
             "details": {
                 "lookback_days": lookback_days,
@@ -327,8 +312,7 @@ class MoatMetricsService:
                 func.count(
                     case(
                         (
-                            UserFeedback.feedback_type
-                            == "prediction_inaccurate",
+                            UserFeedback.feedback_type == "prediction_inaccurate",
                             1,
                         ),
                     )
@@ -347,14 +331,16 @@ class MoatMetricsService:
         trend = []
         for row in result:
             denom = row.accurate + row.inaccurate
-            trend.append({
-                "week": row.week.isoformat() if row.week else None,
-                "accurate": row.accurate,
-                "inaccurate": row.inaccurate,
-                "accuracy_pct": round(row.accurate / denom * 100, 1)
-                if denom > 0
-                else None,
-            })
+            trend.append(
+                {
+                    "week": row.week.isoformat() if row.week else None,
+                    "accurate": row.accurate,
+                    "inaccurate": row.inaccurate,
+                    "accuracy_pct": (
+                        round(row.accurate / denom * 100, 1) if denom > 0 else None
+                    ),
+                }
+            )
         return trend
 
     # ── Metric 4: Replicability Score ────────────────────────────────
@@ -382,13 +368,15 @@ class MoatMetricsService:
         result = await self.db.execute(
             select(
                 UserFeedback.context,
-            ).where(
+            )
+            .where(
                 and_(
                     UserFeedback.target_type.in_(["signal", "brief"]),
                     UserFeedback.created_at >= cutoff,
                     UserFeedback.context.isnot(None),
                 )
-            ).limit(500)
+            )
+            .limit(500)
         )
         rows = result.all()
 
@@ -431,11 +419,11 @@ class MoatMetricsService:
             "metric": "replicability_score",
             "target": target,
             "current": replicability_pct,
-            "progress_pct": round(
-                max(0, (target - replicability_pct)) / target * 100, 1
-            )
-            if replicability_pct <= target
-            else 0,
+            "progress_pct": (
+                round(max(0, (target - replicability_pct)) / target * 100, 1)
+                if replicability_pct <= target
+                else 0
+            ),
             "meets_target": meets_target,
             "details": {
                 "total_responses_analyzed": total_responses,
@@ -459,14 +447,10 @@ class MoatMetricsService:
           - Feedback volume
         """
         # Entity coverage
-        entity_result = await self.db.execute(
-            select(func.count(Entity.id))
-        )
+        entity_result = await self.db.execute(select(func.count(Entity.id)))
         entity_count = entity_result.scalar() or 0
 
-        sp_result = await self.db.execute(
-            select(func.count(EntitySourceProfile.id))
-        )
+        sp_result = await self.db.execute(select(func.count(EntitySourceProfile.id)))
         source_profiles = sp_result.scalar() or 0
 
         rel_result = await self.db.execute(
@@ -478,16 +462,12 @@ class MoatMetricsService:
 
         # Causal depth
         edge_result = await self.db.execute(
-            select(func.count(CausalEdge.id)).where(
-                CausalEdge.confidence >= 0.6
-            )
+            select(func.count(CausalEdge.id)).where(CausalEdge.confidence >= 0.6)
         )
         causal_edges = edge_result.scalar() or 0
 
         # Feedback volume
-        feedback_result = await self.db.execute(
-            select(func.count(UserFeedback.id))
-        )
+        feedback_result = await self.db.execute(select(func.count(UserFeedback.id)))
         feedback_count = feedback_result.scalar() or 0
 
         # Score: start at 100% replicable, reduce with proprietary data
@@ -513,11 +493,11 @@ class MoatMetricsService:
             "metric": "replicability_score",
             "target": target,
             "current": replicability_pct,
-            "progress_pct": round(
-                max(0, (target - replicability_pct)) / target * 100, 1
-            )
-            if replicability_pct <= target
-            else 0,
+            "progress_pct": (
+                round(max(0, (target - replicability_pct)) / target * 100, 1)
+                if replicability_pct <= target
+                else 0
+            ),
             "meets_target": replicability_pct <= target,
             "details": {
                 "methodology": "data_coverage_heuristic",
@@ -572,7 +552,8 @@ class MoatMetricsService:
 
         # Union DAU (unique users from either source)
         dau_union = await self.db.execute(
-            text("""
+            text(
+                """
                 SELECT COUNT(DISTINCT user_id) FROM (
                     SELECT id AS user_id FROM users
                     WHERE last_login_at >= :day_ago AND deleted_at IS NULL
@@ -580,14 +561,16 @@ class MoatMetricsService:
                     SELECT user_id FROM user_feedback
                     WHERE created_at >= :day_ago
                 ) AS active_users
-            """),
+            """
+            ),
             {"day_ago": day_ago},
         )
         dau = dau_union.scalar() or 0
 
         # MAU: users active in last 30 days
         mau_union = await self.db.execute(
-            text("""
+            text(
+                """
                 SELECT COUNT(DISTINCT user_id) FROM (
                     SELECT id AS user_id FROM users
                     WHERE last_login_at >= :month_ago AND deleted_at IS NULL
@@ -595,7 +578,8 @@ class MoatMetricsService:
                     SELECT user_id FROM user_feedback
                     WHERE created_at >= :month_ago
                 ) AS active_users
-            """),
+            """
+            ),
             {"month_ago": month_ago},
         )
         mau = mau_union.scalar() or 0
@@ -630,11 +614,9 @@ class MoatMetricsService:
             "metric": "user_retention",
             "target": target,
             "current": dau_mau_ratio,
-            "progress_pct": round(
-                min(dau_mau_ratio / target * 100, 100), 1
-            )
-            if dau_mau_ratio
-            else 0,
+            "progress_pct": (
+                round(min(dau_mau_ratio / target * 100, 100), 1) if dau_mau_ratio else 0
+            ),
             "meets_target": meets_target,
             "details": {
                 "dau": dau,
@@ -660,7 +642,8 @@ class MoatMetricsService:
             end = start + timedelta(days=1)
 
             result = await self.db.execute(
-                text("""
+                text(
+                    """
                     SELECT COUNT(DISTINCT user_id) FROM (
                         SELECT id AS user_id FROM users
                         WHERE last_login_at >= :start AND last_login_at < :end
@@ -669,14 +652,17 @@ class MoatMetricsService:
                         SELECT user_id FROM user_feedback
                         WHERE created_at >= :start AND created_at < :end
                     ) AS active_users
-                """),
+                """
+                ),
                 {"start": start, "end": end},
             )
             count = result.scalar() or 0
-            trend.append({
-                "date": start.strftime("%Y-%m-%d"),
-                "dau": count,
-            })
+            trend.append(
+                {
+                    "date": start.strftime("%Y-%m-%d"),
+                    "dau": count,
+                }
+            )
 
         return trend
 
@@ -794,9 +780,7 @@ class MoatMetricsService:
             prediction_inaccurate=pa["details"]["inaccurate"],
             prediction_accuracy_pct=pa["details"]["accuracy_pct"],
             # Metric 4
-            replicability_tests_run=rs["details"].get(
-                "total_responses_analyzed", 0
-            ),
+            replicability_tests_run=rs["details"].get("total_responses_analyzed", 0),
             replicability_score_pct=rs["details"]["replicability_pct"],
             # Metric 5
             dau=ur["details"]["dau"],
@@ -807,9 +791,7 @@ class MoatMetricsService:
             details={
                 "targets_met": all_metrics["targets_met"],
                 "overall_status": all_metrics["overall_status"],
-                "entity_type_breakdown": eg["details"].get(
-                    "entity_type_breakdown", {}
-                ),
+                "entity_type_breakdown": eg["details"].get("entity_type_breakdown", {}),
                 "causal_category_breakdown": cc["details"].get(
                     "event_category_breakdown", {}
                 ),
@@ -839,9 +821,7 @@ class MoatMetricsService:
 
         return self._snapshot_to_dict(snapshot)
 
-    async def get_snapshot_trend(
-        self, days: int = 30
-    ) -> list[dict[str, Any]]:
+    async def get_snapshot_trend(self, days: int = 30) -> list[dict[str, Any]]:
         """Get daily snapshot trend for the past N days."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 

@@ -233,9 +233,7 @@ class FeedbackService:
         if total == 0:
             importance = 0.5
         else:
-            importance = round(
-                relevant / max(relevant + not_relevant, 1), 4
-            )
+            importance = round(relevant / max(relevant + not_relevant, 1), 4)
 
         return {
             "entity_id": str(entity_id),
@@ -284,9 +282,7 @@ class FeedbackService:
         inaccurate = row.inaccurate or 0
 
         accuracy = (
-            round(accurate / max(accurate + inaccurate, 1), 4)
-            if total > 0
-            else None
+            round(accurate / max(accurate + inaccurate, 1), 4) if total > 0 else None
         )
 
         return {
@@ -356,16 +352,16 @@ class FeedbackService:
             not_useful = row.not_useful or 0
             label = useful / max(useful + not_useful, 1)
 
-            training_data.append({
-                "signal_id": str(row.signal_id),
-                "label": round(label, 4),
-                "total_votes": row.total_votes,
-                "avg_sentiment": round(float(row.avg_sentiment or 0), 4),
-            })
+            training_data.append(
+                {
+                    "signal_id": str(row.signal_id),
+                    "label": round(label, 4),
+                    "total_votes": row.total_votes,
+                    "avg_sentiment": round(float(row.avg_sentiment or 0), 4),
+                }
+            )
 
-        logger.info(
-            f"Generated {len(training_data)} signal quality training examples"
-        )
+        logger.info(f"Generated {len(training_data)} signal quality training examples")
         return training_data
 
     # ── Trending Insights from Feedback ──────────────────────────────
@@ -396,12 +392,8 @@ class FeedbackService:
             select(
                 UserFeedback.target_id.label("signal_id"),
                 func.count(UserFeedback.id).label("engagement_count"),
-                func.count(
-                    func.distinct(UserFeedback.user_id)
-                ).label("unique_users"),
-                func.count(
-                    func.distinct(UserFeedback.org_id)
-                ).label("unique_orgs"),
+                func.count(func.distinct(UserFeedback.user_id)).label("unique_users"),
+                func.count(func.distinct(UserFeedback.org_id)).label("unique_orgs"),
             )
             .where(and_(*conditions))
             .group_by(UserFeedback.target_id)
@@ -418,9 +410,7 @@ class FeedbackService:
                 "engagement_count": row.engagement_count,
                 "unique_users": row.unique_users,
                 "unique_orgs": row.unique_orgs,
-                "virality_score": round(
-                    row.unique_orgs / max(row.unique_users, 1), 4
-                ),
+                "virality_score": round(row.unique_orgs / max(row.unique_users, 1), 4),
             }
             for row in rows
         ]
@@ -436,15 +426,19 @@ class FeedbackService:
         """Get a summary of a user's feedback activity."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-        query = select(
-            UserFeedback.feedback_type,
-            func.count(UserFeedback.id).label("count"),
-        ).where(
-            and_(
-                UserFeedback.user_id == user_id,
-                UserFeedback.created_at >= cutoff,
+        query = (
+            select(
+                UserFeedback.feedback_type,
+                func.count(UserFeedback.id).label("count"),
             )
-        ).group_by(UserFeedback.feedback_type)
+            .where(
+                and_(
+                    UserFeedback.user_id == user_id,
+                    UserFeedback.created_at >= cutoff,
+                )
+            )
+            .group_by(UserFeedback.feedback_type)
+        )
 
         result = await self.db.execute(query)
         rows = result.all()

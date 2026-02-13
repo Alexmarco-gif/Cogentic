@@ -51,7 +51,7 @@ class EmbeddingService:
         self.batch_size = settings.openai_embedding_batch_size
         self.rpm_limit = settings.openai_embedding_rpm_limit
         self.cache = EmbeddingCache()
-        
+
         # Concurrency limiter (prevents overwhelming OpenAI API)
         self._semaphore = asyncio.Semaphore(
             settings.openai_max_concurrent_requests

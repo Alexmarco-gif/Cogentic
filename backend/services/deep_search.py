@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.ai.embeddings import EmbeddingService
@@ -104,9 +104,7 @@ class DeepSearchService:
             )
         except Exception as e:
             logger.error(f"Query embedding failed: {e}")
-            return self._error_result(
-                "Search temporarily unavailable.", query, start
-            )
+            return self._error_result("Search temporarily unavailable.", query, start)
 
         # Step 4: Parallel fetch — signals + entities
         signal_task = self._search_signals(
@@ -226,7 +224,8 @@ class DeepSearchService:
 
         where_clause = " AND ".join(conditions)
 
-        query = text(f"""
+        query = text(
+            f"""
             SELECT
                 s.id, s.title, s.summary, s.confidence,
                 s.signal_type, s.source_url, s.published_at,
@@ -236,7 +235,8 @@ class DeepSearchService:
             WHERE {where_clause}
             ORDER BY s.embedding <=> :embedding
             LIMIT :limit
-        """)
+        """
+        )
 
         result = await self.db.execute(
             query, {"embedding": embedding_str, "limit": limit}
@@ -267,7 +267,8 @@ class DeepSearchService:
         """Search entities via pgvector cosine similarity."""
         embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
-        query = text("""
+        query = text(
+            """
             SELECT
                 e.id, e.name, e.entity_type, e.description,
                 e.embedding <=> :embedding AS distance
@@ -275,7 +276,8 @@ class DeepSearchService:
             WHERE e.embedding IS NOT NULL
             ORDER BY e.embedding <=> :embedding
             LIMIT :limit
-        """)
+        """
+        )
 
         result = await self.db.execute(
             query, {"embedding": embedding_str, "limit": limit}
@@ -295,9 +297,7 @@ class DeepSearchService:
 
     # ── Ranking ──────────────────────────────────────────────────────
 
-    def _rank_results(
-        self, signals: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _rank_results(self, signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Rank signals by composite score: similarity + confidence + freshness.
 
         Weights:
@@ -423,9 +423,7 @@ class DeepSearchService:
             logger.warning(f"Search cache write failed: {e}")
 
     @staticmethod
-    def _error_result(
-        message: str, query: str, start: float
-    ) -> dict[str, Any]:
+    def _error_result(message: str, query: str, start: float) -> dict[str, Any]:
         return {
             "query": query,
             "query_hash": "",

@@ -1,8 +1,8 @@
 # Technical Implementation Guide: Building the Intelligence Moat
 
-**Document Version:** 1.0  
-**Date:** February 12, 2026  
-**Status:** 🔴 CRITICAL - IMMEDIATE ACTION REQUIRED  
+**Document Version:** 1.0
+**Date:** February 12, 2026
+**Status:** 🔴 CRITICAL - IMMEDIATE ACTION REQUIRED
 **Classification:** Internal Engineering
 
 ---
@@ -20,7 +20,7 @@ This document translates the Strategic Intelligence Differentiation Blueprint in
 
 ## Part 1: Entity Resolution 2.0 (Proprietary Data Fusion)
 
-**Priority:** P0 (Foundation for everything else)  
+**Priority:** P0 (Foundation for everything else)
 **Timeline:** Week 1-2
 
 ### Current State
@@ -47,15 +47,15 @@ CREATE TABLE entities (
     entity_type VARCHAR(50) NOT NULL, -- company, person, product, brand, infrastructure, cooperative
     industry_id UUID REFERENCES industries(id),
     slug VARCHAR(255) UNIQUE NOT NULL,
-    
+
     -- Metadata
     confidence FLOAT DEFAULT 1.0, -- How confident we are this is a distinct entity
     verified BOOLEAN DEFAULT FALSE, -- Manual verification flag
-    
+
     -- Rich profile data (JSONB for flexibility)
     attributes JSONB DEFAULT '{}', -- Industry-specific attributes
     metadata JSONB DEFAULT '{}',
-    
+
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     deleted_at TIMESTAMP
@@ -81,10 +81,10 @@ CREATE TABLE entity_source_profiles (
     profile_data JSONB NOT NULL, -- Source-specific data
     last_synced_at TIMESTAMP DEFAULT NOW(),
     confidence FLOAT DEFAULT 0.8,
-    
+
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    
+
     UNIQUE(entity_id, source_type) -- One profile per source per entity
 );
 
@@ -94,24 +94,24 @@ CREATE TABLE entity_relationships (
     source_entity_id UUID REFERENCES entities(id) ON DELETE CASCADE,
     target_entity_id UUID REFERENCES entities(id) ON DELETE CASCADE,
     relationship_type VARCHAR(100) NOT NULL, -- subsidiary, supplier, customer, competitor, partner, etc.
-    
+
     -- Relationship metadata
     strength FLOAT DEFAULT 0.5, -- 0 = weak, 1 = strong
     confidence FLOAT DEFAULT 0.5,
     bidirectional BOOLEAN DEFAULT FALSE, -- Is relationship symmetric?
-    
+
     -- Evidence
     evidence_signals JSON[] DEFAULT '{}', -- Array of signal IDs that support this relationship
     first_observed_at TIMESTAMP,
     last_observed_at TIMESTAMP,
-    
+
     -- Temporal tracking
     is_active BOOLEAN DEFAULT TRUE,
     ended_at TIMESTAMP,
-    
+
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    
+
     UNIQUE(source_entity_id, target_entity_id, relationship_type)
 );
 
@@ -161,11 +161,11 @@ logger = logging.getLogger(__name__)
 
 class EntityResolutionService:
     """Entity resolution engine with fuzzy matching + embedding similarity."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.embedding_service = EmbeddingService(db)
-    
+
     async def resolve_entity(
         self,
         mention: str,
@@ -176,19 +176,19 @@ class EntityResolutionService:
         min_confidence: float = 0.75,
     ) -> tuple[Entity | None, float]:
         """Resolve an entity mention to a canonical entity.
-        
+
         Uses multi-stage matching:
         1. Exact alias match (confidence: 1.0)
         2. Fuzzy string matching (confidence: 0.7-0.95)
         3. Embedding similarity with context (confidence: 0.6-0.85)
-        
+
         Args:
             mention: Entity name as mentioned in source
             entity_type: Filter by entity type
             industry_id: Filter by industry
             context: Surrounding text context for embedding-based matching
             min_confidence: Minimum confidence threshold
-        
+
         Returns:
             Tuple of (Entity or None, confidence_score)
         """
@@ -196,14 +196,14 @@ class EntityResolutionService:
         exact_match = await self._exact_alias_match(mention, entity_type, industry_id)
         if exact_match:
             return exact_match, 1.0
-        
+
         # Stage 2: Fuzzy string matching
         fuzzy_match, fuzzy_score = await self._fuzzy_match(
             mention, entity_type, industry_id
         )
         if fuzzy_match and fuzzy_score >= min_confidence:
             return fuzzy_match, fuzzy_score
-        
+
         # Stage 3: Embedding similarity (if context provided)
         if context:
             embedding_match, embedding_score = await self._embedding_match(
@@ -214,10 +214,10 @@ class EntityResolutionService:
                 if fuzzy_score >= min_confidence and fuzzy_score > embedding_score:
                     return fuzzy_match, fuzzy_score
                 return embedding_match, embedding_score
-        
+
         # No match above threshold
         return None, 0.0
-    
+
     async def _exact_alias_match(
         self,
         mention: str,
@@ -233,15 +233,15 @@ class EntityResolutionService:
                 Entity.deleted_at.is_(None)
             )
         )
-        
+
         if entity_type:
             query = query.where(Entity.entity_type == entity_type)
         if industry_id:
             query = query.where(Entity.industry_id == industry_id)
-        
+
         result = await self.db.execute(query)
         return result.scalars().first()
-    
+
     async def _fuzzy_match(
         self,
         mention: str,
@@ -255,13 +255,13 @@ class EntityResolutionService:
             query = query.where(Entity.entity_type == entity_type)
         if industry_id:
             query = query.where(Entity.industry_id == industry_id)
-        
+
         result = await self.db.execute(query.limit(500))  # Performance limit
         candidates = result.scalars().all()
-        
+
         if not candidates:
             return None, 0.0
-        
+
         # Build candidate list with all names (canonical + aliases)
         candidate_names = {}
         for entity in candidates:
@@ -272,22 +272,22 @@ class EntityResolutionService:
             )
             for alias in alias_result.scalars():
                 candidate_names[alias.alias_name] = entity
-        
+
         # Fuzzy match
         match_result = process.extractOne(
             mention,
             candidate_names.keys(),
             scorer=fuzz.token_sort_ratio
         )
-        
+
         if not match_result:
             return None, 0.0
-        
+
         matched_name, score, _ = match_result
         confidence = score / 100.0  # Convert 0-100 to 0-1
-        
+
         return candidate_names[matched_name], confidence
-    
+
     async def _embedding_match(
         self,
         mention: str,
@@ -299,13 +299,13 @@ class EntityResolutionService:
         # Create query text with context
         query_text = f"{mention} {context[:200]}"  # Limit context length
         query_embedding = await self.embedding_service.generate_query_embedding(query_text)
-        
+
         # Build vector similarity query (requires entity.description_embedding)
         # Note: Requires adding embedding column to entities table
         # For now, return None (implement after adding embedding column)
         logger.debug("Embedding-based entity matching not yet implemented")
         return None, 0.0
-    
+
     async def create_or_update_entity(
         self,
         canonical_name: str,
@@ -319,7 +319,7 @@ class EntityResolutionService:
         """Create a new canonical entity or update existing one."""
         # Check if entity already exists
         existing = await self._exact_alias_match(canonical_name, entity_type, industry_id)
-        
+
         if existing:
             # Update existing
             if attributes:
@@ -342,7 +342,7 @@ class EntityResolutionService:
             )
             self.db.add(entity)
             await self.db.flush()
-        
+
         # Add aliases
         if aliases:
             for alias in aliases:
@@ -355,10 +355,10 @@ class EntityResolutionService:
                     confidence=0.95,
                 )
                 self.db.add(alias_obj)
-        
+
         await self.db.flush()
         return entity
-    
+
     async def add_source_profile(
         self,
         entity_id: UUID,
@@ -379,7 +379,7 @@ class EntityResolutionService:
             )
         )
         existing_profile = existing.scalars().first()
-        
+
         if existing_profile:
             # Update
             existing_profile.profile_data = profile_data
@@ -401,7 +401,7 @@ class EntityResolutionService:
             self.db.add(profile)
             await self.db.flush()
             return profile
-    
+
     async def create_relationship(
         self,
         source_entity_id: UUID,
@@ -425,22 +425,22 @@ class EntityResolutionService:
             )
         )
         existing_rel = existing.scalars().first()
-        
+
         now = datetime.now(timezone.utc)
-        
+
         if existing_rel:
             # Update
             existing_rel.strength = max(existing_rel.strength, strength)  # Upgrade strength
             existing_rel.confidence = max(existing_rel.confidence, confidence)
             existing_rel.last_observed_at = now
             existing_rel.is_active = True
-            
+
             # Add evidence
             if evidence_signal_id:
                 existing_rel.evidence_signals = existing_rel.evidence_signals or []
                 if str(evidence_signal_id) not in existing_rel.evidence_signals:
                     existing_rel.evidence_signals.append(str(evidence_signal_id))
-            
+
             await self.db.flush()
             return existing_rel
         else:
@@ -461,7 +461,7 @@ class EntityResolutionService:
             self.db.add(relationship)
             await self.db.flush()
             return relationship
-    
+
     async def get_entity_network(
         self,
         entity_id: UUID,
@@ -471,7 +471,7 @@ class EntityResolutionService:
         min_strength: float = 0.3,
     ) -> dict[str, Any]:
         """Get entity relationship network graph.
-        
+
         Returns:
             Graph structure with nodes and edges.
         """
@@ -480,15 +480,15 @@ class EntityResolutionService:
         nodes = []
         edges = []
         queue = [(entity_id, 0)]  # (entity_id, depth)
-        
+
         while queue:
             current_id, depth = queue.pop(0)
-            
+
             if current_id in visited or depth > max_depth:
                 continue
-            
+
             visited.add(current_id)
-            
+
             # Get entity node
             entity = await self.db.get(Entity, current_id)
             if entity:
@@ -498,7 +498,7 @@ class EntityResolutionService:
                     "type": entity.entity_type,
                     "depth": depth,
                 })
-            
+
             # Get relationships
             query = select(EntityRelationship).where(
                 and_(
@@ -509,10 +509,10 @@ class EntityResolutionService:
             )
             if relationship_types:
                 query = query.where(EntityRelationship.relationship_type.in_(relationship_types))
-            
+
             result = await self.db.execute(query)
             relationships = result.scalars().all()
-            
+
             for rel in relationships:
                 edges.append({
                     "source": str(rel.source_entity_id),
@@ -521,11 +521,11 @@ class EntityResolutionService:
                     "strength": rel.strength,
                     "confidence": rel.confidence,
                 })
-                
+
                 # Add to queue for traversal
                 if depth + 1 <= max_depth:
                     queue.append((rel.target_entity_id, depth + 1))
-        
+
         return {
             "nodes": nodes,
             "edges": edges,
@@ -551,25 +551,25 @@ from backend.database import Base
 
 class Entity(Base):
     """Canonical entity (single source of truth for companies, people, products, etc.)."""
-    
+
     __tablename__ = "entities"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     canonical_name = Column(String(255), nullable=False)
     entity_type = Column(String(50), nullable=False)  # company, person, product, brand, infrastructure, cooperative
     industry_id = Column(UUID(as_uuid=True), ForeignKey("industries.id"), nullable=True)
     slug = Column(String(255), unique=True, nullable=False)
-    
+
     confidence = Column(Float, default=1.0)
     verified = Column(Boolean, default=False)
-    
+
     attributes = Column(JSONB, default={})
     metadata = Column(JSONB, default={})
-    
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Relationships
     aliases = relationship("EntityAlias", back_populates="entity", cascade="all, delete-orphan")
     source_profiles = relationship("EntitySourceProfile", back_populates="entity", cascade="all, delete-orphan")
@@ -589,27 +589,27 @@ class Entity(Base):
 
 class EntityAlias(Base):
     """Entity aliases (multiple names for same entity)."""
-    
+
     __tablename__ = "entity_aliases"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     alias_name = Column(String(255), nullable=False)
     alias_type = Column(String(50), nullable=True)  # legal_name, trading_name, abbreviation, former_name
     source = Column(String(100), nullable=True)
     confidence = Column(Float, default=1.0)
-    
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     entity = relationship("Entity", back_populates="aliases")
 
 
 class EntitySourceProfile(Base):
     """Cross-source entity profiles (data fusion layer)."""
-    
+
     __tablename__ = "entity_source_profiles"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     source_type = Column(String(100), nullable=False)  # cac_nigeria, customs, linkedin, job_boards, procurement
@@ -617,38 +617,38 @@ class EntitySourceProfile(Base):
     profile_data = Column(JSONB, nullable=False)
     last_synced_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     confidence = Column(Float, default=0.8)
-    
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     entity = relationship("Entity", back_populates="source_profiles")
 
 
 class EntityRelationship(Base):
     """Entity relationships (the relationship graph)."""
-    
+
     __tablename__ = "entity_relationships"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     source_entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     target_entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     relationship_type = Column(String(100), nullable=False)  # subsidiary, supplier, customer, competitor, partner
-    
+
     strength = Column(Float, default=0.5)  # 0 = weak, 1 = strong
     confidence = Column(Float, default=0.5)
     bidirectional = Column(Boolean, default=False)
-    
+
     evidence_signals = Column(ARRAY(String), default=[])  # Array of signal IDs
     first_observed_at = Column(DateTime(timezone=True), nullable=True)
     last_observed_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     is_active = Column(Boolean, default=True)
     ended_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     source_entity = relationship("Entity", foreign_keys=[source_entity_id], back_populates="outgoing_relationships")
     target_entity = relationship("Entity", foreign_keys=[target_entity_id], back_populates="incoming_relationships")
@@ -658,7 +658,7 @@ class EntityRelationship(Base):
 
 ## Part 2: Causal Intelligence Engine
 
-**Priority:** P0 (Core differentiation)  
+**Priority:** P0 (Core differentiation)
 **Timeline:** Week 2-4
 
 ### What to Build
@@ -692,18 +692,18 @@ settings = get_settings()
 
 class CausalGraphService:
     """Temporal causal graph for event sequence reasoning."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.driver = AsyncGraphDatabase.driver(
             settings.neo4j_uri,
             auth=(settings.neo4j_user, settings.neo4j_password)
         )
-    
+
     async def close(self):
         """Close Neo4j driver."""
         await self.driver.close()
-    
+
     async def add_event_node(
         self,
         signal_id: UUID,
@@ -714,14 +714,14 @@ class CausalGraphService:
         attributes: dict[str, Any] | None = None,
     ) -> str:
         """Add an event node to the causal graph.
-        
+
         Args:
             signal_id: Signal UUID
             event_type: Type classification (e.g., 'policy_change', 'price_increase')
             event_timestamp: When event occurred
             entities: List of entity IDs involved
             attributes: Event-specific attributes
-        
+
         Returns:
             Neo4j node ID
         """
@@ -746,7 +746,7 @@ class CausalGraphService:
             )
             record = await result.single()
             return record["node_id"]
-    
+
     async def detect_causal_link(
         self,
         source_signal_id: UUID,
@@ -756,12 +756,12 @@ class CausalGraphService:
         min_confidence: float = 0.6,
     ) -> dict[str, Any] | None:
         """Detect potential causal link between two events.
-        
+
         Uses:
         - Temporal proximity (is target after source within lag window?)
         - Entity overlap (do events involve same entities?)
         - Pattern matching (have we seen this sequence before?)
-        
+
         Returns:
             Causal link metadata or None if no link detected
         """
@@ -772,7 +772,7 @@ class CausalGraphService:
             MATCH (target:Event {signal_id: $target_id})
             WHERE target.timestamp > source.timestamp
               AND duration.between(source.timestamp, target.timestamp).days <= $max_lag_days
-            RETURN 
+            RETURN
                 source,
                 target,
                 duration.between(source.timestamp, target.timestamp) as lag
@@ -784,26 +784,26 @@ class CausalGraphService:
                 max_lag_days=max_lag_days
             )
             record = await result.single()
-            
+
             if not record:
                 return None  # No temporal link
-            
+
             source_node = record["source"]
             target_node = record["target"]
             lag = record["lag"]
-            
+
             # Calculate entity overlap
             source_entities = set(source_node.get("entities", []))
             target_entities = set(target_node.get("entities", []))
             entity_overlap = len(source_entities & target_entities) / max(len(source_entities), len(target_entities)) if source_entities or target_entities else 0
-            
+
             # Calculate confidence (simple heuristic for now)
             # TODO: Replace with ML model trained on historical causal links
             confidence = min(0.6 + (entity_overlap * 0.3), 1.0)
-            
+
             if confidence < min_confidence:
                 return None
-            
+
             return {
                 "source_signal_id": str(source_signal_id),
                 "target_signal_id": str(target_signal_id),
@@ -813,7 +813,7 @@ class CausalGraphService:
                 "source_event_type": source_node.get("event_type"),
                 "target_event_type": target_node.get("event_type"),
             }
-    
+
     async def create_causal_edge(
         self,
         source_signal_id: UUID,
@@ -842,7 +842,7 @@ class CausalGraphService:
                 confidence=confidence,
                 lag_days=lag_days
             )
-    
+
     async def find_causal_chains(
         self,
         start_event_type: str,
@@ -851,9 +851,9 @@ class CausalGraphService:
         min_confidence: float = 0.6,
     ) -> list[dict[str, Any]]:
         """Find common causal chains starting from a specific event type.
-        
+
         Example: "policy_change" → "lending_rate_change" → "loan_volume_decline"
-        
+
         Returns:
             List of causal chains with frequencies and confidence scores
         """
@@ -862,7 +862,7 @@ class CausalGraphService:
             query = f"""
             MATCH path = (start:Event {{event_type: $event_type}})-[r:LEADS_TO*1..{max_depth}]->(end:Event)
             WHERE ALL(rel IN r WHERE rel.confidence >= $min_confidence)
-            RETURN 
+            RETURN
                 [node IN nodes(path) | node.event_type] as chain,
                 [rel IN relationships(path) | rel.lag_days] as lags,
                 [rel IN relationships(path) | rel.confidence] as confidences,
@@ -875,7 +875,7 @@ class CausalGraphService:
                 event_type=start_event_type,
                 min_confidence=min_confidence
             )
-            
+
             chains = []
             async for record in result:
                 chains.append({
@@ -885,9 +885,9 @@ class CausalGraphService:
                     "depth": record["depth"],
                     "avg_confidence": sum(record["confidences"]) / len(record["confidences"]),
                 })
-            
+
             return chains
-    
+
     async def predict_next_events(
         self,
         current_signal_id: UUID,
@@ -896,7 +896,7 @@ class CausalGraphService:
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
         """Predict likely next events based on current event and historical patterns.
-        
+
         Returns:
             List of predicted events with probabilities and expected lags
         """
@@ -905,7 +905,7 @@ class CausalGraphService:
             MATCH (current:Event {signal_id: $signal_id})
             MATCH (current)-[r:LEADS_TO]->(next:Event)
             WHERE r.lag_days <= $time_horizon
-            WITH next.event_type as event_type, 
+            WITH next.event_type as event_type,
                  AVG(r.lag_days) as avg_lag,
                  AVG(r.confidence) as avg_confidence,
                  COUNT(*) as frequency
@@ -919,13 +919,13 @@ class CausalGraphService:
                 time_horizon=time_horizon_days,
                 top_k=top_k
             )
-            
+
             predictions = []
             async for record in result:
                 # Simple probability model: weighted by frequency and confidence
                 # TODO: Replace with proper probabilistic model
                 probability = min((record["frequency"] / 10.0) * record["avg_confidence"], 0.95)
-                
+
                 predictions.append({
                     "predicted_event_type": record["event_type"],
                     "expected_lag_days": int(record["avg_lag"]),
@@ -933,7 +933,7 @@ class CausalGraphService:
                     "confidence": round(record["avg_confidence"], 3),
                     "historical_frequency": record["frequency"],
                 })
-            
+
             return predictions
 ```
 
@@ -969,10 +969,10 @@ logger = logging.getLogger(__name__)
 
 class CausalInferenceService:
     """Causal inference engine for understanding WHY events occur."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
-    
+
     async def granger_causality_test(
         self,
         cause_signal_type: str,
@@ -982,21 +982,21 @@ class CausalInferenceService:
         lookback_days: int = 180,
     ) -> dict[str, Any]:
         """Test if one signal type Granger-causes another.
-        
+
         Granger causality: Does past values of X help predict Y?
-        
+
         Args:
             cause_signal_type: Hypothesized cause
             effect_signal_type: Hypothesized effect
             max_lag: Maximum lag to test (days)
             lookback_days: How far back to pull data
-        
+
         Returns:
             Test results with p-values and optimal lag
         """
         # Fetch time series data
         cutoff = datetime.utcnow() - timedelta(days=lookback_days)
-        
+
         # Cause signals
         cause_query = (
             select(Signal.published_at, Signal.confidence)
@@ -1010,7 +1010,7 @@ class CausalInferenceService:
         )
         cause_result = await self.db.execute(cause_query)
         cause_data = [(r.published_at, r.confidence) for r in cause_result]
-        
+
         # Effect signals
         effect_query = (
             select(Signal.published_at, Signal.confidence)
@@ -1024,17 +1024,17 @@ class CausalInferenceService:
         )
         effect_result = await self.db.execute(effect_query)
         effect_data = [(r.published_at, r.confidence) for r in effect_result]
-        
+
         # Convert to daily time series
         cause_series = self._aggregate_to_daily(cause_data, lookback_days)
         effect_series = self._aggregate_to_daily(effect_data, lookback_days)
-        
+
         # Create DataFrame for Granger test
         df = pd.DataFrame({
             "cause": cause_series,
             "effect": effect_series,
         })
-        
+
         # Run Granger causality test
         try:
             gc_result = grangercausalitytests(
@@ -1042,21 +1042,21 @@ class CausalInferenceService:
                 maxlag=max_lag,
                 verbose=False
             )
-            
+
             # Extract p-values for each lag
             p_values = {}
             for lag in range(1, max_lag + 1):
                 # Use F-test p-value
                 p_val = gc_result[lag][0]["ssr_ftest"][1]
                 p_values[lag] = p_val
-            
+
             # Find optimal lag (minimum p-value)
             optimal_lag = min(p_values, key=p_values.get)
             optimal_p_value = p_values[optimal_lag]
-            
+
             # Determine if causal relationship exists (p < 0.05)
             is_causal = optimal_p_value < 0.05
-            
+
             return {
                 "cause_signal_type": cause_signal_type,
                 "effect_signal_type": effect_signal_type,
@@ -1071,7 +1071,7 @@ class CausalInferenceService:
                     else f"No Granger causality detected between {cause_signal_type} and {effect_signal_type}"
                 ),
             }
-        
+
         except Exception as e:
             logger.error(f"Granger causality test failed: {e}")
             return {
@@ -1080,7 +1080,7 @@ class CausalInferenceService:
                 "is_causal": False,
                 "error": str(e),
             }
-    
+
     @staticmethod
     def _aggregate_to_daily(
         data: list[tuple[datetime, float]],
@@ -1089,15 +1089,15 @@ class CausalInferenceService:
         """Aggregate signals to daily time series."""
         # Create daily buckets
         daily_counts = np.zeros(lookback_days)
-        
+
         for timestamp, confidence in data:
             days_ago = (datetime.utcnow() - timestamp).days
             if 0 <= days_ago < lookback_days:
                 # Aggregate by count * average confidence
                 daily_counts[lookback_days - days_ago - 1] += confidence
-        
+
         return daily_counts
-    
+
     async def estimate_counterfactual(
         self,
         event_signal_id: str,
@@ -1107,23 +1107,23 @@ class CausalInferenceService:
         post_event_days: int = 30,
     ) -> dict[str, Any]:
         """Estimate counterfactual: What would have happened if event didn't occur?
-        
+
         Uses synthetic control method: Build a synthetic baseline from similar periods
         without the event, then compare actual vs. baseline.
-        
+
         Args:
             event_signal_id: The event whose impact we want to measure
             outcome_metric: The metric we're measuring (e.g., 'stock_price', 'loan_volume')
             pre_event_days: Days before event to establish baseline
             post_event_days: Days after event to measure impact
-        
+
         Returns:
             Counterfactual estimate with impact quantification
         """
         # Placeholder implementation
         # TODO: Implement synthetic control method
         logger.warning("Counterfactual estimation not yet fully implemented")
-        
+
         return {
             "event_signal_id": event_signal_id,
             "outcome_metric": outcome_metric,
@@ -1137,7 +1137,7 @@ class CausalInferenceService:
 
 ## Part 3: Predictive Signal Models (Proprietary)
 
-**Priority:** P0 (Critical differentiation)  
+**Priority:** P0 (Critical differentiation)
 **Timeline:** Week 3-5
 
 [Content continues with predictive models implementation...]
@@ -1174,4 +1174,3 @@ Track these metrics to measure moat strength:
 ---
 
 **CRITICAL NEXT STEP:** Review with engineering team, prioritize P0 items, begin Week 1 implementation.
-

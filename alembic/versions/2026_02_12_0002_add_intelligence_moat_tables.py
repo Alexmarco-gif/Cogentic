@@ -15,11 +15,14 @@ Tables added:
 Columns added:
   - entities.verified: Manual verification flag
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2026_02_12_0002"
@@ -51,8 +54,18 @@ def upgrade() -> None:
         sa.Column("alias_type", sa.String(50), nullable=True),
         sa.Column("source", sa.String(100), nullable=True),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="1.0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_entity_aliases_entity_id", "entity_aliases", ["entity_id"])
     op.create_index("ix_entity_aliases_alias_name", "entity_aliases", ["alias_name"])
@@ -70,14 +83,37 @@ def upgrade() -> None:
         sa.Column("source_type", sa.String(100), nullable=False),
         sa.Column("source_id", sa.String(255), nullable=True),
         sa.Column("profile_data", JSONB, nullable=False, server_default="{}"),
-        sa.Column("last_synced_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "last_synced_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.8"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.UniqueConstraint("entity_id", "source_type", name="uq_entity_source_profile"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.UniqueConstraint(
+            "entity_id", "source_type", name="uq_entity_source_profile"
+        ),
     )
-    op.create_index("ix_entity_source_profiles_entity_id", "entity_source_profiles", ["entity_id"])
-    op.create_index("ix_entity_source_profiles_source_type", "entity_source_profiles", ["source_type"])
+    op.create_index(
+        "ix_entity_source_profiles_entity_id", "entity_source_profiles", ["entity_id"]
+    )
+    op.create_index(
+        "ix_entity_source_profiles_source_type",
+        "entity_source_profiles",
+        ["source_type"],
+    )
 
     # ── 4. Entity Relationships ───────────────────────────────────────
     op.create_table(
@@ -98,22 +134,44 @@ def upgrade() -> None:
         sa.Column("relationship_type", sa.String(100), nullable=False),
         sa.Column("strength", sa.Float(), nullable=False, server_default="0.5"),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.5"),
-        sa.Column("bidirectional", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("evidence_signals", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column(
+            "bidirectional", sa.Boolean(), nullable=False, server_default="false"
+        ),
+        sa.Column(
+            "evidence_signals", ARRAY(sa.String()), nullable=False, server_default="{}"
+        ),
         sa.Column("first_observed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_observed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("ended_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.UniqueConstraint(
-            "source_entity_id", "target_entity_id", "relationship_type",
+            "source_entity_id",
+            "target_entity_id",
+            "relationship_type",
             name="uq_entity_relationship",
         ),
     )
-    op.create_index("ix_entity_rels_source", "entity_relationships", ["source_entity_id"])
-    op.create_index("ix_entity_rels_target", "entity_relationships", ["target_entity_id"])
-    op.create_index("ix_entity_rels_type", "entity_relationships", ["relationship_type"])
+    op.create_index(
+        "ix_entity_rels_source", "entity_relationships", ["source_entity_id"]
+    )
+    op.create_index(
+        "ix_entity_rels_target", "entity_relationships", ["target_entity_id"]
+    )
+    op.create_index(
+        "ix_entity_rels_type", "entity_relationships", ["relationship_type"]
+    )
     op.create_index(
         "ix_entity_rels_active",
         "entity_relationships",
@@ -135,11 +193,23 @@ def upgrade() -> None:
         sa.Column("event_category", sa.String(50), nullable=False),
         sa.Column("event_summary", sa.Text(), nullable=False),
         sa.Column("event_timestamp", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("entity_ids", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column(
+            "entity_ids", ARRAY(sa.String()), nullable=False, server_default="{}"
+        ),
         sa.Column("attributes", JSONB, nullable=False, server_default="{}"),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.7"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_causal_events_signal_id", "causal_events", ["signal_id"])
     op.create_index("ix_causal_events_event_type", "causal_events", ["event_type"])
@@ -162,17 +232,36 @@ def upgrade() -> None:
             sa.ForeignKey("causal_events.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("relationship_label", sa.String(100), nullable=False, server_default="leads_to"),
+        sa.Column(
+            "relationship_label",
+            sa.String(100),
+            nullable=False,
+            server_default="leads_to",
+        ),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.5"),
         sa.Column("lag_days_min", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("lag_days_max", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("lag_days_avg", sa.Float(), nullable=False, server_default="0"),
-        sa.Column("observation_count", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column(
+            "observation_count", sa.Integer(), nullable=False, server_default="1"
+        ),
         sa.Column("p_value", sa.Float(), nullable=True),
         sa.Column("correlation", sa.Float(), nullable=True),
-        sa.Column("discovery_method", sa.String(50), nullable=False, server_default="manual"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "discovery_method", sa.String(50), nullable=False, server_default="manual"
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_causal_edges_cause", "causal_edges", ["cause_event_id"])
     op.create_index("ix_causal_edges_effect", "causal_edges", ["effect_event_id"])
@@ -199,13 +288,25 @@ def upgrade() -> None:
         sa.Column("sentiment", sa.Float(), nullable=True),
         sa.Column("comment", sa.Text(), nullable=True),
         sa.Column("context", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_user_feedback_user_id", "user_feedback", ["user_id"])
     op.create_index("ix_user_feedback_org_id", "user_feedback", ["org_id"])
     op.create_index("ix_user_feedback_type", "user_feedback", ["feedback_type"])
-    op.create_index("ix_user_feedback_target", "user_feedback", ["target_type", "target_id"])
+    op.create_index(
+        "ix_user_feedback_target", "user_feedback", ["target_type", "target_id"]
+    )
     op.create_index("ix_user_feedback_created", "user_feedback", ["created_at"])
 
 

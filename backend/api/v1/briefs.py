@@ -45,9 +45,7 @@ async def list_briefs(
     auth: AuthContext = Depends(get_current_user),
 ):
     """List intelligence briefs (global + org-specific)."""
-    repo = IntelligenceBriefRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
+    repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
 
     if status == "published" or status is None:
         items = await repo.get_published(
@@ -75,9 +73,7 @@ async def get_brief(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get a single intelligence brief with linked signals."""
-    repo = IntelligenceBriefRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
+    repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     brief = await repo.get_with_signals(brief_id)
     if not brief:
         raise HTTPException(status_code=404, detail="Brief not found")
@@ -126,9 +122,7 @@ async def regenerate_brief(
 ):
     """Regenerate an existing brief with updated signals."""
     generator = BriefGenerator(db)
-    repo = IntelligenceBriefRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
+    repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
 
     existing = await repo.get(brief_id)
     if not existing:
@@ -161,9 +155,7 @@ async def update_brief_status(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Publish, archive, or revert a brief to draft."""
-    repo = IntelligenceBriefRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
+    repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     brief = await repo.get(brief_id)
     if not brief:
         raise HTTPException(status_code=404, detail="Brief not found")
@@ -184,9 +176,7 @@ async def refresh_brief(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Manually trigger a single brief refresh."""
-    repo = IntelligenceBriefRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
+    repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     brief = await repo.get(brief_id)
     if not brief:
         raise HTTPException(status_code=404, detail="Brief not found")
@@ -220,6 +210,4 @@ async def refresh_all_briefs(
         queue_name="low",
         job_timeout="15m",
     )
-    return BriefRefreshBatchResponse(
-        checked=0, refreshed=0, skipped=0, errors=0
-    )
+    return BriefRefreshBatchResponse(checked=0, refreshed=0, skipped=0, errors=0)

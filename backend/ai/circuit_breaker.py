@@ -11,7 +11,6 @@ States:
 
 import logging
 import time
-from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable
@@ -101,7 +100,7 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except Exception as e:
+        except Exception:
             self._on_failure()
             raise
 

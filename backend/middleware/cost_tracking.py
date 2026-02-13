@@ -8,9 +8,7 @@ Tracks token usage and costs per user/org/endpoint to enable:
 """
 
 import logging
-import time
-from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -88,7 +86,9 @@ class CostTracker:
             org_daily_key = f"cost:org:{org_id}:daily"
             org_monthly_key = f"cost:org:{org_id}:monthly:{month}"
             org_daily_cost = self._increment_cost(org_daily_key, total_cost, ttl=86400)
-            org_monthly_cost = self._increment_cost(org_monthly_key, total_cost, ttl=2678400)  # 31 days
+            org_monthly_cost = self._increment_cost(
+                org_monthly_key, total_cost, ttl=2678400
+            )  # 31 days
         else:
             org_daily_cost = 0.0
             org_monthly_cost = 0.0
@@ -166,7 +166,9 @@ class CostTracker:
             "org_monthly_cost": round(org_monthly_cost, 4),
             "org_monthly_limit": 2000.0,
             "org_monthly_exceeded": org_monthly_exceeded,
-            "budget_ok": not (user_exceeded or org_daily_exceeded or org_monthly_exceeded),
+            "budget_ok": not (
+                user_exceeded or org_daily_exceeded or org_monthly_exceeded
+            ),
         }
 
     def get_endpoint_metrics(
@@ -188,10 +190,7 @@ class CostTracker:
         metrics_key = f"cost:metrics:{date}"
         raw = self.redis.hgetall(metrics_key)
 
-        return {
-            endpoint.decode(): float(cost)
-            for endpoint, cost in raw.items()
-        }
+        return {endpoint.decode(): float(cost) for endpoint, cost in raw.items()}
 
     def _increment_cost(self, key: str, amount: float, ttl: int) -> float:
         """Atomically increment cost counter with TTL."""

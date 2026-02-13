@@ -8,7 +8,8 @@ better over time. This is the foundation of the network effect moat.
 from uuid import UUID
 
 from sqlalchemy import Float, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import Base, TimestampMixin, UUIDMixin
@@ -52,9 +53,7 @@ class UserFeedback(Base, UUIDMixin, TimestampMixin):
     )
 
     # What kind of feedback
-    feedback_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True
-    )
+    feedback_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
 
     # What was the feedback about (polymorphic)
     target_type: Mapped[str] = mapped_column(
@@ -70,9 +69,7 @@ class UserFeedback(Base, UUIDMixin, TimestampMixin):
     )  # -1.0 (negative) to 1.0 (positive)
 
     # Free-form user comment or annotation
-    comment: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Context at time of feedback (user's current query, page, etc.)
     context: Mapped[dict] = mapped_column(

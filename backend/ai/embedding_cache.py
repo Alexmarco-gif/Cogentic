@@ -132,11 +132,11 @@ class EmbeddingCache:
         """
         # Normalize whitespace for consistent hashing
         normalized = " ".join(text.split()).strip().lower()
-        
+
         # Compute SHA256 hash
         hash_obj = hashlib.sha256(normalized.encode("utf-8"))
         hash_hex = hash_obj.hexdigest()
-        
+
         return f"emb:sha256:{hash_hex}"
 
     async def get_stats(self) -> dict:

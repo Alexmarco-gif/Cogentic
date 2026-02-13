@@ -35,18 +35,10 @@ class EntityAlias(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
-    alias_name: Mapped[str] = mapped_column(
-        String(255), nullable=False, index=True
-    )
-    alias_type: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )
-    source: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
-    confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, default=1.0
-    )
+    alias_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    alias_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     # Relationships
     entity: Mapped["Entity"] = relationship(

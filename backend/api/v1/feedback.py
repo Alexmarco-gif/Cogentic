@@ -21,6 +21,7 @@ router = APIRouter(prefix="/feedback")
 
 # ── Schemas ──────────────────────────────────────────────────────────
 
+
 class FeedbackRequest(BaseModel):
     feedback_type: str = Field(
         ...,
@@ -66,6 +67,7 @@ class TrendingSignalResponse(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
+
 
 @router.post("", response_model=FeedbackResponse, status_code=201)
 async def submit_feedback(
@@ -176,7 +178,5 @@ async def get_my_feedback_summary(
     from backend.services.feedback_service import FeedbackService
 
     service = FeedbackService(db)
-    summary = await service.get_user_feedback_summary(
-        auth.user_id, days=days
-    )
+    summary = await service.get_user_feedback_summary(auth.user_id, days=days)
     return summary

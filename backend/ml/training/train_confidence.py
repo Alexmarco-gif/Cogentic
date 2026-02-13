@@ -84,15 +84,17 @@ def _export_to_onnx(
     version: str,
 ) -> Path:
     """Export sklearn pipeline to ONNX format."""
-    from sklearn.pipeline import Pipeline
     from skl2onnx import convert_sklearn
     from skl2onnx.common.data_types import FloatTensorType
+    from sklearn.pipeline import Pipeline
 
     # Create pipeline
-    pipeline = Pipeline([
-        ("scaler", scaler),
-        ("classifier", model),
-    ])
+    pipeline = Pipeline(
+        [
+            ("scaler", scaler),
+            ("classifier", model),
+        ]
+    )
 
     initial_type = [("float_input", FloatTensorType([None, N_FEATURES]))]
 
@@ -128,13 +130,13 @@ def _generate_synthetic_data(
     rng = np.random.default_rng(42)
 
     source_type = rng.integers(0, 4, size=n_samples).astype(np.float32)
-    content_length = rng.lognormal(mean=7, sigma=1.5, size=n_samples).astype(
-        np.float32
-    )
+    content_length = rng.lognormal(mean=7, sigma=1.5, size=n_samples).astype(np.float32)
     entity_count = rng.poisson(lam=2, size=n_samples).astype(np.float32)
     freshness_hours = rng.exponential(scale=48, size=n_samples).astype(np.float32)
 
-    features = np.column_stack([source_type, content_length, entity_count, freshness_hours])
+    features = np.column_stack(
+        [source_type, content_length, entity_count, freshness_hours]
+    )
 
     # Heuristic labels
     quality_score = (
@@ -165,9 +167,7 @@ async def extract_training_features_from_db() -> tuple[np.ndarray, np.ndarray]:
     async with get_db_context() as db:
         result = await db.execute(
             select(Signal)
-            .where(
-                or_(Signal.confidence >= 0.7, Signal.confidence < 0.4)
-            )
+            .where(or_(Signal.confidence >= 0.7, Signal.confidence < 0.4))
             .limit(10000)
         )
         signals = result.scalars().all()
@@ -185,7 +185,9 @@ async def extract_training_features_from_db() -> tuple[np.ndarray, np.ndarray]:
 
             content_length = len(s.raw_content or "")
             entity_count = len(s.entity_links) if s.entity_links else 0
-            freshness = (now - s.fetched_at).total_seconds() / 3600 if s.fetched_at else 48.0
+            freshness = (
+                (now - s.fetched_at).total_seconds() / 3600 if s.fetched_at else 48.0
+            )
 
             features_list.append([source, content_length, entity_count, freshness])
             labels_list.append(1 if s.confidence >= 0.7 else 0)

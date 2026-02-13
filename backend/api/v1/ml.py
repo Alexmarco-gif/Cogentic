@@ -26,7 +26,6 @@ from backend.schemas.ml import (
     RefinementResponse,
     SignalScoreResponse,
     SignalScoresResponse,
-    TrainAllResponse,
     TrainingRequest,
     TrainingResponse,
 )

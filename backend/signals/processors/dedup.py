@@ -64,17 +64,17 @@ class DedupProcessor:
         if not embedding:
             return False
 
-        query = text("""
+        query = text(
+            """
             SELECT id, 1 - (embedding <=> :embedding) AS similarity
             FROM signals
             WHERE embedding IS NOT NULL
             ORDER BY embedding <=> :embedding
             LIMIT 1
-        """)
-
-        result = await self.db.execute(
-            query, {"embedding": str(embedding)}
+        """
         )
+
+        result = await self.db.execute(query, {"embedding": str(embedding)})
         row = result.first()
 
         if row and row.similarity >= self.semantic_threshold:

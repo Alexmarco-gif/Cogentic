@@ -3,9 +3,6 @@
 Request/response models for on-demand synthesis endpoint.
 """
 
-from datetime import datetime
-from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 

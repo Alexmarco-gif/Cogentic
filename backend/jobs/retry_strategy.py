@@ -10,7 +10,6 @@ from typing import Any, Callable
 from rq import Retry
 from rq.job import Job
 
-from backend.queue import enqueue_job, get_job_status
 from backend.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -62,9 +61,14 @@ class DeadLetterQueue:
                 jid = jid.decode()
             data = redis_client.hgetall(f"dlq:{jid}")
             if data:
-                jobs.append({k.decode() if isinstance(k, bytes) else k: 
-                            v.decode() if isinstance(v, bytes) else v 
-                            for k, v in data.items()})
+                jobs.append(
+                    {
+                        k.decode() if isinstance(k, bytes) else k: (
+                            v.decode() if isinstance(v, bytes) else v
+                        )
+                        for k, v in data.items()
+                    }
+                )
 
         return jobs
 

@@ -59,7 +59,9 @@ class SLOMetrics:
         # Get latencies
         key = f"slo:{operation}:latencies"
         latencies = redis_client.zrange(key, 0, -1)
-        latencies = [int(l) if isinstance(l, bytes) else int(l.decode()) for l in latencies]
+        latencies = [
+            int(l) if isinstance(l, bytes) else int(l.decode()) for l in latencies
+        ]
 
         if not latencies:
             return {
@@ -86,7 +88,9 @@ class SLOMetrics:
         # Get error rate (last hour)
         current_hour = time.strftime("%Y-%m-%d-%H")
         errors = int(redis_client.get(f"slo:{operation}:errors:{current_hour}") or 0)
-        successes = int(redis_client.get(f"slo:{operation}:success:{current_hour}") or 0)
+        successes = int(
+            redis_client.get(f"slo:{operation}:success:{current_hour}") or 0
+        )
         total = errors + successes
         error_rate = (errors / total * 100) if total > 0 else 0
 
@@ -107,4 +111,4 @@ class SLOMetrics:
     @staticmethod
     def get_all_stats() -> list[dict[str, Any]]:
         """Get SLO stats for all operations."""
-        return [SLOMetrics.get_stats(op) for op in SLO_TARGETS.keys()]
+        return [SLOMetrics.get_stats(op) for op in SLO_TARGETS]

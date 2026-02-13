@@ -6,9 +6,10 @@ Create Date: 2026-02-11 08:00:00.000000+00:00
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2026_02_11_0001"
@@ -27,7 +28,9 @@ def upgrade() -> None:
         sa.Column("artifact_path", sa.Text, nullable=False),
         sa.Column("artifact_size_bytes", sa.Integer, nullable=True),
         sa.Column("metrics", sa.JSON, server_default="{}", nullable=False),
-        sa.Column("status", sa.String(50), server_default="active", nullable=False, index=True),
+        sa.Column(
+            "status", sa.String(50), server_default="active", nullable=False, index=True
+        ),
         sa.Column("training_samples", sa.Integer, nullable=True),
         sa.Column("training_duration_ms", sa.Integer, nullable=True),
         sa.Column(

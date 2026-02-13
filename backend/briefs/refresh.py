@@ -68,7 +68,8 @@ class BriefRefreshService:
 
         # Find stale published briefs (global query, no org scope)
         result = await self.db.execute(
-            select(IntelligenceBrief).where(
+            select(IntelligenceBrief)
+            .where(
                 IntelligenceBrief.status == "published",
                 IntelligenceBrief.deleted_at.is_(None),
                 (
@@ -177,9 +178,7 @@ class BriefRefreshService:
         """
         # Get linked signal IDs
         result = await self.db.execute(
-            select(BriefSignal.signal_id).where(
-                BriefSignal.brief_id == brief.id
-            )
+            select(BriefSignal.signal_id).where(BriefSignal.brief_id == brief.id)
         )
         signal_ids = [row[0] for row in result.all()]
 

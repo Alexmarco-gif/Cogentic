@@ -9,7 +9,7 @@ This migration adds:
   2. 6 sub-vertical industries (crop farming, livestock, agritech, etc.)
   3. 20 core entities (companies, products, infrastructure, cooperatives)
   4. 70 signal contracts across API, RSS, scraper, and social sources
-  
+
 Signal focus areas:
   - Weather patterns & forecasting
   - Market pricing & volatility
@@ -21,13 +21,12 @@ Signal focus areas:
   - Social sentiment
 """
 
+import json
 from collections.abc import Sequence
 from typing import Union
 from uuid import uuid4
-import json
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID
 
 from alembic import op
 
@@ -359,9 +358,7 @@ def upgrade() -> None:
             platform = extraction_config.get("platform", "twitter")
             auth = extraction_config.get("auth") or {}
             if platform == "twitter":
-                if not auth.get("bearer_token") and not auth.get(
-                    "bearer_token_env"
-                ):
+                if not auth.get("bearer_token") and not auth.get("bearer_token_env"):
                     auth["bearer_token_env"] = "TWITTER_BEARER_TOKEN"
                 extraction_config["auth"] = auth
 
@@ -739,7 +736,10 @@ def upgrade() -> None:
         "social",
         "standard",
         "Social signals on farm mechanization and technology adoption",
-        {"platform": "twitter", "params": {"query": "farm mechanization tractor Nigeria"}},
+        {
+            "platform": "twitter",
+            "params": {"query": "farm mechanization tractor Nigeria"},
+        },
     )
 
     # Supply Chain & Logistics (10 contracts)
@@ -1129,7 +1129,10 @@ def upgrade() -> None:
         "social",
         "standard",
         "Market women associations Facebook groups on commodity trading",
-        {"platform": "twitter", "params": {"query": "market women association Nigeria"}},
+        {
+            "platform": "twitter",
+            "params": {"query": "market women association Nigeria"},
+        },
     )
 
     create_social_contract(
@@ -1139,7 +1142,10 @@ def upgrade() -> None:
         "social",
         "standard",
         "Public WhatsApp group monitoring for commodity trading signals",
-        {"platform": "twitter", "params": {"query": "commodity traders Nigeria rice maize prices"}},
+        {
+            "platform": "twitter",
+            "params": {"query": "commodity traders Nigeria rice maize prices"},
+        },
     )
 
     create_social_contract(
@@ -1149,14 +1155,19 @@ def upgrade() -> None:
         "social",
         "standard",
         "Agricultural research institutions social media research announcements",
-        {"platform": "twitter", "params": {"query": "(IAR_ABU OR UIAgric OR ABU_AGRIC) agriculture research"}},
+        {
+            "platform": "twitter",
+            "params": {
+                "query": "(IAR_ABU OR UIAgric OR ABU_AGRIC) agriculture research"
+            },
+        },
     )
 
-    print(f"✅ Agriculture domain seeding complete:")
-    print(f"   - 1 root industry (Agriculture & Agritech)")
-    print(f"   - 6 sub-vertical industries")
-    print(f"   - 20 entities (companies, products, infrastructure)")
-    print(f"   - 70 signal contracts (10 weather, 10 market, 10 yield, etc.)")
+    print("✅ Agriculture domain seeding complete:")
+    print("   - 1 root industry (Agriculture & Agritech)")
+    print("   - 6 sub-vertical industries")
+    print("   - 20 entities (companies, products, infrastructure)")
+    print("   - 70 signal contracts (10 weather, 10 market, 10 yield, etc.)")
 
 
 def downgrade() -> None:

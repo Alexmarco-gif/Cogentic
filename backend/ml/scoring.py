@@ -13,7 +13,6 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID
 
 import numpy as np
 from sqlalchemy import func, select
@@ -23,7 +22,6 @@ from backend.config import get_settings
 from backend.ml.inference import get_inference_engine
 from backend.models.ml_model_run import MLModelRun
 from backend.models.signal import Signal
-from backend.models.signal_score import SignalScore
 from backend.repositories.ml_model_run import MLModelRunRepository
 from backend.repositories.signal_score import SignalScoreRepository
 
@@ -213,7 +211,9 @@ class ScoringService:
             score += 0.1
 
         # Late-night signals
-        if signal.fetched_at and (signal.fetched_at.hour < 6 or signal.fetched_at.hour > 22):
+        if signal.fetched_at and (
+            signal.fetched_at.hour < 6 or signal.fetched_at.hour > 22
+        ):
             score += 0.05
 
         return max(0.0, min(1.0, score))
@@ -227,9 +227,7 @@ class ScoringService:
         # Get source type from contract relationship
         source_type_encoded = 0
         if hasattr(signal, "contract") and signal.contract:
-            source_type_encoded = SOURCE_TYPE_MAP.get(
-                signal.contract.source_type, 0
-            )
+            source_type_encoded = SOURCE_TYPE_MAP.get(signal.contract.source_type, 0)
 
         return np.array(
             [[content_length, hour, day_of_week, source_type_encoded]],
@@ -300,9 +298,7 @@ class ScoringService:
         for days_ago in range(7):
             start = now - timedelta(days=days_ago + 1)
             end = now - timedelta(days=days_ago)
-            count = await self._count_signals_in_period(
-                signal.signal_type, start, end
-            )
+            count = await self._count_signals_in_period(signal.signal_type, start, end)
             daily_counts.append(count)
 
         # Reverse so index 0 = oldest
@@ -407,9 +403,7 @@ class ScoringService:
         # Source type encoding
         source_type_encoded = 0
         if hasattr(signal, "contract") and signal.contract:
-            source_type_encoded = SOURCE_TYPE_MAP.get(
-                signal.contract.source_type, 0
-            )
+            source_type_encoded = SOURCE_TYPE_MAP.get(signal.contract.source_type, 0)
 
         # Content length (log-scaled)
         content_length = len(signal.raw_content or "")

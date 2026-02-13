@@ -17,7 +17,7 @@ import logging
 from enum import Enum
 from typing import Any
 
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI
 
 from backend.config import get_settings
 
@@ -148,7 +148,9 @@ class ModelRouter:
                 if "rate_limit" in error_str.lower() or "429" in error_str:
                     fallback_tier = FALLBACK_CHAIN.get(tier)
                     if fallback_tier:
-                        logger.info(f"Falling back from {tier.value} to {fallback_tier.value}")
+                        logger.info(
+                            f"Falling back from {tier.value} to {fallback_tier.value}"
+                        )
                         tier = fallback_tier
                         continue
 

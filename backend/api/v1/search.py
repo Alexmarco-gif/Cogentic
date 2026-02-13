@@ -5,7 +5,6 @@ Execute searches and view search history.
 
 import logging
 import time
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,18 +54,20 @@ async def execute_search(
         # Map service result to response schema
         items = []
         for r in result.get("results", []):
-            items.append(SearchResultItem(
-                signal_id=r.get("signal_id", ""),
-                title=r.get("title"),
-                summary=r.get("summary"),
-                signal_type=r.get("signal_type"),
-                confidence=r.get("confidence", 0.0),
-                similarity=r.get("similarity", 0.0),
-                freshness_score=r.get("freshness_score", 0.0),
-                composite_score=r.get("composite_score", 0.0),
-                source_url=r.get("source_url"),
-                published_at=r.get("published_at"),
-            ))
+            items.append(
+                SearchResultItem(
+                    signal_id=r.get("signal_id", ""),
+                    title=r.get("title"),
+                    summary=r.get("summary"),
+                    signal_type=r.get("signal_type"),
+                    confidence=r.get("confidence", 0.0),
+                    similarity=r.get("similarity", 0.0),
+                    freshness_score=r.get("freshness_score", 0.0),
+                    composite_score=r.get("composite_score", 0.0),
+                    source_url=r.get("source_url"),
+                    published_at=r.get("published_at"),
+                )
+            )
 
         return SearchResponse(
             query=body.query,
@@ -90,12 +91,8 @@ async def get_search_history(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get user's search history."""
-    repo = SearchQueryRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
-    items = await repo.get_user_history(
-        auth.user_id, skip=skip, limit=limit
-    )
+    repo = SearchQueryRepository(db, org_id=auth.org_id, user_id=auth.user_id)
+    items = await repo.get_user_history(auth.user_id, skip=skip, limit=limit)
 
     return SearchHistoryResponse(
         items=[SearchHistoryItem.model_validate(q) for q in items],

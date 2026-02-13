@@ -5,12 +5,11 @@ Integrates with Redis for real-time counters and PostgreSQL for audit.
 """
 
 import logging
-import time
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Column, DateTime, Float, Integer, String, select
+from sqlalchemy import Float, Integer, String, select
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
@@ -34,8 +33,12 @@ class AIUsageLog(Base, UUIDMixin, TimestampMixin):
 
     user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True)
     org_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True)
-    operation: Mapped[str] = mapped_column(String(100), nullable=False)  # synthesis, chat, brief_gen
-    model: Mapped[str] = mapped_column(String(100), nullable=False)  # gpt-4o, text-embedding-3-small
+    operation: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # synthesis, chat, brief_gen
+    model: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # gpt-4o, text-embedding-3-small
     prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
@@ -129,7 +132,8 @@ class CostTracker:
             "user_budget_pct": round(user_pct, 1),
             "org_daily_total": org_total,
             "org_budget_pct": round(org_pct, 1),
-            "over_budget": user_total > DAILY_USER_TOKEN_BUDGET or org_total > DAILY_ORG_TOKEN_BUDGET,
+            "over_budget": user_total > DAILY_USER_TOKEN_BUDGET
+            or org_total > DAILY_ORG_TOKEN_BUDGET,
         }
 
     async def check_budget(
@@ -152,7 +156,8 @@ class CostTracker:
             "org_tokens": org_total,
             "org_budget": DAILY_ORG_TOKEN_BUDGET,
             "org_remaining": max(0, DAILY_ORG_TOKEN_BUDGET - org_total),
-            "over_budget": user_total > DAILY_USER_TOKEN_BUDGET or org_total > DAILY_ORG_TOKEN_BUDGET,
+            "over_budget": user_total > DAILY_USER_TOKEN_BUDGET
+            or org_total > DAILY_ORG_TOKEN_BUDGET,
         }
 
     async def get_usage_summary(

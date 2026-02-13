@@ -38,7 +38,7 @@ class SLOConfig:
         p50_ms=1500,
         p95_ms=5000,
         p99_ms=8000,
-        metric_query='histogram_quantile(0.95, search_duration_seconds_bucket)',
+        metric_query="histogram_quantile(0.95, search_duration_seconds_bucket)",
     )
 
     API_SYNTHESIS = SLOTarget(
@@ -47,7 +47,7 @@ class SLOConfig:
         p50_ms=2000,
         p95_ms=6000,
         p99_ms=10000,
-        metric_query='histogram_quantile(0.95, synthesis_duration_seconds_buffer)',
+        metric_query="histogram_quantile(0.95, synthesis_duration_seconds_buffer)",
     )
 
     API_BRIEF_GENERATION = SLOTarget(
@@ -56,7 +56,7 @@ class SLOConfig:
         p50_ms=8000,
         p95_ms=15000,
         p99_ms=25000,
-        metric_query='histogram_quantile(0.95, brief_generation_duration_seconds_bucket)',
+        metric_query="histogram_quantile(0.95, brief_generation_duration_seconds_bucket)",
     )
 
     API_RECOMMENDATIONS = SLOTarget(
@@ -65,7 +65,7 @@ class SLOConfig:
         p50_ms=200,
         p95_ms=500,
         p99_ms=1000,
-        metric_query='histogram_quantile(0.95, recommendations_duration_seconds_bucket)',
+        metric_query="histogram_quantile(0.95, recommendations_duration_seconds_bucket)",
     )
 
     # Background Jobs
@@ -98,14 +98,14 @@ class SLOConfig:
         name="ai.completion.success_rate",
         description="OpenAI completion success rate (excludes 429s)",
         success_rate_pct=99.5,
-        metric_query='sum(rate(ai_completion_success_total[5m])) / sum(rate(ai_completion_attempts_total[5m]))',
+        metric_query="sum(rate(ai_completion_success_total[5m])) / sum(rate(ai_completion_attempts_total[5m]))",
     )
 
     SIGNAL_ACQUISITION_SUCCESS = SLOTarget(
         name="signal.acquisition.success_rate",
         description="Signal acquisition success rate per contract",
         success_rate_pct=95.0,
-        metric_query='sum(rate(signal_acquisition_success_total[1h])) / sum(rate(signal_acquisition_attempts_total[1h]))',
+        metric_query="sum(rate(signal_acquisition_success_total[1h])) / sum(rate(signal_acquisition_attempts_total[1h]))",
     )
 
     # Cache Performance
@@ -113,14 +113,14 @@ class SLOConfig:
         name="cache.search.hit_rate",
         description="Search result cache hit rate",
         success_rate_pct=40.0,  # Target 40% hit rate
-        metric_query='sum(rate(search_cache_hits_total[5m])) / sum(rate(search_requests_total[5m]))',
+        metric_query="sum(rate(search_cache_hits_total[5m])) / sum(rate(search_requests_total[5m]))",
     )
 
     SYNTHESIS_CACHE_HIT_RATE = SLOTarget(
         name="cache.synthesis.hit_rate",
         description="Synthesis cache hit rate",
         success_rate_pct=35.0,  # Target 35% hit rate
-        metric_query='sum(rate(synthesis_cache_hits_total[5m])) / sum(rate(synthesis_requests_total[5m]))',
+        metric_query="sum(rate(synthesis_cache_hits_total[5m])) / sum(rate(synthesis_requests_total[5m]))",
     )
 
     # Data Freshness
@@ -129,7 +129,7 @@ class SLOConfig:
         description="Time since last signal refresh per contract",
         p95_ms=3600000,  # 1 hour
         p99_ms=7200000,  # 2 hours
-        metric_query='histogram_quantile(0.95, signal_age_seconds_bucket)',
+        metric_query="histogram_quantile(0.95, signal_age_seconds_bucket)",
     )
 
     # Availability
@@ -164,19 +164,23 @@ class SLOConfig:
             }
 
             if target.metric_query:
-                panel["targets"].append({
-                    "expr": target.metric_query,
-                    "legendFormat": "Current",
-                })
+                panel["targets"].append(
+                    {
+                        "expr": target.metric_query,
+                        "legendFormat": "Current",
+                    }
+                )
 
             if target.p95_ms:
-                panel["thresholds"] = [{
-                    "value": target.p95_ms,
-                    "colorMode": "critical",
-                    "op": "gt",
-                    "fill": True,
-                    "line": True,
-                }]
+                panel["thresholds"] = [
+                    {
+                        "value": target.p95_ms,
+                        "colorMode": "critical",
+                        "op": "gt",
+                        "fill": True,
+                        "line": True,
+                    }
+                ]
 
             panels.append(panel)
 

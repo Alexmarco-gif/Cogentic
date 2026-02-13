@@ -269,7 +269,8 @@ class EntityResolutionService:
 
             from sqlalchemy import text
 
-            sql = text(f"""
+            sql = text(
+                f"""
                 SELECT
                     e.id,
                     e.name,
@@ -279,7 +280,8 @@ class EntityResolutionService:
                 WHERE {where_clause}
                 ORDER BY e.embedding <=> :embedding
                 LIMIT 1
-            """)
+            """
+            )
 
             result = await self.db.execute(sql, {"embedding": embedding_str})
             row = result.fetchone()
@@ -511,14 +513,18 @@ class EntityResolutionService:
             # Fetch entity
             entity = await self.db.get(Entity, current_id)
             if entity:
-                nodes.append({
-                    "id": str(entity.id),
-                    "name": entity.name,
-                    "type": entity.entity_type,
-                    "industry_id": str(entity.industry_id) if entity.industry_id else None,
-                    "depth": depth,
-                    "verified": entity.verified,
-                })
+                nodes.append(
+                    {
+                        "id": str(entity.id),
+                        "name": entity.name,
+                        "type": entity.entity_type,
+                        "industry_id": (
+                            str(entity.industry_id) if entity.industry_id else None
+                        ),
+                        "depth": depth,
+                        "verified": entity.verified,
+                    }
+                )
 
             # Fetch outgoing relationships
             rels_query = select(EntityRelationship).where(
@@ -535,15 +541,17 @@ class EntityResolutionService:
 
             result = await self.db.execute(rels_query)
             for rel in result.scalars():
-                edges.append({
-                    "id": str(rel.id),
-                    "source": str(rel.source_entity_id),
-                    "target": str(rel.target_entity_id),
-                    "type": rel.relationship_type,
-                    "strength": rel.strength,
-                    "confidence": rel.confidence,
-                    "evidence_count": len(rel.evidence_signals or []),
-                })
+                edges.append(
+                    {
+                        "id": str(rel.id),
+                        "source": str(rel.source_entity_id),
+                        "target": str(rel.target_entity_id),
+                        "type": rel.relationship_type,
+                        "strength": rel.strength,
+                        "confidence": rel.confidence,
+                        "evidence_count": len(rel.evidence_signals or []),
+                    }
+                )
                 if depth + 1 <= max_depth:
                     queue.append((rel.target_entity_id, depth + 1))
 
@@ -563,15 +571,17 @@ class EntityResolutionService:
 
             result = await self.db.execute(incoming_query)
             for rel in result.scalars():
-                edges.append({
-                    "id": str(rel.id),
-                    "source": str(rel.source_entity_id),
-                    "target": str(rel.target_entity_id),
-                    "type": rel.relationship_type,
-                    "strength": rel.strength,
-                    "confidence": rel.confidence,
-                    "evidence_count": len(rel.evidence_signals or []),
-                })
+                edges.append(
+                    {
+                        "id": str(rel.id),
+                        "source": str(rel.source_entity_id),
+                        "target": str(rel.target_entity_id),
+                        "type": rel.relationship_type,
+                        "strength": rel.strength,
+                        "confidence": rel.confidence,
+                        "evidence_count": len(rel.evidence_signals or []),
+                    }
+                )
                 if depth + 1 <= max_depth:
                     queue.append((rel.source_entity_id, depth + 1))
 
@@ -617,7 +627,9 @@ class EntityResolutionService:
                 "source_id": p.source_id,
                 "data": p.profile_data,
                 "confidence": p.confidence,
-                "last_synced": p.last_synced_at.isoformat() if p.last_synced_at else None,
+                "last_synced": (
+                    p.last_synced_at.isoformat() if p.last_synced_at else None
+                ),
             }
             for p in profiles
         }
@@ -694,9 +706,7 @@ class EntityResolutionService:
         # Get influence metrics
         influence_service = InfluenceMappingService(self.db)
         influence_data = await influence_service.calculate_entity_influence_score(
-            entity_id,
-            industry_id=industry_id,
-            algorithm="composite"
+            entity_id, industry_id=industry_id, algorithm="composite"
         )
 
         # Merge the data

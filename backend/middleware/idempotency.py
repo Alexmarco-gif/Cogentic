@@ -14,7 +14,7 @@ import hashlib
 import json
 import logging
 from functools import wraps
-from typing import Any, Callable
+from typing import Callable
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse

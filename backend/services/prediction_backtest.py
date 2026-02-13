@@ -14,13 +14,11 @@ Methodology:
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID, uuid4
 
 from sqlalchemy import and_, desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.causal_event import CausalEdge, CausalEvent
-from backend.models.user_feedback import UserFeedback
 
 logger = logging.getLogger(__name__)
 
@@ -157,15 +155,19 @@ class PredictionBacktestService:
             key=lambda x: x[1]["tested"],
             reverse=True,
         ):
-            pair_acc = round(
-                data["accurate"] / data["tested"] * 100, 1
-            ) if data["tested"] > 0 else 0
-            pair_results.append({
-                "causal_pair": pair,
-                "tested": data["tested"],
-                "accurate": data["accurate"],
-                "accuracy_pct": pair_acc,
-            })
+            pair_acc = (
+                round(data["accurate"] / data["tested"] * 100, 1)
+                if data["tested"] > 0
+                else 0
+            )
+            pair_results.append(
+                {
+                    "causal_pair": pair,
+                    "tested": data["tested"],
+                    "accurate": data["accurate"],
+                    "accuracy_pct": pair_acc,
+                }
+            )
 
         return {
             "accuracy_pct": accuracy_pct,
@@ -226,9 +228,7 @@ class PredictionBacktestService:
         instances = []
 
         for cause in cause_events:
-            window_end = cause.event_timestamp + timedelta(
-                days=forecast_horizon_days
-            )
+            window_end = cause.event_timestamp + timedelta(days=forecast_horizon_days)
 
             # Check if effect occurred
             match = await self.db.execute(
@@ -246,23 +246,25 @@ class PredictionBacktestService:
 
             if effect:
                 hits += 1
-                lag = (
-                    effect.event_timestamp - cause.event_timestamp
-                ).days
-                instances.append({
-                    "cause_date": cause.event_timestamp.isoformat(),
-                    "effect_date": effect.event_timestamp.isoformat(),
-                    "lag_days": lag,
-                    "result": "hit",
-                })
+                lag = (effect.event_timestamp - cause.event_timestamp).days
+                instances.append(
+                    {
+                        "cause_date": cause.event_timestamp.isoformat(),
+                        "effect_date": effect.event_timestamp.isoformat(),
+                        "lag_days": lag,
+                        "result": "hit",
+                    }
+                )
             else:
                 misses += 1
-                instances.append({
-                    "cause_date": cause.event_timestamp.isoformat(),
-                    "effect_date": None,
-                    "lag_days": None,
-                    "result": "miss",
-                })
+                instances.append(
+                    {
+                        "cause_date": cause.event_timestamp.isoformat(),
+                        "effect_date": None,
+                        "lag_days": None,
+                        "result": "miss",
+                    }
+                )
 
         total = hits + misses
         accuracy_pct = round(hits / total * 100, 2) if total > 0 else None
@@ -276,11 +278,7 @@ class PredictionBacktestService:
             "misses": misses,
             "forecast_horizon_days": forecast_horizon_days,
             "avg_lag_days": round(
-                sum(
-                    i["lag_days"]
-                    for i in instances
-                    if i["lag_days"] is not None
-                )
+                sum(i["lag_days"] for i in instances if i["lag_days"] is not None)
                 / max(hits, 1),
                 1,
             ),
@@ -303,7 +301,8 @@ class PredictionBacktestService:
         """
         # Get distinct cause→effect type pairs from edges
         pairs_result = await self.db.execute(
-            text("""
+            text(
+                """
                 SELECT DISTINCT e1.event_type AS cause_type,
                                 e2.event_type AS effect_type
                 FROM causal_edges ce
@@ -312,7 +311,8 @@ class PredictionBacktestService:
                 WHERE ce.confidence >= :min_conf
                   AND ce.observation_count >= :min_obs
                 LIMIT 50
-            """),
+            """
+            ),
             {
                 "min_conf": min_edge_confidence,
                 "min_obs": min_observations,

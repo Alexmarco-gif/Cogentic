@@ -97,9 +97,7 @@ async def get_system_health(
     # Cache performance
     cache_stats = CacheMetrics.get_all_stats()
     avg_hit_rate = (
-        sum(s["hit_rate"] for s in cache_stats) / len(cache_stats)
-        if cache_stats
-        else 0
+        sum(s["hit_rate"] for s in cache_stats) / len(cache_stats) if cache_stats else 0
     )
 
     # Circuit breaker

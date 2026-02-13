@@ -81,14 +81,16 @@ def _export_to_onnx(
     version: str,
 ) -> Path:
     """Export sklearn pipeline to ONNX format."""
-    from sklearn.pipeline import Pipeline
     from skl2onnx import convert_sklearn
     from skl2onnx.common.data_types import FloatTensorType
+    from sklearn.pipeline import Pipeline
 
-    pipeline = Pipeline([
-        ("scaler", scaler),
-        ("regressor", model),
-    ])
+    pipeline = Pipeline(
+        [
+            ("scaler", scaler),
+            ("regressor", model),
+        ]
+    )
 
     initial_type = [("float_input", FloatTensorType([None, N_FEATURES]))]
 
@@ -190,9 +192,7 @@ async def extract_training_features_from_db() -> tuple[np.ndarray, np.ndarray]:
 
     async with get_db_context() as db:
         # Get distinct signal types
-        result = await db.execute(
-            select(Signal.signal_type).distinct()
-        )
+        result = await db.execute(select(Signal.signal_type).distinct())
         signal_types = [row[0] for row in result.all()]
 
         if not signal_types:

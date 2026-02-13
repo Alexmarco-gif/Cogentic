@@ -49,12 +49,14 @@ async def synthesize(
 
         sources = []
         for s in result.get("sources", []):
-            sources.append(SynthesisSource(
-                signal_id=s.get("signal_id", ""),
-                title=s.get("title"),
-                similarity=s.get("similarity", 0.0),
-                confidence=s.get("confidence", 0.0),
-            ))
+            sources.append(
+                SynthesisSource(
+                    signal_id=s.get("signal_id", ""),
+                    title=s.get("title"),
+                    similarity=s.get("similarity", 0.0),
+                    confidence=s.get("confidence", 0.0),
+                )
+            )
 
         return SynthesisResponse(
             query=body.query,

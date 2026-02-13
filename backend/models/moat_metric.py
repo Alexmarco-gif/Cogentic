@@ -5,7 +5,7 @@ Technical Implementation Moat Strategy. Each snapshot captures the full
 state at a point in time, enabling trend analysis and target tracking.
 """
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import Float, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,9 +35,7 @@ class MoatMetricSnapshot(Base, UUIDMixin, TimestampMixin):
     )  # YYYY-MM-DD
 
     # ── Metric 1: Entity Graph Coverage ──────────────────────────────
-    entity_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    entity_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     entity_verified_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )
@@ -49,23 +47,15 @@ class MoatMetricSnapshot(Base, UUIDMixin, TimestampMixin):
     )
 
     # ── Metric 2: Causal Chains Discovered ───────────────────────────
-    causal_event_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    causal_edge_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    causal_event_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    causal_edge_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     causal_chain_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )  # validated chains with confidence >= 0.6
 
     # ── Metric 3: Prediction Accuracy ────────────────────────────────
-    prediction_total: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    prediction_accurate: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    prediction_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    prediction_accurate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     prediction_inaccurate: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )
@@ -88,9 +78,7 @@ class MoatMetricSnapshot(Base, UUIDMixin, TimestampMixin):
     mau: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )  # Monthly active users
-    dau_mau_ratio: Mapped[float | None] = mapped_column(
-        Float, nullable=True
-    )  # 0..1
+    dau_mau_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0..1
 
     # ── Overall Health ───────────────────────────────────────────────
     moat_health_score: Mapped[float | None] = mapped_column(

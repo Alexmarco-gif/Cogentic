@@ -77,7 +77,9 @@ class CircuitBreaker:
             if opened_at:
                 elapsed = time.time() - float(opened_at)
                 if elapsed >= self.recovery_timeout:
-                    logger.info(f"Circuit {self.name}: OPEN → HALF_OPEN (timeout elapsed)")
+                    logger.info(
+                        f"Circuit {self.name}: OPEN → HALF_OPEN (timeout elapsed)"
+                    )
                     self._set_state(CircuitState.HALF_OPEN)
                     redis_client.delete(self._success_key)
                 else:
@@ -92,7 +94,7 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except Exception as e:
+        except Exception:
             self._on_failure()
             raise
 
@@ -104,9 +106,13 @@ class CircuitBreaker:
             # Increment success counter
             successes = redis_client.incr(self._success_key)
             if successes >= self.success_threshold:
-                logger.info(f"Circuit {self.name}: HALF_OPEN → CLOSED (recovery confirmed)")
+                logger.info(
+                    f"Circuit {self.name}: HALF_OPEN → CLOSED (recovery confirmed)"
+                )
                 self._set_state(CircuitState.CLOSED)
-                redis_client.delete(self._failure_key, self._success_key, self._opened_at_key)
+                redis_client.delete(
+                    self._failure_key, self._success_key, self._opened_at_key
+                )
         elif state == CircuitState.CLOSED:
             # Reset failure counter on success
             redis_client.delete(self._failure_key)
@@ -139,7 +145,9 @@ class CircuitBreaker:
         state_str = redis_client.get(self._state_key)
         if not state_str:
             return CircuitState.CLOSED
-        return CircuitState(state_str.decode() if isinstance(state_str, bytes) else state_str)
+        return CircuitState(
+            state_str.decode() if isinstance(state_str, bytes) else state_str
+        )
 
     def _set_state(self, state: CircuitState):
         """Set circuit state."""

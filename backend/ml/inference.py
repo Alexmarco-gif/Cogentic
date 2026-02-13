@@ -6,7 +6,6 @@ Local filesystem in dev, Azure Blob in prod.
 """
 
 import logging
-import os
 import time
 from pathlib import Path
 from typing import Any
@@ -96,9 +95,7 @@ class OnnxInferenceEngine:
             outputs = self._run_with_timeout(session, input_name, features)
             result = outputs[0]
         except Exception as e:
-            raise RuntimeError(
-                f"Inference failed for {model_name}: {e}"
-            ) from e
+            raise RuntimeError(f"Inference failed for {model_name}: {e}") from e
 
         elapsed_ms = (time.monotonic() - start) * 1000
         if elapsed_ms > settings.ml_inference_timeout_ms:
@@ -280,6 +277,7 @@ class OnnxInferenceEngine:
                 ) from e
 
         logger.info("All required ML models validated successfully")
+
     def _get_session(
         self,
         model_name: str,
@@ -337,17 +335,14 @@ class OnnxInferenceEngine:
         if version:
             model_path = model_dir / version / f"{model_name}.onnx"
             if not model_path.exists():
-                raise FileNotFoundError(
-                    f"Model not found: {model_path}"
-                )
+                raise FileNotFoundError(f"Model not found: {model_path}")
             return model_path
 
         # Find latest version
         versions = self.get_available_versions(model_name)
         if not versions:
             raise FileNotFoundError(
-                f"No versions found for model: {model_name} "
-                f"(searched: {model_dir})"
+                f"No versions found for model: {model_name} " f"(searched: {model_dir})"
             )
 
         latest = versions[0]

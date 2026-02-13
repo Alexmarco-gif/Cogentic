@@ -8,6 +8,7 @@ from backend.api.v1 import (
     briefs,
     bulk,
     causal,
+    chat,
     contracts,
     documents,
     entities,
@@ -24,6 +25,7 @@ from backend.api.v1 import (
     regulatory,
     search,
     signals,
+    situation_room,
     synthesis,
     users,
 )
@@ -52,6 +54,12 @@ api_v1_router.include_router(briefs.router, tags=["briefs"])
 api_v1_router.include_router(search.router, tags=["search"])
 api_v1_router.include_router(synthesis.router, tags=["synthesis"])
 api_v1_router.include_router(recommendations.router, tags=["recommendations"])
+
+# Sprint 5 — AI Chat Agent
+api_v1_router.include_router(chat.router, tags=["chat"])
+
+# Sprint 6 — Situation Room (REST + WebSocket)
+api_v1_router.include_router(situation_room.router, tags=["situation-room"])
 
 # Efficiency enhancements
 api_v1_router.include_router(bulk.router, tags=["bulk"])

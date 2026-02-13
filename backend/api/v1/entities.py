@@ -21,6 +21,7 @@ router = APIRouter(prefix="/entities")
 
 # ── Schemas ──────────────────────────────────────────────────────────
 
+
 class EntityResolveRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=500)
     entity_type: str | None = None
@@ -67,6 +68,7 @@ class RelationshipUpsertRequest(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
+
 
 @router.post("/resolve", response_model=EntityResolveResponse)
 async def resolve_entity(
@@ -214,7 +216,9 @@ async def upsert_relationship(
 @router.get("/{entity_id}/with-influence")
 async def get_entity_with_influence(
     entity_id: UUID,
-    industry_id: UUID | None = Query(None, description="Filter influence network by industry"),
+    industry_id: UUID | None = Query(
+        None, description="Filter influence network by industry"
+    ),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
@@ -234,8 +238,7 @@ async def get_entity_with_influence(
 
     service = EntityResolutionService(db)
     profile = await service.get_entity_with_influence(
-        entity_id,
-        industry_id=industry_id
+        entity_id, industry_id=industry_id
     )
 
     if not profile:

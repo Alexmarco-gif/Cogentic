@@ -6,7 +6,7 @@ Reduces API round trips for common batch operations.
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,7 +28,9 @@ router = APIRouter(prefix="/bulk")
 class BulkFetchSignalsRequest(BaseModel):
     """Request to fetch multiple signals by ID."""
 
-    signal_ids: list[UUID] = Field(..., max_length=100, description="Signal IDs to fetch")
+    signal_ids: list[UUID] = Field(
+        ..., max_length=100, description="Signal IDs to fetch"
+    )
 
 
 class BulkFetchBriefsRequest(BaseModel):
@@ -111,9 +113,7 @@ async def bulk_fetch_briefs(
     if len(body.brief_ids) > 50:
         raise HTTPException(status_code=400, detail="Max 50 briefs per request")
 
-    repo = IntelligenceBriefRepository(
-        db, org_id=auth.org_id, user_id=auth.user_id
-    )
+    repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     found_briefs = []
 
     for bid in body.brief_ids:
