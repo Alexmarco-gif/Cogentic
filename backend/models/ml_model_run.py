@@ -2,7 +2,8 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text
+from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import Base, TimestampMixin, UUIDMixin
@@ -32,7 +33,7 @@ class MLModelRun(Base, UUIDMixin, TimestampMixin):
     input_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True
     )  # SHA-256 of input data
-    output_json: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    output_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
     signals_processed: Mapped[int] = mapped_column(Integer, default=0)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(

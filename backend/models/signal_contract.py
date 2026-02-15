@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -60,7 +61,7 @@ class SignalContract(Base, UUIDMixin, TimestampMixin):
 
     # Extraction configuration
     extraction_config: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}"
+        JSONB, default=dict, server_default="{}"
     )  # CSS selectors, JSON paths, API params
 
     # Status & health

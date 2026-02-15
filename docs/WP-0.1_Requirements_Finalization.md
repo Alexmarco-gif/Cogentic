@@ -83,7 +83,7 @@ Login → SimilarWeb-style Home
   → Intelligence Briefs section (pre-built, industry-specific)
   → Clicks: "Competitive Pricing & Promotion Intelligence — Retail"
   → Brief Structure:
-      • Title + BLUF (2 sentences max)
+      • Title + BLUF
       • Argument + Evidence (structured, sourced)
       • Outlook & Implications
       • Decision Lens: "What this means for you" panel

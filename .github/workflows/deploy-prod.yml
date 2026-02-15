@@ -6,10 +6,10 @@ on:
       - 'v*'
 
 env:
-  REGISTRY: cogentacr.azurecr.io
-  API_IMAGE: cogentacr.azurecr.io/cogent-api
-  WORKER_IMAGE: cogentacr.azurecr.io/cogent-worker
-  RESOURCE_GROUP: cogent-rg
+  REGISTRY: cogentregistry.azurecr.io
+  API_IMAGE: cogentregistry.azurecr.io/cogent-api
+  WORKER_IMAGE: cogentregistry.azurecr.io/cogent-worker
+  RESOURCE_GROUP: cogent-preprod-rg
   CONTAINER_APP_API: cogent-api-prod
   CONTAINER_APP_WORKER: cogent-worker-prod
 
@@ -34,7 +34,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Login to ACR
-        run: az acr login --name cogentacr
+        run: az acr login --name cogentregistry
 
       - name: Extract version from tag
         id: version

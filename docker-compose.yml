@@ -19,7 +19,7 @@ services:
 
   # PostgreSQL (local development only - use Neon for prod)
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: cogent-postgres
     environment:
       POSTGRES_DB: cogent

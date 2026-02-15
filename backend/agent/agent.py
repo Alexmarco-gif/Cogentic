@@ -25,8 +25,9 @@ SSE Event Types:
 import json
 import logging
 import time
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator
+from typing import Any
 from uuid import UUID
 
 from openai import AsyncOpenAI
@@ -34,7 +35,7 @@ from openai import AsyncOpenAI
 from backend.agent.context import ConversationContext
 from backend.agent.prompts import get_system_prompt
 from backend.agent.tools import TOOL_SCHEMAS, execute_tool
-from backend.ai.guardrails import GuardrailsService, MAX_CHAT_MESSAGE_LENGTH
+from backend.ai.guardrails import MAX_CHAT_MESSAGE_LENGTH, GuardrailsService
 from backend.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ MAX_RESPONSE_TOKENS = 2048  # Cap response length
 
 
 # ── SSE Event Dataclass ──────────────────────────────────────────────
+
 
 @dataclass
 class SSEEvent:
@@ -65,7 +67,10 @@ class SSEEvent:
 
 # ── Citation Extractor ───────────────────────────────────────────────
 
-def _extract_citations(tool_name: str, tool_result: dict[str, Any]) -> list[dict[str, Any]]:
+
+def _extract_citations(
+    tool_name: str, tool_result: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Extract citation objects from tool results.
 
     Returns a list of citation dicts with:
@@ -79,58 +84,69 @@ def _extract_citations(tool_name: str, tool_result: dict[str, Any]) -> list[dict
 
     if tool_name == "search_signals":
         for signal in tool_result.get("signals", []):
-            citations.append({
-                "source_type": "signal",
-                "title": signal.get("title", "Unknown"),
-                "signal_id": signal.get("id"),
-                "confidence": signal.get("confidence"),
-                "snippet": signal.get("summary", "")[:200],
-            })
+            citations.append(
+                {
+                    "source_type": "signal",
+                    "title": signal.get("title", "Unknown"),
+                    "signal_id": signal.get("id"),
+                    "confidence": signal.get("confidence"),
+                    "snippet": signal.get("summary", "")[:200],
+                }
+            )
 
     elif tool_name == "deep_search":
         for result in tool_result.get("results", []):
-            citations.append({
-                "source_type": "search_result",
-                "title": result.get("title", "Unknown"),
-                "signal_id": None,
-                "confidence": result.get("relevance_score"),
-                "snippet": result.get("snippet", "")[:200],
-            })
+            citations.append(
+                {
+                    "source_type": "search_result",
+                    "title": result.get("title", "Unknown"),
+                    "signal_id": None,
+                    "confidence": result.get("relevance_score"),
+                    "snippet": result.get("snippet", "")[:200],
+                }
+            )
 
     elif tool_name == "synthesize_signal":
         if tool_result.get("signal_id"):
-            citations.append({
-                "source_type": "synthesized_signal",
-                "title": tool_result.get("title", "Synthesized signal"),
-                "signal_id": tool_result.get("signal_id"),
-                "confidence": tool_result.get("confidence"),
-                "snippet": tool_result.get("summary", "")[:200],
-            })
+            citations.append(
+                {
+                    "source_type": "synthesized_signal",
+                    "title": tool_result.get("title", "Synthesized signal"),
+                    "signal_id": tool_result.get("signal_id"),
+                    "confidence": tool_result.get("confidence"),
+                    "snippet": tool_result.get("summary", "")[:200],
+                }
+            )
 
     elif tool_name == "get_analytics":
         if tool_result.get("analytics"):
-            citations.append({
-                "source_type": "analytics",
-                "title": f"Analytics: {tool_result.get('metric', 'overview')}",
-                "signal_id": None,
-                "confidence": None,
-                "snippet": json.dumps(tool_result["analytics"])[:200],
-            })
+            citations.append(
+                {
+                    "source_type": "analytics",
+                    "title": f"Analytics: {tool_result.get('metric', 'overview')}",
+                    "signal_id": None,
+                    "confidence": None,
+                    "snippet": json.dumps(tool_result["analytics"])[:200],
+                }
+            )
 
     elif tool_name == "get_recommendations":
         for rec in tool_result.get("recommendations", []):
-            citations.append({
-                "source_type": "recommendation",
-                "title": rec.get("title", "Recommendation"),
-                "signal_id": rec.get("signal_id"),
-                "confidence": rec.get("score"),
-                "snippet": rec.get("rationale", "")[:200],
-            })
+            citations.append(
+                {
+                    "source_type": "recommendation",
+                    "title": rec.get("title", "Recommendation"),
+                    "signal_id": rec.get("signal_id"),
+                    "confidence": rec.get("score"),
+                    "snippet": rec.get("rationale", "")[:200],
+                }
+            )
 
     return citations
 
 
 # ── Core Agent ───────────────────────────────────────────────────────
+
 
 class ChatAgent:
     """Multi-turn function-calling AI agent.
@@ -300,7 +316,9 @@ class ChatAgent:
                         if tc.function and tc.function.name:
                             tool_calls_accumulator[idx]["name"] = tc.function.name
                         if tc.function and tc.function.arguments:
-                            tool_calls_accumulator[idx]["arguments"] += tc.function.arguments
+                            tool_calls_accumulator[idx][
+                                "arguments"
+                            ] += tc.function.arguments
 
             # ── 4b. Check if we should finish or call tools ──────────
             if finish_reason == "stop" or not tool_calls_accumulator:
@@ -322,11 +340,13 @@ class ChatAgent:
                 for tc in tool_calls_accumulator.values()
             ]
 
-            messages.append({
-                "role": "assistant",
-                "content": assistant_content or None,
-                "tool_calls": tool_calls_list,
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_content or None,
+                    "tool_calls": tool_calls_list,
+                }
+            )
 
             # Execute each tool call
             for tc_data in tool_calls_accumulator.values():
@@ -386,11 +406,13 @@ class ChatAgent:
                         yield SSEEvent(event="recommendation", data=rec)
 
                 # Add tool result to messages for LLM context
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": json.dumps(tool_result, default=str),
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": json.dumps(tool_result, default=str),
+                    }
+                )
 
             # Continue the loop — LLM will process tool results and either
             # generate a final response or call more tools
@@ -441,15 +463,18 @@ class ChatAgent:
 
         # Add conversation history from context
         for msg in self._context_messages:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"],
-            })
+            messages.append(
+                {
+                    "role": msg["role"],
+                    "content": msg["content"],
+                }
+            )
 
         return messages
 
 
 # ── Utility Functions ────────────────────────────────────────────────
+
 
 def _summarize_tool_result(tool_name: str, result: dict[str, Any]) -> str:
     """Create a short human-readable summary of a tool result for SSE."""

@@ -1,10 +1,9 @@
 """Organization model"""
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
-from sqlalchemy import JSON, Integer, String
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
@@ -30,12 +29,9 @@ class Organization(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     billing_email: Mapped[str | None] = mapped_column(String(255))
 
     # Feature flags & limits
-    settings: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
     max_users: Mapped[int] = mapped_column(Integer, default=10)
     max_storage_gb: Mapped[int] = mapped_column(Integer, default=10)
-
-    # Subscription reference
-    subscription_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
     # Compliance (GDPR data residency)
     data_region: Mapped[str] = mapped_column(String(50), default="us-east")

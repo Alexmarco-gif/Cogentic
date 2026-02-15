@@ -9,7 +9,7 @@
 
 ## 1. Design Philosophy & System
 
-We are building a **Cognitive Interface**, not a passive dashboard. The UI must feel like a high-end financial terminal met a modern AI assistant—dense with value, but calm in execution.
+We are building a **Cognitive Interface**, not a passive dashboard. The UI must feel like a high-end Saas Platform, Not too dashboard centric, analytical and financial terminal met a modern AI assistant—dense with value, but calm in execution.
 
 **Core Tenet:** "Silence until Signal." We do not clutter the screen with decorative charts. We show intelligence only when it matters.
 
@@ -40,7 +40,7 @@ We are building a **Cognitive Interface**, not a passive dashboard. The UI must 
 
 ## 2. Global App Shell (The "Cockpit")
 
-The shell provides stability while content changes. It must be responsive and "app-like" (PWA), not "website-like".
+The shell provides stability while content changes. It must be responsive Saas Platform in a modernic way and "app-like" (PWA), not "website-like".
 
 ### 2.1 Navigation Rail (Left)
 *   **State:** Collapsed by default (64px width) to maximize data visibility. Expands on hover/click to 240px.
@@ -53,7 +53,7 @@ The shell provides stability while content changes. It must be responsive and "a
         *   **Signals** (Icon: `Activity`) - Watchlist/Data Grid.
         *   **Domains** (Icon: `Globe` or `Map`) - Geospatial/Sector Maps.
         *   **Library** (Icon: `BookOpen`) - Saved Briefs.
-    3.  **Footer:** Settings, User Profile (Avatar).
+    3.  **Footer:** Settings, User Profile (Avatar/User Image), Notification, Dark and White theme icon and Log out
 *   **Interaction:**
     *   *Hover:* Item background becomes `#F1F5F9`. Text turns Indigo.
     *   *Active:** Indigo vertical bar on the left edge. Icon becomes Indigo.
@@ -80,7 +80,7 @@ The shell provides stability while content changes. It must be responsive and "a
 
 *   **A. The "Morning Brief" (Hero Section)**
     *   **Visual:** Clean typography block. No boxes.
-    *   **Content:** "Good Morning, Alex. There are **3 Critical Signals** affecting your **Agriculture** portfolio today. The CBN rate hike is projected to impact fertilizer costs by +12%."
+    *   **Content:** "Good Morning, (User Name). There are **3 Critical Impact** affecting The **Domain** portfolio today. The CBN rate hike is projected to impact fertilizer costs by +12%."(this will always update every 2 hrs or 1hrs to different domains that are high impact and freshness that has effect)
     *   **Typography:** `H1` equivalent. Light weight (300). Large (24px+). Important entities are highlighted in Indigo text.
     *   **Interaction:** Clicking "CBN rate hike" deep-links to that specific signal's Dossier.
 
@@ -101,8 +101,13 @@ The shell provides stability while content changes. It must be responsive and "a
 *   **C. The "Moat" Widget (Right Sidebar)**
     *   **Visual:** Sticky card.
     *   **Content:** "Proprietary Data Ingest." A live counter. "15,420 unique data points processed today."
-    *   **Purpose:** Reinforce value proposition.
+    *   **Purpose:** Reinforce value proposition, knowledge, and must know value.
 
+*   **Brief Structure:**
+      • Title + BLUF
+      • Argument + Evidence (structured, sourced)
+      • Outlook & Implications(What is likely next), (and what this means to read)
+      • Decision Lens: "What this means for you" panel
 ---
 
 ### 3.2 INVESTIGATE: The "War Room"
@@ -121,7 +126,7 @@ The shell provides stability while content changes. It must be responsive and "a
     *   **State 1: "Thinking" (Process Visualization)**
         *   *Visual:* A checklist appearing in real-time.
         *   "Searching 12 sources..." (Spinner -> Checkmark).
-        *   "Reading 'CBN Monetary Policy PDF'..." (Spinner -> Checkmark).
+        *   "Reading 'CBN Monetary Policy PDF, web, search'..." (Spinner -> Checkmark).
         *   "Synthesizing answer..."
         *   *Purpose:* Radical transparency. Shows work.
     *   **State 2: "Citations" (Document View)**
@@ -130,6 +135,11 @@ The shell provides stability while content changes. It must be responsive and "a
     *   **State 3: "Graph" (Relationship View)**
         *   *Visual:** Interactive Node Graph (React Flow).
         *   *Content:** Shows connections between entities discussed (e.g., "Dangote" <-> "Supplier X").
+    *   **State 4: Visualizations (Turn data signal or information into visual)**
+        *   *This turn the user query if query visulization and chart it gives simple and clean chart with nice color
+        *   * Uses charts to give and explain meaningful and important information to users with the visual
+        *   * Visuals are not always compulsory they are optional support
+        *   * Only when a user query really need cahrt to convey informations (Finances, comparison, analytics etc)
 
 ---
 
@@ -144,7 +154,7 @@ The shell provides stability while content changes. It must be responsive and "a
         *   **Height:** Compact (48px).
         *   **Hover:** `#F8FAFC`.
         *   **Columns:**
-            1.  **Entity:** Name + Logo.
+            1.  **Entity:** Name + Logo, Icons.
             2.  **Signal:** Description ("Price Surge").
             3.  **Trend:** Micro-sparkline (Red/Green).
             4.  **Driver:** Icon showing causality (e.g., Rain Cloud -> Dollar Sign).
@@ -152,7 +162,13 @@ The shell provides stability while content changes. It must be responsive and "a
             6.  **Action:** "View" button.
 *   **Interaction:**
     *   Clicking a row opens the **Signal Dossier Drawer** (same as Home feed).
-
+*   **Layout:**
+    * For the Information in the Signal card when click it should be in this format:
+*    **Brief Structure:**
+      • Title + BLUF
+      • Argument + Evidence (structured, sourced)
+      • Outlook & Implications(What is likely next), (and what this means to read)
+      • Decision Lens: "What this means for you" panel
 ---
 
 ### 3.4 DOMAINS: The "God View"
@@ -167,10 +183,12 @@ The shell provides stability while content changes. It must be responsive and "a
         *   **Pins:** Specific assets (Factories, Ports, Markets).
 *   **Floating Control Panel (Top Right):**
     *   **Visual:** Glassmorphic card.
-    *   **Tabs:** "Agriculture", "Logistics", "Forex".
+    *   **Tabs:** "Domain", "Title".
     *   **Filters:** Toggle switches for specific layers ("Show Drought Risk", "Show Price Spreads").
 *   **Interaction:**
     *   Clicking a region (e.g., "Kano State") opens a Popover Summary card: "Regional Risk: High. Driver: Fuel Costs."
+    *   Clicking a region shows not just a summary card only also image related to that summary gotten from the search or online
+    *   Clicking the region gives the latest discovery in that region
 
 ---
 
@@ -179,13 +197,18 @@ The shell provides stability while content changes. It must be responsive and "a
 **Layout:** Masonry Grid.
 
 *   **The Brief Card:**
-    *   **Visual:** Vertical card (Paper aspect ratio).
+    *   **Visual:** Vertical card Horinzontal in a masonry grid form(Paper aspect ratio).
     *   **Top Section:** Generative abstract pattern (pastel colors) based on the topic.
     *   **Title:** Serif font (`Merriweather` or similar). "Impact of Fuel Subsidy Removal on Q3 Agri-Yields."
     *   **Meta:** Date, Author (AI/User), Tags.
 *   **Interaction:**
     *   **Reading Mode:** Clicking a card opens a Centered Modal (Reader View).
     *   **Reader View:** Minimalist. Wide margins. Serif font. Like a Medium article or PDF report. Distraction-free.
+*   **The weekly report:**
+    *   **Struture weekly report:** in a format that can be posted or share on social media, New Networks
+    *   **The struture:** This should be in a consultant explantory format in micskinsey style format
+    *   **Visuals:** with the use of chart, icons, typography, nice color pallate
+    *
 
 ---
 
@@ -228,25 +251,38 @@ We use motion to convey **state**, not just for decoration.
 ## 6. Design Reference Guide (Visual Direction)
 
 **CRITICAL INSTRUCTION FOR AI AGENTS:**
-The following images are provided as **visual references** to establish the desired aesthetic, layout density, and interactive feel of the ESIP platform.
+The following local images (located in the `Wire` folder) are the **primary visual truth** for the ESIP platform.
 - **Do NOT copy these images literally.**
-- **DO use them as a guide** for spatial arrangement, component scaling, and "Clean Intelligence" styling.
+- **DO use them as a guide** for spatial arrangement, component scaling, border radius, shadow depth, and the "Clean Intelligence" styling.
 - Ensure the final implementation adheres to the Light Mode theme and the technical constraints defined in this document.
 
-### 6.1 Home Page Reference
-![Reference: Home Page Intelligence Feed](assets/references/home_page.png)
+### 6.1 Global Shell (Sidebar & Nav)
+*   **Primary Ref:** `Wire/1 (7).JPG` - *Note the minimal sidebar, active state styling, and clean "Settings" popover.*
+*   **Secondary Ref:** `Wire/1 (36).webp` - *Good reference for active state styling, and clean "Settings" popover in the sidebar.*
 
-### 6.2 Investigation / War Room Reference
-![Reference: Investigation Interface](assets/references/investigation_war_room.png)
+### 6.2 Home Page (The Intelligence Feed)
+*   **Primary Ref:** `Wire/1 (1).jpg` - *Use the "Hello Moni" section as inspiration for the "Morning Brief". Note the clean card shadows and badge styling.*
+*   **Feed Layout Ref:** `1 (1).webp` - *The "Activity Tracker" on the right is the exact density we want for the Signal Stream.*
+*   **Signal card Ref:** `Wire/1 (2).webp` - *This is the ideal design for the SignalCard component: clean, with a subtle sparkline and clear metadata, and the card layout and design and struture.*
 
-### 6.3 Signals Data Grid Reference
-![Reference: Signals Grid](assets/references/signals_grid.png)
+### 6.3 Investigation / War Room
+*   **GOLD STANDARD Ref:** `Wire/1 (18).webp` - *This "Terminal + Copilot" split view is exactly how the Investigate page should function. Data on left, Chat on right.*
+*   **Chat Ref:** `Wire/1 (1).webp` - *Use the left-side chat bubbles for the message styling.*
 
-### 6.4 Domain Map Reference
-![Reference: Domain Maps](assets/references/domain_maps.png)
+### 6.4 Signals Data Grid
+*   **Primary Ref:** `Wire/1 (13).webpp` - *Clean table layout. Note how status pills (Green/Red) are used. Copy this row density, filtering style.*
+*   **Detail View Ref:** `Wire/1 (17).webp` - *When a user clicks a row, the drawer content should look like this (structured data, clearly labeled) with the use of colors and chats, and strutures.*
 
-### 6.5 Library / Briefing Reference
-![Reference: Library Briefs](assets/references/library_briefs.png)
+### 6.5 Domain Maps
+*   **Primary Ref:** `Wire/11 (2).webp` - *Look at the "Geo-Traffic Overview" map. Use this style: desaturated map tiles, bright data points, floating overlay cards.*
+*   **Secondary Ref:** `Wire/11 (1).webp` - *when a users hover over a map it should look like this (image card hover effect with short paragraph then an ellipsis) the image should relate to what is been viewed "If it about marketing showing marketing image, if it about cooperate organization show related image gotten from the web" this is another good reference for the map styling and visualization approach.*
+
+### 6.6 Library / Briefs
+*   **Primary Ref:** `Wire/1 (25).webp` - *Grid of cards. Replace progress bars with "Relevance Score" or similar metadata.*
+
+### 6.7 Setting
+*   **Primary Ref:** `Wire/1 (1).jpeg` - Use the layout struture and style
+
 
 ---
 
@@ -255,3 +291,7 @@ The following images are provided as **visual references** to establish the desi
 2.  **Home:** Implement the Feed and Signal Card.
 3.  **Investigate:** Build the Chat UI and Split pane.
 4.  **Signals/Domains/Library:** Build remaining specialized views.
+5.  **Setting/Profile/Notification:** Build the setting page and profile page with the use of the reference image for the setting page and profile page.
+
+
+custom contract find it in the pricing document, tell gemini that how do we go about the ui for that

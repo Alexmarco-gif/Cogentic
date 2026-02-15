@@ -10,8 +10,8 @@ It handles:
 """
 
 import logging
-import time
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -173,14 +173,20 @@ class ChatAgentService:
         if not session:
             yield SSEEvent(
                 event="error",
-                data={"code": "session_not_found", "message": "Chat session not found."},
+                data={
+                    "code": "session_not_found",
+                    "message": "Chat session not found.",
+                },
             )
             return
 
         if session.status != "active":
             yield SSEEvent(
                 event="error",
-                data={"code": "session_archived", "message": "This session is archived."},
+                data={
+                    "code": "session_archived",
+                    "message": "This session is archived.",
+                },
             )
             return
 
@@ -298,6 +304,7 @@ class ChatAgentService:
 
 
 # ── Utility Functions ────────────────────────────────────────────────
+
 
 def _estimate_tokens(text: str) -> int:
     """Rough token estimate (1 token ≈ 4 characters).

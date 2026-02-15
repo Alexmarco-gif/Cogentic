@@ -10,7 +10,18 @@ from typing import Any
 from backend.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
-redis_client = get_redis_client()
+
+# Lazy-initialized Redis client
+_redis_client = None
+
+
+def _get_redis():
+    """Lazy initialization of sync Redis client."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = get_redis_client()
+    return _redis_client
+
 
 # SLO Targets (percentile response times in milliseconds)
 SLO_TARGETS = {
@@ -31,34 +42,38 @@ class SLOMetrics:
         # Store in sorted set (score = timestamp, value = duration)
         timestamp = time.time()
         key = f"slo:{operation}:latencies"
-        redis_client.zadd(key, {str(duration_ms): timestamp})
+        redis = _get_redis()
+        redis.zadd(key, {str(duration_ms): timestamp})
 
         # Keep last 1000 measurements
-        redis_client.zremrangebyrank(key, 0, -1001)
-        redis_client.expire(key, 3600)  # 1 hour
+        redis.zremrangebyrank(key, 0, -1001)
+        redis.expire(key, 3600)  # 1 hour
 
     @staticmethod
     def record_error(operation: str):
         """Record operation error."""
         today = time.strftime("%Y-%m-%d-%H")  # Hourly buckets
         key = f"slo:{operation}:errors:{today}"
-        redis_client.incr(key)
-        redis_client.expire(key, 86400)  # 24 hours
+        redis = _get_redis()
+        redis.incr(key)
+        redis.expire(key, 86400)  # 24 hours
 
     @staticmethod
     def record_success(operation: str):
         """Record successful operation."""
         today = time.strftime("%Y-%m-%d-%H")
         key = f"slo:{operation}:success:{today}"
-        redis_client.incr(key)
-        redis_client.expire(key, 86400)
+        redis = _get_redis()
+        redis.incr(key)
+        redis.expire(key, 86400)
 
     @staticmethod
     def get_stats(operation: str) -> dict[str, Any]:
         """Get SLO statistics for an operation."""
         # Get latencies
         key = f"slo:{operation}:latencies"
-        latencies = redis_client.zrange(key, 0, -1)
+        redis = _get_redis()
+        latencies = redis.zrange(key, 0, -1)
         latencies = [
             int(l) if isinstance(l, bytes) else int(l.decode()) for l in latencies
         ]
@@ -87,10 +102,8 @@ class SLOMetrics:
 
         # Get error rate (last hour)
         current_hour = time.strftime("%Y-%m-%d-%H")
-        errors = int(redis_client.get(f"slo:{operation}:errors:{current_hour}") or 0)
-        successes = int(
-            redis_client.get(f"slo:{operation}:success:{current_hour}") or 0
-        )
+        errors = int(redis.get(f"slo:{operation}:errors:{current_hour}") or 0)
+        successes = int(redis.get(f"slo:{operation}:success:{current_hour}") or 0)
         total = errors + successes
         error_rate = (errors / total * 100) if total > 0 else 0
 

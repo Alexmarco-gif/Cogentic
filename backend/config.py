@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,8 +10,9 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
     # Application
-    app_name: str = "Cogent API"
+    app_name: str = "Cogent"
     app_version: str = "0.1.0"
+    app_env: str = Field(default="development", alias="APP_ENV")
     environment: str = "development"
     debug: bool = True
 
@@ -82,11 +84,24 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string"""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        if isinstance(self.cors_origins, str):
+            return [
+                origin.strip()
+                for origin in self.cors_origins.split(",")
+                if origin.strip()
+            ]
+        return list(self.cors_origins)
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
+
+    def model_post_init(self, __context: object) -> None:
+        if (
+            "environment" not in self.__pydantic_fields_set__
+            and "app_env" in self.__pydantic_fields_set__
+        ):
+            self.environment = self.app_env
 
 
 @lru_cache

@@ -1,6 +1,7 @@
 """SQLAlchemy ORM Models"""
 
 from backend.models.ai_job import AIJob
+from backend.models.ai_usage_log import AIUsageLog
 from backend.models.api_key import APIKey
 from backend.models.audit_log import AuditLog
 from backend.models.base import Base
@@ -21,6 +22,12 @@ from backend.models.moat_metric import MoatMetricSnapshot
 from backend.models.org_user import OrgUser
 from backend.models.organization import Organization
 from backend.models.recommendation import Recommendation
+from backend.models.regulatory_knowledge import (
+    RegulatoryEvent,
+    RegulatoryImpact,
+    RegulatoryPattern,
+    RegulatoryRule,
+)
 from backend.models.search_query import SearchQuery
 from backend.models.signal import Signal
 from backend.models.signal_contract import SignalContract
@@ -37,6 +44,7 @@ __all__ = [
     "OrgUser",
     "Document",
     "AIJob",
+    "AIUsageLog",
     "Subscription",
     "AuditLog",
     "APIKey",
@@ -66,4 +74,9 @@ __all__ = [
     "UserFeedback",
     # Intelligence Moat — Metrics
     "MoatMetricSnapshot",
+    # Regulatory Knowledge
+    "RegulatoryEvent",
+    "RegulatoryRule",
+    "RegulatoryImpact",
+    "RegulatoryPattern",
 ]

@@ -9,6 +9,7 @@ States:
   - HALF_OPEN: Test recovery with limited requests
 """
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass
@@ -51,12 +52,19 @@ class CircuitBreaker:
     ):
         self.name = name
         self.config = config or CircuitBreakerConfig()
-        self.redis = get_redis_client()
+        self._redis = None
 
         self._state_key = f"circuit:{name}:state"
         self._failures_key = f"circuit:{name}:failures"
         self._successes_key = f"circuit:{name}:successes"
         self._opened_at_key = f"circuit:{name}:opened_at"
+
+    @property
+    def redis(self):
+        """Lazy initialization of Redis client."""
+        if self._redis is None:
+            self._redis = get_redis_client()
+        return self._redis
 
     @property
     def state(self) -> CircuitState:
@@ -67,7 +75,7 @@ class CircuitBreaker:
         return CircuitState(raw.decode())
 
     def call(self, func: Callable[..., Any], *args, **kwargs) -> Any:
-        """Execute function with circuit breaker protection.
+        """Execute function with circuit breaker protection (sync).
 
         Args:
             func: Function to execute
@@ -98,6 +106,45 @@ class CircuitBreaker:
 
         try:
             result = func(*args, **kwargs)
+            self._on_success()
+            return result
+        except Exception:
+            self._on_failure()
+            raise
+
+    async def async_call(self, func: Callable[..., Any], *args, **kwargs) -> Any:
+        """Execute async function with circuit breaker protection.
+
+        Args:
+            func: Async function to execute
+            *args, **kwargs: Arguments to pass to function
+
+        Returns:
+            Function result
+
+        Raises:
+            HTTPException 503: If circuit is open
+        """
+        current_state = self.state
+
+        if current_state == CircuitState.OPEN:
+            opened_at = self.redis.get(self._opened_at_key)
+            if opened_at:
+                elapsed = time.time() - float(opened_at)
+                if elapsed >= self.config.timeout_seconds:
+                    self._transition_to_half_open()
+                    current_state = CircuitState.HALF_OPEN
+                else:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"Service temporarily unavailable (circuit open for {int(elapsed)}s)",
+                    )
+
+        try:
+            if asyncio.iscoroutinefunction(func):
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
             self._on_success()
             return result
         except Exception:

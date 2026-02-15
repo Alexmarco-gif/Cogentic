@@ -1,10 +1,11 @@
 """Base SQLAlchemy models and mixins"""
 
 from datetime import datetime
+from uuid import UUID as PyUUID
 from uuid import uuid4
 
 from sqlalchemy import DateTime, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -45,6 +46,6 @@ class SoftDeleteMixin:
 class UUIDMixin:
     """Mixin for UUID primary key"""
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False
+    id: Mapped[PyUUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False
     )

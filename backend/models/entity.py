@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,11 +46,11 @@ class Entity(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
     aliases: Mapped[list] = mapped_column(
-        JSON, default=list, server_default="[]"
+        JSONB, default=list, server_default="[]"
     )  # Legacy: simple alias list (kept for backward compat)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     extra_data: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}", name="metadata"
+        JSONB, default=dict, server_default="{}", name="metadata"
     )
 
     # Entity Resolution 2.0 fields

@@ -9,8 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 # ── Request Schemas ──────────────────────────────────────────────────
+
 
 class CreateSessionRequest(BaseModel):
     """Request to create a new chat session."""
@@ -39,6 +39,7 @@ class SendMessageRequest(BaseModel):
 
 
 # ── Response Schemas ─────────────────────────────────────────────────
+
 
 class ChatMessageResponse(BaseModel):
     """Individual chat message."""

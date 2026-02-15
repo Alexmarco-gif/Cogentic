@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -55,7 +56,7 @@ class Subscription(Base, UUIDMixin, TimestampMixin):
 
     # Usage tracking (for metered billing)
     usage_current_period: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}"
+        JSONB, default=dict, server_default="{}"
     )  # {"documents": 45, "ai_jobs": 120}
 
     # Cancellation

@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
@@ -42,8 +43,10 @@ class APIKey(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     org_id: Mapped[UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    created_by_user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     # Metadata
@@ -63,9 +66,15 @@ class APIKey(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     rate_limit: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
 
     # Lifecycle
-    expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     organization: Mapped["Organization"] = relationship(
@@ -75,7 +84,9 @@ class APIKey(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     @property
     def is_active(self) -> bool:
         """Check if API key is currently active"""
-        now = datetime.utcnow()
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
 
         # Revoked keys are inactive
         if self.revoked_at is not None:

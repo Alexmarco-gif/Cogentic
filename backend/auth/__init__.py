@@ -45,7 +45,7 @@ from backend.auth.permissions import (
     filter_resources_by_permission,
     get_user_permissions,
 )
-from backend.auth.schemas import AuthContext, JWTClaims, TokenPayload
+from backend.auth.schemas import AuthContext, TokenPayload
 
 __all__ = [
     # Dependencies
@@ -86,6 +86,5 @@ __all__ = [
     "filter_resources_by_permission",
     # Schemas
     "AuthContext",
-    "JWTClaims",
     "TokenPayload",
 ]

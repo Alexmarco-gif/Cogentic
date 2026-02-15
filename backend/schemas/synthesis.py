@@ -3,7 +3,6 @@
 Request/response models for on-demand synthesis endpoint.
 """
 
-
 from pydantic import BaseModel, Field
 
 

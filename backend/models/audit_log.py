@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,12 +49,12 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
 
     # Change tracking (for data modification events)
     changes: Mapped[dict | None] = mapped_column(
-        JSON
+        JSONB
     )  # {"before": {...}, "after": {...}}
 
     # Additional context data
     extra_data: Mapped[dict] = mapped_column(
-        JSON,
+        JSONB,
         default=dict,
         server_default="{}",
         name="metadata",  # Column name in DB is still "metadata"

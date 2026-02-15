@@ -4,7 +4,7 @@ API Key repository for M2M authentication
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -88,7 +88,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
         # Calculate expiration
         expires_at = None
         if expires_in_days is not None:
-            expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
 
         # Create key record
         api_key = await self.create(
@@ -127,7 +127,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
 
         # Update last_used_at if found and active
         if api_key and api_key.is_active:
-            api_key.last_used_at = datetime.utcnow()
+            api_key.last_used_at = datetime.now(timezone.utc)
             await self.db.flush()
 
         return api_key
@@ -171,7 +171,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
         api_key = await self.get(api_key_id)
 
         if api_key:
-            api_key.revoked_at = datetime.utcnow()
+            api_key.revoked_at = datetime.now(timezone.utc)
             await self.db.flush()
 
         return api_key

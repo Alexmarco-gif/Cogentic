@@ -1,6 +1,6 @@
 """Signal Contract repository"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -117,7 +117,10 @@ class SignalContractRepository(BaseRepository[SignalContract]):
         reset_failures: bool = True,
     ) -> SignalContract | None:
         """Mark a contract as successfully fetched"""
-        update_data = {"last_fetched_at": datetime.utcnow(), "last_error": None}
+        update_data = {
+            "last_fetched_at": datetime.now(timezone.utc),
+            "last_error": None,
+        }
         if reset_failures:
             update_data["failure_count"] = 0
             update_data["status"] = "active"

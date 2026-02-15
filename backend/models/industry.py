@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,7 +43,7 @@ class Industry(Base, UUIDMixin, TimestampMixin):
     )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     extra_data: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}", name="metadata"
+        JSONB, default=dict, server_default="{}", name="metadata"
     )
 
     # Self-referential relationships

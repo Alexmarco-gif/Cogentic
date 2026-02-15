@@ -34,7 +34,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         "/docs",
         "/redoc",
         "/openapi.json",
-        "/metrics",
+        # /metrics endpoint requires authentication for security
     }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

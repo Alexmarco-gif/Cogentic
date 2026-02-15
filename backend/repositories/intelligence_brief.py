@@ -1,7 +1,7 @@
 """Intelligence Brief repository"""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import desc, select
@@ -138,4 +138,4 @@ class IntelligenceBriefRepository(TenantRepository[IntelligenceBrief]):
 
     async def mark_refreshed(self, brief_id: UUID) -> IntelligenceBrief | None:
         """Update the refreshed_at timestamp after brief regeneration"""
-        return await self.update(brief_id, refreshed_at=datetime.utcnow())
+        return await self.update(brief_id, refreshed_at=datetime.now(timezone.utc))

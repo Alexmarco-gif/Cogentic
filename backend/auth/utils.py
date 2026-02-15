@@ -16,7 +16,7 @@ from backend.auth.exceptions import (
     TokenExpiredError,
 )
 from backend.auth.jwks import get_jwks_client
-from backend.auth.schemas import JWTClaims, TokenPayload
+from backend.auth.schemas import TokenPayload
 from backend.config import get_settings
 
 settings = get_settings()
@@ -177,31 +177,6 @@ def validate_custom_claims(payload: TokenPayload) -> None:
     if missing_claims:
         logger.error(f"Token missing required claims: {missing_claims}")
         raise InvalidClaimsError(missing_claims)
-
-
-def parse_jwt_claims(payload: TokenPayload) -> JWTClaims:
-    """
-    Convert validated token payload to JWTClaims model.
-
-    Args:
-        payload: Validated token payload
-
-    Returns:
-        Parsed JWT claims
-    """
-    from uuid import UUID
-
-    return JWTClaims(
-        auth0_id=payload.sub,
-        email=(
-            payload.sub.split("|")[-1] if "|" in payload.sub else None
-        ),  # Extract email from auth0|email format
-        org_id=UUID(payload.org_id) if payload.org_id else None,
-        roles=payload.roles,
-        plan=payload.plan,
-        issued_at=datetime.fromtimestamp(payload.iat),
-        expires_at=datetime.fromtimestamp(payload.exp),
-    )
 
 
 def get_request_id(request: Request) -> str | None:

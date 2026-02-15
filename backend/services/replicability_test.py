@@ -167,10 +167,8 @@ class ReplicabilityBlindTestService:
 
         # Step 2: Compute semantic similarity via embeddings
         try:
-            esip_embedding = await self.embedding_service.generate_embedding(
-                esip_output[:8000]
-            )
-            baseline_embedding = await self.embedding_service.generate_embedding(
+            esip_embedding = await self.embedding_service.embed_text(esip_output[:8000])
+            baseline_embedding = await self.embedding_service.embed_text(
                 baseline_output[:8000]
             )
             semantic_overlap = self._cosine_similarity(

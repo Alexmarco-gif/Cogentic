@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import require_permissions
+from backend.auth.schemas import AuthContext
 from backend.database import get_db
-from backend.models.user import User
 from backend.services.influence_mapping import InfluenceMappingService
 
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ async def get_entity_influence_score(
         "composite", description="Scoring algorithm (pagerank, betweenness, composite)"
     ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permissions(["view_signals"])),
+    auth: AuthContext = Depends(require_permissions(["view_signals"])),
 ):
     """Calculate comprehensive influence score for an entity.
 
@@ -159,7 +159,7 @@ async def get_key_influencers(
         10, ge=1, le=100, description="Number of top influencers to return"
     ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permissions(["view_signals"])),
+    auth: AuthContext = Depends(require_permissions(["view_signals"])),
 ):
     """Identify the most influential entities in a network.
 
@@ -199,7 +199,7 @@ async def find_influence_path(
     target_id: UUID,
     max_hops: int = Query(5, ge=1, le=10, description="Maximum path length"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permissions(["view_signals"])),
+    auth: AuthContext = Depends(require_permissions(["view_signals"])),
 ):
     """Find the influence path between two entities.
 
@@ -240,7 +240,7 @@ async def predict_influence_cascade(
         0.1, ge=0.01, le=0.5, description="Minimum influence threshold"
     ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permissions(["view_signals"])),
+    auth: AuthContext = Depends(require_permissions(["view_signals"])),
 ):
     """Predict how influence/impact cascades through the network.
 
@@ -284,7 +284,7 @@ async def get_influence_changes_over_time(
         "weekly", description="Time granularity (daily, weekly, monthly)"
     ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permissions(["view_signals"])),
+    auth: AuthContext = Depends(require_permissions(["view_signals"])),
 ):
     """Track how an entity's influence has changed over time.
 

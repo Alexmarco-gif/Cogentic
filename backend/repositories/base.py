@@ -1,7 +1,7 @@
 """Base repository with CRUD operations and tenant isolation"""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Generic, Optional, TypeVar
 from uuid import UUID
 
@@ -202,7 +202,7 @@ class BaseRepository(Generic[ModelType]):
             return None
 
         if hasattr(db_obj, "deleted_at"):
-            db_obj.deleted_at = datetime.utcnow()
+            db_obj.deleted_at = datetime.now(timezone.utc)
             await self.db.flush()
             await self.db.refresh(db_obj)
 

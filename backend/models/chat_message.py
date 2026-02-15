@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,7 +38,7 @@ class ChatMessage(Base, UUIDMixin, TimestampMixin):
 
     # Evidence/sources referenced in this message
     sources_json: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True
+        JSONB, nullable=True
     )  # Signal/brief references used in response
 
     # Token tracking (for context window management)

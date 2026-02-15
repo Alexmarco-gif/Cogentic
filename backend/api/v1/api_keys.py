@@ -20,7 +20,7 @@ from backend.repositories.api_key import APIKeyRepository
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api-keys", tags=["api-keys"])
+router = APIRouter(tags=["api-keys"])
 
 
 # Request/Response Models

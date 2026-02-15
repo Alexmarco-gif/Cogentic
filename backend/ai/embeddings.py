@@ -53,13 +53,12 @@ class EmbeddingService:
         self.cache = EmbeddingCache()
 
         # Concurrency limiter (prevents overwhelming OpenAI API)
-        self._semaphore = asyncio.Semaphore(
-            settings.openai_max_concurrent_requests
-        )
+        self._semaphore = asyncio.Semaphore(settings.openai_max_concurrent_requests)
 
     # ── Core API ─────────────────────────────────────────────────────
 
-    async def embed_text(self, text:  with Redis caching.
+    async def embed_text(self, text: str) -> list[float]:
+        """Embed a single text with Redis caching.
 
         Args:
             text: Text to embed (will be truncated if too long).

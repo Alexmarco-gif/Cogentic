@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,7 +46,7 @@ class SearchQuery(Base, UUIDMixin, TimestampMixin):
     )  # SHA-256 for cache lookup
 
     # Results
-    results_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    results_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     source_count: Mapped[int] = mapped_column(Integer, default=0)
     response_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

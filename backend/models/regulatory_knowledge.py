@@ -7,7 +7,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -59,7 +59,9 @@ class RegulatoryEvent(Base):
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_signal_id: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True), nullable=True
+        PG_UUID(as_uuid=True),
+        ForeignKey("signals.id", ondelete="SET NULL"),
+        nullable=True,
     )
     source_event_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -79,16 +81,19 @@ class RegulatoryEvent(Base):
     )
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_by: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True), nullable=True
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     rules: Mapped[list["RegulatoryRule"]] = relationship(
@@ -138,15 +143,18 @@ class RegulatoryRule(Base):
     interpretation_guidance: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_by: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True), nullable=True
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     event: Mapped[RegulatoryEvent] = relationship(back_populates="rules")
@@ -165,8 +173,16 @@ class RegulatoryImpact(Base):
         ForeignKey("regulatory_events.id", ondelete="CASCADE"),
         nullable=False,
     )
-    rule_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
-    entity_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    rule_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("regulatory_rules.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    entity_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("entities.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     impact_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     metric_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -187,15 +203,18 @@ class RegulatoryImpact(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     recorded_by: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True), nullable=True
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     event: Mapped[RegulatoryEvent] = relationship(back_populates="impacts")
@@ -237,10 +256,11 @@ class RegulatoryPattern(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )

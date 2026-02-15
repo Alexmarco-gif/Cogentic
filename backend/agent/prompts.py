@@ -64,7 +64,6 @@ Important context:
 
 When analyzing fintech signals, prioritize: regulatory risk, market adoption metrics, competitive positioning, and compliance status.
 """,
-
     "fmcg": """
 ## Industry Context: E-Commerce, FMCG & Retail
 You are specialized in consumer goods, e-commerce, and retail intelligence.
@@ -81,7 +80,6 @@ Important context:
 
 When analyzing FMCG signals, prioritize: price movement trends, supply chain risks, consumer sentiment shifts, and competitive brand positioning.
 """,
-
     "energy": """
 ## Industry Context: Energy (Oil & Gas, Power, Renewables)
 You are specialized in energy sector intelligence for African markets.
@@ -98,7 +96,6 @@ Important context:
 
 When analyzing energy signals, prioritize: price volatility, regulatory changes, infrastructure reliability, and renewable transition progress.
 """,
-
     "agriculture": """
 ## Industry Context: Agriculture
 You are specialized in agricultural intelligence for African markets.
@@ -115,7 +112,6 @@ Important context:
 
 When analyzing agricultural signals, prioritize: input cost trends, weather impact, food price movements, and policy changes affecting farmers.
 """,
-
     "real_estate": """
 ## Industry Context: Real Estate
 You are specialized in real estate and property market intelligence.
@@ -131,7 +127,6 @@ Important context:
 
 When analyzing real estate signals, prioritize: price trends by location, construction cost movements, regulatory changes, and infrastructure impact on property values.
 """,
-
     "telecom": """
 ## Industry Context: Telecommunications & Digital Infrastructure
 You are specialized in telecom and digital infrastructure intelligence.
@@ -148,7 +143,6 @@ Important context:
 
 When analyzing telecom signals, prioritize: subscriber metrics, regulatory actions, infrastructure investment, and digital service adoption rates.
 """,
-
     "healthcare": """
 ## Industry Context: Healthcare & Pharmaceuticals
 You are specialized in healthcare sector intelligence.
@@ -165,7 +159,6 @@ Important context:
 
 When analyzing healthcare signals, prioritize: pharmaceutical supply, regulatory approvals, health coverage expansion, and digital health adoption.
 """,
-
     "manufacturing": """
 ## Industry Context: Manufacturing
 You are specialized in manufacturing sector intelligence.
@@ -181,7 +174,6 @@ Important context:
 
 When analyzing manufacturing signals, prioritize: input cost trends, production efficiency, trade policy impact, and competitive positioning.
 """,
-
     "logistics": """
 ## Industry Context: Logistics & Supply Chain
 You are specialized in logistics and supply chain intelligence.
@@ -197,7 +189,6 @@ Important context:
 
 When analyzing logistics signals, prioritize: cost trends, port efficiency, delivery performance, and infrastructure investment.
 """,
-
     "retail": """
 ## Industry Context: Retail & Consumer
 You are specialized in retail sector intelligence.

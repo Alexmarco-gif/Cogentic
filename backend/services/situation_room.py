@@ -11,15 +11,14 @@ Used by:
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Float, case, cast, func, select, text
+from fastapi import Depends
+from sqlalchemy import Float, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.database import get_db_context
-from backend.models.brief_signal import BriefSignal
+from backend.database import get_db
 from backend.models.industry import Industry
 from backend.models.intelligence_brief import IntelligenceBrief
 from backend.models.signal import Signal
@@ -28,10 +27,10 @@ from backend.schemas.situation_room import (
     ActiveAlert,
     BriefSummary,
     DashboardMetrics,
-    SituationRoomDashboard,
     SignalFeedItem,
     SignalPriority,
     SignalTypeBreakdown,
+    SituationRoomDashboard,
     TrendPoint,
 )
 
@@ -96,9 +95,7 @@ class SituationRoomService:
 
         # Run aggregations in parallel-ish (sequential awaits but each is a
         # single DB round-trip)
-        metrics = await self._build_metrics(
-            industry.id, org_id, cutoff, min_confidence
-        )
+        metrics = await self._build_metrics(industry.id, org_id, cutoff, min_confidence)
         recent_signals = await self._get_recent_signals(
             industry.id, org_id, cutoff, signal_types, min_confidence, limit
         )
@@ -519,9 +516,7 @@ class SituationRoomService:
 
     # ── Internal: Helpers ────────────────────────────────────────────
 
-    def _signal_industry_filter(
-        self, industry_id: UUID, org_id: UUID | None
-    ) -> list:
+    def _signal_industry_filter(self, industry_id: UUID, org_id: UUID | None) -> list:
         """Build common WHERE clauses for industry-scoped signal queries.
 
         Signals are connected to industries via their signal_contract.
@@ -536,9 +531,7 @@ class SituationRoomService:
         ]
 
         if org_id:
-            filters.append(
-                (Signal.org_id == org_id) | (Signal.org_id.is_(None))
-            )
+            filters.append((Signal.org_id == org_id) | (Signal.org_id.is_(None)))
 
         return filters
 
@@ -546,12 +539,16 @@ class SituationRoomService:
 # ── Convenience Factory ──────────────────────────────────────────────
 
 
-async def get_situation_room_service() -> SituationRoomService:
-    """Create a SituationRoomService with a fresh DB session.
+async def get_situation_room_service(
+    db: AsyncSession = Depends(get_db),
+) -> SituationRoomService:
+    """FastAPI dependency that creates a SituationRoomService.
 
-    Usage:
-        service = await get_situation_room_service()
-        dashboard = await service.get_dashboard("fintech")
+    Usage (in route handlers):
+        @router.get("/dashboard")
+        async def dashboard(
+            service: SituationRoomService = Depends(get_situation_room_service),
+        ):
+            return await service.get_dashboard("fintech")
     """
-    async with get_db_context() as db:
-        return SituationRoomService(db)
+    return SituationRoomService(db)

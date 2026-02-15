@@ -2,7 +2,8 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text, func
+from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import Base, TimestampMixin, UUIDMixin
@@ -34,7 +35,7 @@ class MLModelRegistry(Base, UUIDMixin, TimestampMixin):
     artifact_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Training metrics (JSON: {"accuracy": 0.95, "r2": 0.87, ...})
-    metrics: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    metrics: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
 
     # Status
     status: Mapped[str] = mapped_column(

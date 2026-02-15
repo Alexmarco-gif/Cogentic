@@ -46,28 +46,6 @@ class TokenPayload(BaseModel):
         return self.gty == "client-credentials"
 
 
-class JWTClaims(BaseModel):
-    """Validated JWT claims after verification"""
-
-    # Identity
-    auth0_id: str = Field(..., description="Auth0 user ID (sub claim)")
-    email: str | None = Field(None, description="User email")
-
-    # Multi-tenant context
-    org_id: UUID | None = Field(None, description="Primary organization ID")
-
-    # Authorization
-    roles: list[str] = Field(default_factory=list, description="User roles in org")
-    plan: Literal["free", "pro", "enterprise"] = Field(
-        "free", description="Subscription plan"
-    )
-    is_super_admin: bool = Field(False, description="Whether user is a super admin")
-
-    # Token metadata
-    issued_at: datetime = Field(..., description="Token issued timestamp")
-    expires_at: datetime = Field(..., description="Token expiration timestamp")
-
-
 class AuthContext(BaseModel):
     """
     Authentication context injected into request handlers via Depends(get_current_user).

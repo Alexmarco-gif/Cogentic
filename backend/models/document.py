@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, String, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,7 +30,7 @@ class Document(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
     owner_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -58,7 +59,7 @@ class Document(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         String(50), default="private"
     )  # private, org, shared
     shared_with: Mapped[list] = mapped_column(
-        JSON, default=list, server_default="[]"
+        JSONB, default=list, server_default="[]"
     )  # Array of user IDs
 
     # GDPR compliance (auto-delete)

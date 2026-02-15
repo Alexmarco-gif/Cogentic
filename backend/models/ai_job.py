@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,7 +42,7 @@ class AIJob(Base, UUIDMixin, TimestampMixin):
     job_type: Mapped[str] = mapped_column(
         String(100), nullable=False
     )  # extract_text, generate_embedding, analyze_document
-    input_params: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    input_params: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
 
     # Execution tracking
     status: Mapped[str] = mapped_column(
@@ -52,7 +53,7 @@ class AIJob(Base, UUIDMixin, TimestampMixin):
     max_attempts: Mapped[int] = mapped_column(Integer, default=3)
 
     # Results
-    result: Mapped[dict | None] = mapped_column(JSON)
+    result: Mapped[dict | None] = mapped_column(JSONB)
     error_message: Mapped[str | None] = mapped_column(Text)
 
     # Timing

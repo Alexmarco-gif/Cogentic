@@ -10,7 +10,17 @@ from typing import Any
 from backend.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
-redis_client = get_redis_client()
+
+# Lazy-initialized Redis client
+_redis_client = None
+
+
+def _get_redis():
+    """Lazy initialization of sync Redis client."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = get_redis_client()
+    return _redis_client
 
 
 class CacheMetrics:
@@ -21,16 +31,16 @@ class CacheMetrics:
         """Record cache hit."""
         today = time.strftime("%Y-%m-%d")
         key = f"cache_metrics:{today}:{operation}:hits"
-        redis_client.incr(key)
-        redis_client.expire(key, 172800)  # 48 hours
+        _get_redis().incr(key)
+        _get_redis().expire(key, 172800)  # 48 hours
 
     @staticmethod
     def record_miss(cache_key: str, operation: str):
         """Record cache miss."""
         today = time.strftime("%Y-%m-%d")
         key = f"cache_metrics:{today}:{operation}:misses"
-        redis_client.incr(key)
-        redis_client.expire(key, 172800)
+        _get_redis().incr(key)
+        _get_redis().expire(key, 172800)
 
     @staticmethod
     def get_stats(operation: str) -> dict[str, Any]:
@@ -39,8 +49,9 @@ class CacheMetrics:
         hits_key = f"cache_metrics:{today}:{operation}:hits"
         misses_key = f"cache_metrics:{today}:{operation}:misses"
 
-        hits = int(redis_client.get(hits_key) or 0)
-        misses = int(redis_client.get(misses_key) or 0)
+        redis = _get_redis()
+        hits = int(redis.get(hits_key) or 0)
+        misses = int(redis.get(misses_key) or 0)
         total = hits + misses
 
         if total == 0:

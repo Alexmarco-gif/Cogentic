@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -51,7 +52,7 @@ class IntelligenceBrief(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         Text, nullable=True
     )  # Bottom Line Up Front (2 sentences max)
     body_json: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}"
+        JSONB, default=dict, server_default="{}"
     )  # Structured: argument, evidence, checklist
     outlook: Mapped[str | None] = mapped_column(Text, nullable=True)
     decision_lens: Mapped[str | None] = mapped_column(

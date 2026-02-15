@@ -21,33 +21,26 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # === INDEXES FOR PERFORMANCE ===
+    # NOTE: Indexes on users(email), users(auth0_id), org_users(org_id),
+    # org_users(user_id), documents(org_id), ai_jobs(org_id) already exist
+    # from 001_initial_schema with idx_ prefix. Only add NEW indexes here.
 
-    # Users table - login and Auth0 lookups
-    op.create_index("ix_users_email", "users", ["email"])
-    op.create_index("ix_users_auth0_id", "users", ["auth0_id"], unique=True)
-
-    # Documents table - "my documents" queries
+    # Documents table - composite index for "my documents" queries (NEW)
     op.create_index(
         "ix_documents_owner_created", "documents", ["owner_id", "created_at"]
     )
-    op.create_index("ix_documents_org_id", "documents", ["org_id"])
 
-    # AI Jobs table - queue processing
+    # AI Jobs table - composite index for queue processing (NEW)
     op.create_index("ix_ai_jobs_status_created", "ai_jobs", ["status", "created_at"])
-    op.create_index("ix_ai_jobs_org_id", "ai_jobs", ["org_id"])
 
-    # Audit logs table - audit trail queries
+    # Audit logs table - audit trail queries (NEW - no indexes in initial schema)
     op.create_index("ix_audit_logs_org_created", "audit_logs", ["org_id", "created_at"])
     op.create_index("ix_audit_logs_user_id", "audit_logs", ["user_id"])
     op.create_index(
         "ix_audit_logs_resource", "audit_logs", ["resource_type", "resource_id"]
     )
 
-    # Org Users table - membership lookups
-    op.create_index("ix_org_users_org_id", "org_users", ["org_id"])
-    op.create_index("ix_org_users_user_id", "org_users", ["user_id"])
-
-    # Subscriptions table - org lookup
+    # Subscriptions table - org lookup with unique constraint (NEW)
     op.create_index("ix_subscriptions_org_id", "subscriptions", ["org_id"], unique=True)
 
     # === UNIQUE CONSTRAINTS ===
@@ -77,7 +70,7 @@ def upgrade() -> None:
         """
         ALTER TABLE ai_jobs
         ADD CONSTRAINT ck_ai_jobs_status_valid
-        CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
+        CHECK (status IN ('queued', 'pending', 'processing', 'completed', 'failed'))
     """
     )
 
@@ -120,16 +113,10 @@ def downgrade() -> None:
     # Drop unique constraints
     op.drop_constraint("uq_org_users_org_user", "org_users", type_="unique")
 
-    # Drop indexes
+    # Drop indexes (only the ones we created in this migration)
     op.drop_index("ix_subscriptions_org_id", "subscriptions")
-    op.drop_index("ix_org_users_user_id", "org_users")
-    op.drop_index("ix_org_users_org_id", "org_users")
     op.drop_index("ix_audit_logs_resource", "audit_logs")
     op.drop_index("ix_audit_logs_user_id", "audit_logs")
     op.drop_index("ix_audit_logs_org_created", "audit_logs")
-    op.drop_index("ix_ai_jobs_org_id", "ai_jobs")
     op.drop_index("ix_ai_jobs_status_created", "ai_jobs")
-    op.drop_index("ix_documents_org_id", "documents")
     op.drop_index("ix_documents_owner_created", "documents")
-    op.drop_index("ix_users_auth0_id", "users")
-    op.drop_index("ix_users_email", "users")

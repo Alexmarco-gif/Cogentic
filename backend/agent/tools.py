@@ -14,9 +14,7 @@ Each tool is defined as:
   - An async executor function (for the agent core)
 """
 
-import json
 import logging
-from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -289,27 +287,22 @@ async def execute_search_signals(
         Signal.confidence >= min_confidence,
     ]
 
-    query_stmt = (
-        select(
-            Signal.id,
-            Signal.title,
-            Signal.summary,
-            Signal.signal_type,
-            Signal.confidence,
-            Signal.source_url,
-            Signal.published_at,
-            Signal.fetched_at,
-        )
-        .where(*conditions)
-    )
+    query_stmt = select(
+        Signal.id,
+        Signal.title,
+        Signal.summary,
+        Signal.signal_type,
+        Signal.confidence,
+        Signal.source_url,
+        Signal.published_at,
+        Signal.fetched_at,
+    ).where(*conditions)
 
     if signal_type:
         query_stmt = query_stmt.where(Signal.signal_type == signal_type)
 
     # Scope to org or global signals
-    query_stmt = query_stmt.where(
-        (Signal.org_id == org_id) | (Signal.org_id.is_(None))
-    )
+    query_stmt = query_stmt.where((Signal.org_id == org_id) | (Signal.org_id.is_(None)))
 
     query_stmt = query_stmt.order_by(Signal.confidence.desc()).limit(limit)
 
@@ -318,15 +311,19 @@ async def execute_search_signals(
 
     signals = []
     for row in rows:
-        signals.append({
-            "id": str(row.id),
-            "title": row.title or "Untitled",
-            "summary": (row.summary or "")[:300],
-            "signal_type": row.signal_type,
-            "confidence": round(float(row.confidence), 2),
-            "source_url": row.source_url,
-            "published_at": row.published_at.isoformat() if row.published_at else None,
-        })
+        signals.append(
+            {
+                "id": str(row.id),
+                "title": row.title or "Untitled",
+                "summary": (row.summary or "")[:300],
+                "signal_type": row.signal_type,
+                "confidence": round(float(row.confidence), 2),
+                "source_url": row.source_url,
+                "published_at": (
+                    row.published_at.isoformat() if row.published_at else None
+                ),
+            }
+        )
 
     return {
         "tool": "search_signals",
@@ -364,13 +361,15 @@ async def execute_deep_search(
     # Simplify for LLM context (avoid token bloat)
     simplified_results = []
     for r in result.get("results", [])[:max_results]:
-        simplified_results.append({
-            "title": r.get("title", "Untitled"),
-            "summary": (r.get("summary") or "")[:300],
-            "confidence": r.get("confidence", 0.0),
-            "similarity": r.get("similarity", 0.0),
-            "source_url": r.get("source_url"),
-        })
+        simplified_results.append(
+            {
+                "title": r.get("title", "Untitled"),
+                "summary": (r.get("summary") or "")[:300],
+                "confidence": r.get("confidence", 0.0),
+                "similarity": r.get("similarity", 0.0),
+                "source_url": r.get("source_url"),
+            }
+        )
 
     return {
         "tool": "deep_search",
@@ -458,7 +457,9 @@ async def execute_get_analytics(
                     "title": r.title or "Untitled",
                     "signal_type": r.signal_type,
                     "confidence": round(float(r.confidence), 2),
-                    "published_at": r.published_at.isoformat() if r.published_at else None,
+                    "published_at": (
+                        r.published_at.isoformat() if r.published_at else None
+                    ),
                 }
                 for r in rows
             ],
@@ -560,7 +561,11 @@ async def execute_get_analytics(
             },
         }
 
-    return {"tool": "get_analytics", "metric": metric, "error": f"Unknown metric: {metric}"}
+    return {
+        "tool": "get_analytics",
+        "metric": metric,
+        "error": f"Unknown metric: {metric}",
+    }
 
 
 async def execute_get_recommendations(
@@ -614,8 +619,9 @@ async def execute_browse_ontology(
 
     if action == "list_industries":
         result = await db.execute(
-            select(Industry.id, Industry.name, Industry.slug, Industry.description)
-            .order_by(Industry.name)
+            select(
+                Industry.id, Industry.name, Industry.slug, Industry.description
+            ).order_by(Industry.name)
         )
         rows = result.all()
         return {

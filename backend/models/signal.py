@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,7 +54,7 @@ class Signal(Base, UUIDMixin, TimestampMixin):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_data: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}"
+        JSONB, default=dict, server_default="{}"
     )
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 

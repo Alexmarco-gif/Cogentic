@@ -10,9 +10,15 @@ Endpoints:
 
 import logging
 from datetime import datetime, timezone
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
@@ -56,7 +62,9 @@ async def get_situation_room_dashboard(
         description="Comma-separated signal types: news,social,regulatory,financial,market,technology",
     ),
     min_confidence: float = Query(0.0, ge=0.0, le=1.0),
-    hours: int = Query(168, ge=1, le=720, description="Lookback window (default 7d, max 30d)"),
+    hours: int = Query(
+        168, ge=1, le=720, description="Lookback window (default 7d, max 30d)"
+    ),
     limit: int = Query(50, ge=1, le=200, description="Max signals in feed"),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),

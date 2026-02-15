@@ -9,6 +9,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.auth.dependencies import get_current_user
+from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.repositories.signal import SignalRepository
 from backend.schemas.signals import (
@@ -27,6 +29,7 @@ async def list_signals(
     min_confidence: float = Query(0.6, ge=0.0, le=1.0),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Browse/filter/search signal catalog."""
@@ -51,6 +54,7 @@ async def list_signals(
 @router.get("/trending", response_model=list[SignalResponse])
 async def get_trending_signals(
     limit: int = Query(20, ge=1, le=100),
+    auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get ML-ranked trending signals."""
@@ -66,6 +70,7 @@ async def get_signal_feed(
     min_confidence: float = Query(0.6, ge=0.0, le=1.0),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Real-time signal feed (paginated, filterable)."""
@@ -89,6 +94,7 @@ async def get_signal_feed(
 @router.get("/{signal_id}", response_model=SignalDetailResponse)
 async def get_signal(
     signal_id: UUID,
+    auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get single signal detail + entity links."""
@@ -105,6 +111,7 @@ async def get_signals_by_entity(
     min_confidence: float = Query(0.6, ge=0.0, le=1.0),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get all signals linked to a given entity."""
@@ -125,6 +132,7 @@ async def get_signals_by_contract(
     contract_id: UUID,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get all signals from a specific contract."""

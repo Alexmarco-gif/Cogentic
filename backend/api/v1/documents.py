@@ -170,6 +170,31 @@ async def create_document(
     )
 
 
+@router.get("/storage/usage")
+async def get_storage_usage(
+    org_id: UUID,
+    auth: AuthContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Get organization's storage usage.
+
+    Returns total bytes used and number of documents.
+    """
+    require_org_membership(auth, org_id)
+
+    repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
+    total_bytes = await repo.get_total_storage_bytes()
+    total_documents = await repo.count()
+
+    return {
+        "org_id": str(org_id),
+        "total_bytes": total_bytes,
+        "total_mb": round(total_bytes / (1024 * 1024), 2),
+        "total_documents": total_documents,
+    }
+
+
 @router.get("/{document_id}")
 async def get_document(
     org_id: UUID,
@@ -298,28 +323,3 @@ async def delete_document(
     await db.commit()
 
     return {"message": "Document deleted successfully"}
-
-
-@router.get("/storage/usage")
-async def get_storage_usage(
-    org_id: UUID,
-    auth: AuthContext = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
-    """
-    Get organization's storage usage.
-
-    Returns total bytes used and number of documents.
-    """
-    require_org_membership(auth, org_id)
-
-    repo = DocumentRepository(db, org_id, user_id=auth.user_id, request_id=None)
-    total_bytes = await repo.get_total_storage_bytes()
-    total_documents = await repo.count()
-
-    return {
-        "org_id": str(org_id),
-        "total_bytes": total_bytes,
-        "total_mb": round(total_bytes / (1024 * 1024), 2),
-        "total_documents": total_documents,
-    }

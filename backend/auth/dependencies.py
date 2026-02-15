@@ -6,9 +6,10 @@ Provides dependency injection for route handlers to access authenticated user co
 
 import logging
 from datetime import datetime
+from typing import Callable
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth import utils as auth_utils
@@ -22,6 +23,60 @@ from backend.database import get_db
 from backend.repositories.user import UserRepository
 
 logger = logging.getLogger(__name__)
+
+
+def require_permissions(permissions: list[str]) -> Callable:
+    """
+    Dependency factory that checks if user has required permissions.
+
+    Args:
+        permissions: List of permission strings required (e.g., ["view_signals", "admin"])
+
+    Returns:
+        FastAPI dependency that validates permissions and returns AuthContext
+
+    Usage:
+        @router.get("/admin")
+        async def admin_endpoint(
+            auth: AuthContext = Depends(require_permissions(["admin"]))
+        ):
+            ...
+    """
+
+    async def permission_checker(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+    ) -> AuthContext:
+        auth = await get_current_user(request, db)
+
+        # Super admins bypass all permission checks
+        if auth.is_super_admin:
+            return auth
+
+        # Map user role to a hierarchy level
+        user_role = auth.role.lower() if auth.role else "viewer"
+
+        role_hierarchy = {
+            "owner": ["owner", "admin", "analyst", "member", "viewer"],
+            "admin": ["admin", "analyst", "member", "viewer"],
+            "analyst": ["analyst", "member", "viewer"],
+            "member": ["member", "viewer"],
+            "viewer": ["viewer"],
+        }
+
+        allowed_roles = role_hierarchy.get(user_role, ["viewer"])
+
+        # Check if any required permission/role is satisfied
+        for permission in permissions:
+            if permission.lower() in allowed_roles:
+                return auth
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions. Required: {permissions}",
+        )
+
+    return permission_checker
 
 
 async def get_token_payload(request: Request) -> TokenPayload:

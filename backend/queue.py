@@ -10,17 +10,40 @@ from backend.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
 
-# Initialize Redis connection
-redis_conn = get_redis_client()
+# Lazy-initialized Redis connection (avoids crash if Redis is down at import time)
+_redis_conn = None
 
-# Define queues with different priorities
-# High priority: User-facing operations (document processing, etc.)
-# Default: Regular background tasks
-# Low: Maintenance, cleanup, analytics
 
-high_priority_queue = Queue("high", connection=redis_conn, default_timeout="5m")
-default_queue = Queue("default", connection=redis_conn, default_timeout="10m")
-low_priority_queue = Queue("low", connection=redis_conn, default_timeout="30m")
+def _get_redis():
+    """Lazy initialization of Redis connection for queue."""
+    global _redis_conn
+    if _redis_conn is None:
+        _redis_conn = get_redis_client()
+    return _redis_conn
+
+
+# Lazy-initialized queues
+_high_priority_queue = None
+_default_queue = None
+_low_priority_queue = None
+
+
+def _get_queue(name: str) -> Queue:
+    """Get or create a queue by name with lazy Redis initialization."""
+    global _high_priority_queue, _default_queue, _low_priority_queue
+    conn = _get_redis()
+    if name == "high":
+        if _high_priority_queue is None:
+            _high_priority_queue = Queue("high", connection=conn, default_timeout="5m")
+        return _high_priority_queue
+    elif name == "low":
+        if _low_priority_queue is None:
+            _low_priority_queue = Queue("low", connection=conn, default_timeout="30m")
+        return _low_priority_queue
+    else:
+        if _default_queue is None:
+            _default_queue = Queue("default", connection=conn, default_timeout="10m")
+        return _default_queue
 
 
 def enqueue_job(
@@ -40,12 +63,12 @@ def enqueue_job(
         RQ Job instance
     """
     queue_map = {
-        "high": high_priority_queue,
-        "default": default_queue,
-        "low": low_priority_queue,
+        "high": _get_queue("high"),
+        "default": _get_queue("default"),
+        "low": _get_queue("low"),
     }
 
-    queue = queue_map.get(queue_name, default_queue)
+    queue = queue_map.get(queue_name, _get_queue("default"))
 
     job = queue.enqueue(func, *args, job_timeout=job_timeout, **kwargs)
 
@@ -64,7 +87,7 @@ def get_job_status(job_id: str) -> dict[str, Any]:
         Dictionary with job status information
     """
     try:
-        job = Job.fetch(job_id, connection=redis_conn)
+        job = Job.fetch(job_id, connection=_get_redis())
 
         return {
             "id": job.id,
@@ -91,7 +114,7 @@ def cancel_job(job_id: str) -> bool:
         True if cancelled successfully
     """
     try:
-        job = Job.fetch(job_id, connection=redis_conn)
+        job = Job.fetch(job_id, connection=_get_redis())
         job.cancel()
         logger.info(f"Cancelled job {job_id}")
         return True
@@ -111,20 +134,20 @@ def get_queue_stats() -> dict[str, Any]:
     return {
         "high": {
             "name": "high",
-            "count": len(high_priority_queue),
-            "failed": high_priority_queue.failed_job_registry.count,
-            "scheduled": high_priority_queue.scheduled_job_registry.count,
+            "count": len(_get_queue("high")),
+            "failed": _get_queue("high").failed_job_registry.count,
+            "scheduled": _get_queue("high").scheduled_job_registry.count,
         },
         "default": {
             "name": "default",
-            "count": len(default_queue),
-            "failed": default_queue.failed_job_registry.count,
-            "scheduled": default_queue.scheduled_job_registry.count,
+            "count": len(_get_queue("default")),
+            "failed": _get_queue("default").failed_job_registry.count,
+            "scheduled": _get_queue("default").scheduled_job_registry.count,
         },
         "low": {
             "name": "low",
-            "count": len(low_priority_queue),
-            "failed": low_priority_queue.failed_job_registry.count,
-            "scheduled": low_priority_queue.scheduled_job_registry.count,
+            "count": len(_get_queue("low")),
+            "failed": _get_queue("low").failed_job_registry.count,
+            "scheduled": _get_queue("low").scheduled_job_registry.count,
         },
     }

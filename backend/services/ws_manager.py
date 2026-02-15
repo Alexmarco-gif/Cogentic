@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from starlette.websockets import WebSocketState
 
 from backend.redis_client import get_redis
@@ -244,9 +244,7 @@ class ConnectionManager:
         """Return connection statistics."""
         return {
             "total_connections": sum(len(r) for r in self._rooms.values()),
-            "rooms": {
-                slug: len(clients) for slug, clients in self._rooms.items()
-            },
+            "rooms": {slug: len(clients) for slug, clients in self._rooms.items()},
             "active_rooms": len(self._rooms),
         }
 
@@ -279,8 +277,13 @@ def _serialize_data(data: dict[str, Any]) -> dict[str, Any]:
             result[k] = _serialize_data(v)
         elif isinstance(v, list):
             result[k] = [
-                _serialize_data(i) if isinstance(i, dict) else
-                str(i) if isinstance(i, (UUID, datetime)) else i
+                (
+                    _serialize_data(i)
+                    if isinstance(i, dict)
+                    else str(i)
+                    if isinstance(i, (UUID, datetime))
+                    else i
+                )
                 for i in v
             ]
         else:

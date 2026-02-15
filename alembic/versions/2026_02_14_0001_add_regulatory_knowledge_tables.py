@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from typing import Union
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 from alembic import op
@@ -63,9 +64,7 @@ def upgrade() -> None:
         sa.Column("source_signal_id", UUID(as_uuid=True), nullable=True),
         sa.Column("source_event_id", UUID(as_uuid=True), nullable=True),
         sa.Column("historical_precedents", ARRAY(UUID(as_uuid=True)), nullable=True),
-        sa.Column(
-            "content_embedding", sa.dialects.postgresql.VECTOR(1536), nullable=True
-        ),
+        sa.Column("content_embedding", Vector(1536), nullable=True),
         sa.Column("verified_by_expert", sa.Boolean(), default=False, nullable=False),
         sa.Column("confidence_score", sa.Numeric(3, 2), nullable=True),
         sa.Column("created_by", UUID(as_uuid=True), nullable=True),

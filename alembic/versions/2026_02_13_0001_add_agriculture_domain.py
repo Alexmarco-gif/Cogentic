@@ -1163,11 +1163,11 @@ def upgrade() -> None:
         },
     )
 
-    print("✅ Agriculture domain seeding complete:")
-    print("   - 1 root industry (Agriculture & Agritech)")
-    print("   - 6 sub-vertical industries")
-    print("   - 20 entities (companies, products, infrastructure)")
-    print("   - 70 signal contracts (10 weather, 10 market, 10 yield, etc.)")
+    # Migration complete:
+    # - 1 root industry (Agriculture & Agritech)
+    # - 6 sub-vertical industries
+    # - 20 entities (companies, products, infrastructure)
+    # - 70 signal contracts (10 weather, 10 market, 10 yield, etc.)
 
 
 def downgrade() -> None:
@@ -1202,4 +1202,4 @@ def downgrade() -> None:
         )
     )
 
-    print("✅ Agriculture domain removed")
+    # Agriculture domain removed

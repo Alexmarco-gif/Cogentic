@@ -198,12 +198,8 @@ app = FastAPI(
 # Add rate limiter state
 app.state.limiter = limiter
 
-# Add middleware (order matters: first added = outermost)
-app.add_middleware(RequestIDMiddleware)
-app.add_middleware(MetricsMiddleware)
-app.add_middleware(JWTMiddleware)
-
-# CORS middleware
+# Add middleware (order matters: first added = outermost in FastAPI)
+# CORS must be FIRST (outermost) to handle preflight before JWT rejects
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -211,6 +207,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(MetricsMiddleware)
+app.add_middleware(JWTMiddleware)
 
 # Exception handlers
 app.add_exception_handler(AuthError, auth_exception_handler)

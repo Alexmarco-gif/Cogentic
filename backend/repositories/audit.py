@@ -5,7 +5,7 @@ Logs all database operations with user, org, and resource context.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -43,7 +43,7 @@ class QueryAuditLogger:
             resource_ids: IDs of resources accessed/modified
         """
         audit_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "user_id": str(user_id) if user_id else None,
             "org_id": str(org_id) if org_id else None,
             "table": table,
@@ -99,7 +99,7 @@ class QueryAuditLogger:
             extra={
                 "security_event": {
                     "type": "cross_org_access_attempt",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "user_id": str(user_id),
                     "user_org_id": str(user_org_id),
                     "attempted_org_id": str(attempted_org_id),
@@ -133,7 +133,7 @@ class QueryAuditLogger:
             extra={
                 "security_event": {
                     "type": "missing_org_context",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "table": table,
                     "action": action,
                     "user_id": str(user_id) if user_id else None,

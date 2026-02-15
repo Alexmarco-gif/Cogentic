@@ -82,5 +82,3 @@ extend-exclude = '''
   | node_modules
 )/
 '''
-
-# Test configuration will be added when new test suite is created

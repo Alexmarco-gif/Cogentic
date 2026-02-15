@@ -261,10 +261,13 @@ class EntityResolutionService:
             embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
             conditions = ["e.embedding IS NOT NULL"]
+            params = {"embedding": embedding_str}
             if entity_type:
-                conditions.append(f"e.entity_type = '{entity_type}'")
+                conditions.append("e.entity_type = :entity_type")
+                params["entity_type"] = entity_type
             if industry_id:
-                conditions.append(f"e.industry_id = '{industry_id}'")
+                conditions.append("e.industry_id = :industry_id")
+                params["industry_id"] = str(industry_id)
             where_clause = " AND ".join(conditions)
 
             from sqlalchemy import text
@@ -283,7 +286,7 @@ class EntityResolutionService:
             """
             )
 
-            result = await self.db.execute(sql, {"embedding": embedding_str})
+            result = await self.db.execute(sql, params)
             row = result.fetchone()
 
             if not row:
@@ -701,7 +704,7 @@ class EntityResolutionService:
         from backend.services.influence_mapping import InfluenceMappingService
 
         # Get base entity profile
-        profile = await self.get_entity_profile(entity_id)
+        profile = await self.get_entity_full_profile(entity_id)
 
         # Get influence metrics
         influence_service = InfluenceMappingService(self.db)

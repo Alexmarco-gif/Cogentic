@@ -15,10 +15,11 @@ from typing import Any
 from uuid import UUID
 
 import networkx as nx
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.entity import Entity, EntityRelationship
+from backend.models.entity import Entity
+from backend.models.entity_relationship import EntityRelationship
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,7 @@ class InfluenceMappingService:
 
         return {
             "entity_id": str(entity_id),
-            "entity_name": entity.canonical_name if entity else None,
+            "entity_name": entity.name if entity else None,
             "influence_score": round(composite_score, 4),
             "metrics": {
                 "pagerank": round(pagerank_score, 4),
@@ -183,7 +184,7 @@ class InfluenceMappingService:
                 influencers.append(
                     {
                         "entity_id": str(entity.id),
-                        "entity_name": entity.canonical_name,
+                        "entity_name": entity.name,
                         "entity_type": entity.entity_type,
                         "influence_score": round(score, 4),
                         "rank": len(influencers) + 1,
@@ -267,11 +268,11 @@ class InfluenceMappingService:
                     {
                         "from_entity": {
                             "id": from_id,
-                            "name": from_entity.canonical_name if from_entity else None,
+                            "name": from_entity.name if from_entity else None,
                         },
                         "to_entity": {
                             "id": to_id,
-                            "name": to_entity.canonical_name if to_entity else None,
+                            "name": to_entity.name if to_entity else None,
                         },
                         "relationship_type": relationship_type,
                         "strength": round(strength, 3),
@@ -354,7 +355,7 @@ class InfluenceMappingService:
                 entity = await self.db.get(Entity, UUID(current_id))
                 affected_entities[current_id] = {
                     "entity_id": current_id,
-                    "entity_name": entity.canonical_name if entity else None,
+                    "entity_name": entity.name if entity else None,
                     "influence_received": round(current_influence, 4),
                     "cascade_depth": depth,
                 }
@@ -416,9 +417,7 @@ class InfluenceMappingService:
         query = (
             select(EntityRelationship, Entity)
             .join(Entity, EntityRelationship.source_entity_id == Entity.id)
-            .where(
-                and_(EntityRelationship.is_active == True, Entity.deleted_at.is_(None))
-            )
+            .where(EntityRelationship.is_active == True)
         )
 
         if industry_id:

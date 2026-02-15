@@ -9,40 +9,30 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Float, Integer, String, select
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.models.base import Base, TimestampMixin, UUIDMixin
+from backend.models.ai_usage_log import AIUsageLog
 from backend.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
-redis_client = get_redis_client()
+
+# Lazy-initialized Redis client (avoids crash if Redis is down at import time)
+_redis_client = None
+
+
+def _get_redis():
+    """Lazy initialization of sync Redis client."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = get_redis_client()
+    return _redis_client
+
 
 # Cost budgets (tokens per day)
 DAILY_USER_TOKEN_BUDGET = 50_000  # ~$0.75/day per user at GPT-4o prices
 DAILY_ORG_TOKEN_BUDGET = 500_000  # ~$7.50/day per org
 ALERT_THRESHOLD = 0.80  # Alert at 80% budget
-
-
-class AIUsageLog(Base, UUIDMixin, TimestampMixin):
-    """AI token usage audit log."""
-
-    __tablename__ = "ai_usage_logs"
-
-    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True)
-    org_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True)
-    operation: Mapped[str] = mapped_column(
-        String(100), nullable=False
-    )  # synthesis, chat, brief_gen
-    model: Mapped[str] = mapped_column(
-        String(100), nullable=False
-    )  # gpt-4o, text-embedding-3-small
-    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
 
 
 class CostTracker:
@@ -89,7 +79,7 @@ class CostTracker:
         org_key = f"ai_usage:{today}:org:{org_id}"
 
         # Atomic increment with 25-hour TTL
-        pipe = redis_client.pipeline()
+        pipe = _get_redis().pipeline()
         pipe.incrby(user_key, total_tokens)
         pipe.expire(user_key, 90000)  # 25 hours
         pipe.incrby(org_key, total_tokens)
@@ -146,8 +136,9 @@ class CostTracker:
         user_key = f"ai_usage:{today}:user:{user_id}"
         org_key = f"ai_usage:{today}:org:{org_id}"
 
-        user_total = int(redis_client.get(user_key) or 0)
-        org_total = int(redis_client.get(org_key) or 0)
+        redis = _get_redis()
+        user_total = int(redis.get(user_key) or 0)
+        org_total = int(redis.get(org_key) or 0)
 
         return {
             "user_tokens": user_total,

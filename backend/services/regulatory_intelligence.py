@@ -11,7 +11,7 @@ This is the "unreplicable Nigerian business context" moat.
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -170,7 +170,7 @@ class RegulatoryIntelligenceService:
             source_signal_id=signal.id,
             source_url=signal.source_url,
             issuing_body=issuing_body,
-            announced_at=signal.published_at or datetime.utcnow(),
+            announced_at=signal.published_at or datetime.now(timezone.utc),
             effective_date=temporal_data.get("effective_date"),
             deadline_date=temporal_data.get("deadline_date"),
             affected_sectors=affected_sectors,
@@ -462,10 +462,10 @@ class RegulatoryIntelligenceService:
                 and_(
                     RegulatoryRule.is_active == True,
                     RegulatoryRule.confidence_score >= min_confidence,
-                    RegulatoryRule.effective_from <= datetime.utcnow(),
+                    RegulatoryRule.effective_from <= datetime.now(timezone.utc),
                     or_(
                         RegulatoryRule.effective_until.is_(None),
-                        RegulatoryRule.effective_until >= datetime.utcnow(),
+                        RegulatoryRule.effective_until >= datetime.now(timezone.utc),
                     ),
                 )
             )
@@ -483,7 +483,7 @@ class RegulatoryIntelligenceService:
         lookback_months: int = 24,
     ) -> list[dict[str, Any]]:
         """Find historical precedents for similar regulatory actions."""
-        cutoff = datetime.utcnow() - timedelta(days=lookback_months * 30)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_months * 30)
 
         # Find past events from same regulator, same type
         query = (
@@ -614,7 +614,7 @@ class RegulatoryIntelligenceService:
         if not reg_event:
             raise ValueError(f"Regulatory event {regulatory_event_id} not found")
 
-        lag_days = (datetime.utcnow() - reg_event.announced_at).days
+        lag_days = (datetime.now(timezone.utc) - reg_event.announced_at).days
 
         impact = RegulatoryImpact(
             id=uuid4(),
@@ -626,7 +626,7 @@ class RegulatoryIntelligenceService:
             baseline_value=baseline_value,
             post_impact_value=post_impact_value,
             percentage_change=percentage_change,
-            observation_date=datetime.utcnow(),
+            observation_date=datetime.now(timezone.utc),
             lag_days=lag_days,
             supporting_signal_ids=[str(sid) for sid in (supporting_signal_ids or [])],
             evidence_quality=0.8 if supporting_signal_ids else 0.5,
@@ -664,7 +664,7 @@ class RegulatoryIntelligenceService:
         )
 
         rule.application_count += 1
-        rule.updated_at = datetime.utcnow()
+        rule.updated_at = datetime.now(timezone.utc)
 
         await self.db.flush()
 
@@ -683,7 +683,7 @@ class RegulatoryIntelligenceService:
         - Cascading regulatory actions (one body triggers another)
         - Seasonal patterns (e.g., budget-related changes in Q1)
         """
-        cutoff = datetime.utcnow() - timedelta(days=lookback_months * 30)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_months * 30)
 
         # Get historical events grouped by regulator and type
         query = (
@@ -965,9 +965,9 @@ class RegulatoryIntelligenceService:
                 "occurrences", existing.occurrence_count
             )
             existing.confidence_score = confidence_score
-            existing.last_observed_at = datetime.utcnow()
+            existing.last_observed_at = datetime.now(timezone.utc)
             existing.metadata_ = metadata
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
             return existing
         else:
             # Create new pattern
@@ -978,8 +978,8 @@ class RegulatoryIntelligenceService:
                 description=description,
                 occurrence_count=metadata.get("occurrences", 1),
                 confidence_score=confidence_score,
-                first_observed_at=datetime.utcnow(),
-                last_observed_at=datetime.utcnow(),
+                first_observed_at=datetime.now(timezone.utc),
+                last_observed_at=datetime.now(timezone.utc),
                 metadata_=metadata,
             )
             self.db.add(pattern)
@@ -996,7 +996,9 @@ class RegulatoryIntelligenceService:
         """
         if not event:
             # Try to extract event from signal first
-            event_dict = await self._detect_regulatory_content(signal)
+            event_dict = await self.extract_regulatory_event_from_signal(
+                signal, auto_create=False
+            )
             if not event_dict:
                 return []
             issuing_body = event_dict.get("issuing_body")
@@ -1095,7 +1097,7 @@ class RegulatoryIntelligenceService:
                 # Predict next occurrence based on cycle
                 avg_interval = pattern.metadata_.get("avg_interval_days", 60)
                 expected_date = recent_event.announced_at + timedelta(days=avg_interval)
-                days_until = (expected_date - datetime.utcnow()).days
+                days_until = (expected_date - datetime.now(timezone.utc)).days
 
                 if days_until > 0:  # Only predict future events
                     predictions.append(
@@ -1126,7 +1128,7 @@ class RegulatoryIntelligenceService:
                         expected_date = recent_event.announced_at + timedelta(
                             days=avg_lag
                         )
-                        days_until = (expected_date - datetime.utcnow()).days
+                        days_until = (expected_date - datetime.now(timezone.utc)).days
 
                         if days_until > 0:
                             predictions.append(
