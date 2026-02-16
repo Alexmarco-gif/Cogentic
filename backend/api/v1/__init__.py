@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from backend.api.v1 import (
+    admin,
     api_keys,
     auth,
     briefs,
@@ -10,6 +11,7 @@ from backend.api.v1 import (
     causal,
     chat,
     contracts,
+    credits,
     documents,
     entities,
     features,
@@ -21,6 +23,7 @@ from backend.api.v1 import (
     monitoring,
     orgs,
     pipeline,
+    pricing,
     recommendations,
     regulatory,
     search,
@@ -40,6 +43,11 @@ api_v1_router.include_router(documents.router, tags=["documents"])
 api_v1_router.include_router(users.router, tags=["users"])
 api_v1_router.include_router(api_keys.router, tags=["api-keys"])
 api_v1_router.include_router(features.router, tags=["features"])
+
+# Pricing & Feature Gating
+api_v1_router.include_router(pricing.router, tags=["pricing"])
+api_v1_router.include_router(credits.router, tags=["credits"])
+api_v1_router.include_router(admin.router, tags=["admin"])
 
 # Sprint 2 — Signal Acquisition Pipeline
 api_v1_router.include_router(contracts.router, tags=["contracts"])

@@ -16,6 +16,7 @@ from backend.auth.dependencies import get_current_user
 from backend.auth.guards import require_org_membership, require_role
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.middleware.feature_gating import require_feature
 from backend.repositories.api_key import APIKeyRepository
 
 logger = logging.getLogger(__name__)
@@ -91,11 +92,13 @@ async def create_api_key(
     request: CreateAPIKeyRequest,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _feature_check: bool = Depends(require_feature("api_access")),
 ):
     """
     Create a new API key for the organization.
 
     **Permissions:** Admin or Owner
+    **Tier Requirement:** Growth tier or higher
 
     **WARNING:** The actual API key is only returned once! Save it securely.
 

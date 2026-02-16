@@ -1,8 +1,9 @@
 """Organization model"""
 
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, String
+from sqlalchemy import Boolean, Date, DateTime, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +36,32 @@ class Organization(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
 
     # Compliance (GDPR data residency)
     data_region: Mapped[str] = mapped_column(String(50), default="us-east")
+
+    # Pricing & Feature Gating
+    pricing_tier: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="explorer", index=True
+    )
+
+    # Beta Pricing
+    is_beta_account: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    beta_start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    beta_end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    beta_discount_percent: Mapped[float] = mapped_column(
+        Numeric(5, 2), default=50.00
+    )
+
+    # Trial Management
+    trial_status: Mapped[str] = mapped_column(
+        String(50), default="active", index=True
+    )
+    trial_start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trial_end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    billing_cycle_start: Mapped[date | None] = mapped_column(Date)
+
+    # Credit System
+    credits_allocated_monthly: Mapped[int] = mapped_column(Integer, default=0)
+    credits_consumed: Mapped[int] = mapped_column(Integer, default=0)
+    credits_overage_rate: Mapped[float] = mapped_column(Numeric(10, 2), default=0.10)
 
     # Relationships
     members: Mapped[list["OrgUser"]] = relationship(

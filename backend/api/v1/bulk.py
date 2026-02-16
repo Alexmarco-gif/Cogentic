@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.middleware.feature_gating import get_current_organization, require_feature
+from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.intelligence_brief import IntelligenceBriefRepository
 from backend.repositories.signal import SignalRepository
 from backend.schemas.briefs import BriefResponse
@@ -80,14 +82,29 @@ async def bulk_fetch_signals(
     body: BulkFetchSignalsRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
+    organization = Depends(get_current_organization),
+    _feature_check: bool = Depends(require_feature("api_access")),
 ):
     """Fetch multiple signals by ID in one request.
 
     Reduces round trips for dashboard/feed loading.
+    Requires Growth tier or higher (API access).
+    Consumes 25 credits per batch request.
     """
     if len(body.signal_ids) > 100:
         raise HTTPException(status_code=400, detail="Max 100 signals per request")
 
+    credit_repo = CreditRepository(db)
+    
+    # Consume credits for batch API pull (25 credits)
+    await credit_repo.consume_credits(
+        account_id=organization.id,
+        user_id=auth.user_id,
+        action_type="api_batch_pull",
+        credits=25,
+        metadata={"signal_count": len(body.signal_ids), "endpoint": "bulk_fetch_signals"}
+    )
+    
     repo = SignalRepository(db)
     found_signals = []
 
@@ -108,11 +125,28 @@ async def bulk_fetch_briefs(
     body: BulkFetchBriefsRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
+    organization = Depends(get_current_organization),
+    _feature_check: bool = Depends(require_feature("api_access")),
 ):
-    """Fetch multiple briefs by ID in one request."""
+    """Fetch multiple briefs by ID in one request.
+    
+    Requires Growth tier or higher (API access).
+    Consumes 25 credits per batch request.
+    """
     if len(body.brief_ids) > 50:
         raise HTTPException(status_code=400, detail="Max 50 briefs per request")
 
+    credit_repo = CreditRepository(db)
+    
+    # Consume credits for batch API pull (25 credits)
+    await credit_repo.consume_credits(
+        account_id=organization.id,
+        user_id=auth.user_id,
+        action_type="api_batch_pull",
+        credits=25,
+        metadata={"brief_count": len(body.brief_ids), "endpoint": "bulk_fetch_briefs"}
+    )
+    
     repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     found_briefs = []
 

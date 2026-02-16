@@ -14,7 +14,9 @@ from backend.auth.schemas import AuthContext
 from backend.briefs.generator import BriefGenerator
 from backend.briefs.refresh import BriefRefreshService
 from backend.database import get_db
+from backend.middleware.feature_gating import get_current_organization, require_feature
 from backend.queue import enqueue_job
+from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.intelligence_brief import IntelligenceBriefRepository
 from backend.schemas.briefs import (
     BriefDetailResponse,
@@ -88,14 +90,29 @@ async def generate_brief(
     body: BriefGenerateRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
+    organization = Depends(get_current_organization),
+    _feature_check: bool = Depends(require_feature("intelligence_briefs")),
 ):
     """Generate a new intelligence brief via AI.
 
     If signal_ids provided → pre-built brief from specific signals.
     If empty → auto-generated brief from topic search.
+    
+    Consumes 50 credits per brief generation.
     """
     generator = BriefGenerator(db)
+    credit_repo = CreditRepository(db)
+    
     try:
+        # Consume credits for brief generation (50 credits)
+        await credit_repo.consume_credits(
+            account_id=organization.id,
+            user_id=auth.user_id,
+            action_type="intelligence_brief",
+            credits=50,
+            metadata={"topic": body.topic, "industry_id": str(body.industry_id) if body.industry_id else None}
+        )
+        
         brief = await generator.generate_brief(
             topic=body.topic,
             industry_id=body.industry_id,
@@ -119,9 +136,15 @@ async def regenerate_brief(
     body: BriefRegenerateRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
+    organization = Depends(get_current_organization),
+    _feature_check: bool = Depends(require_feature("intelligence_briefs")),
 ):
-    """Regenerate an existing brief with updated signals."""
+    """Regenerate an existing brief with updated signals.
+    
+    Consumes 50 credits per regeneration.
+    """
     generator = BriefGenerator(db)
+    credit_repo = CreditRepository(db)
     repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
 
     existing = await repo.get(brief_id)
@@ -129,6 +152,15 @@ async def regenerate_brief(
         raise HTTPException(status_code=404, detail="Brief not found")
 
     try:
+        # Consume credits for brief regeneration (50 credits)
+        await credit_repo.consume_credits(
+            account_id=organization.id,
+            user_id=auth.user_id,
+            action_type="intelligence_brief",
+            credits=50,
+            metadata={"brief_id": str(brief_id), "regeneration": True}
+        )
+        
         brief = await generator.regenerate_brief(
             brief_id=brief_id,
             signal_ids=[str(s) for s in body.signal_ids] if body.signal_ids else None,

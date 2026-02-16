@@ -1,7 +1,7 @@
 """Add Agriculture & Agritech domain (5th industry)
 
 Revision ID: 2026_02_13_0001
-Revises: 2026_02_12_0001
+Revises: 2026_02_12_0002
 Create Date: 2026-02-13 00:01:00.000000
 
 This migration adds:

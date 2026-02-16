@@ -1,6 +1,7 @@
 """Alembic migration environment configuration"""
 
 import asyncio
+import ssl
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -10,6 +11,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from sqlalchemy import pool
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -28,7 +30,25 @@ if config.config_file_name is not None:
 
 # Set SQLAlchemy URL from environment
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+database_url = settings.database_url
+url = make_url(database_url)
+if url.drivername in ("postgresql", "postgres"):
+    url = url.set(drivername="postgresql+asyncpg")
+
+# Normalize SSL params for asyncpg by stripping query params and using connect_args.
+query = dict(url.query)
+query.pop("sslmode", None)
+query.pop("channel_binding", None)
+url = url.set(query=query)
+
+# Use direct (non-pooler) endpoint for migrations — pooler has aggressive
+# idle-connection timeouts that kill long-running migration transactions.
+host = url.host or ""
+if "-pooler." in host:
+    url = url.set(host=host.replace("-pooler.", ".", 1))
+
+database_url = url.render_as_string(hide_password=False)
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
@@ -49,7 +69,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        transaction_per_migration=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -58,12 +82,13 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async support."""
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.database_url
+    configuration["sqlalchemy.url"] = database_url
 
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"ssl": ssl.create_default_context()},
     )
 
     async with connectable.connect() as connection:

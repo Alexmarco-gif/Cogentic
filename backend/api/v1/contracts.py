@@ -13,6 +13,7 @@ from backend.auth.dependencies import get_current_user
 from backend.auth.guards import require_role
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.middleware.feature_gating import require_feature
 from backend.queue import enqueue_job
 from backend.repositories.signal_contract import SignalContractRepository
 from backend.schemas.signals import (
@@ -92,8 +93,9 @@ async def create_contract(
     body: SignalContractCreate,
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _feature_check: bool = Depends(require_feature("custom_contracts")),
 ):
-    """Create a new signal contract. Requires admin role."""
+    """Create a new signal contract. Requires admin role and Mid-Market tier or higher."""
     require_role(auth, "admin")
     repo = SignalContractRepository(db)
     contract = await repo.create(**body.model_dump())

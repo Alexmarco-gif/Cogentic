@@ -10,6 +10,7 @@ Create Date: ${create_date}
 from collections.abc import Sequence
 from typing import Union
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -45,10 +46,14 @@ def upgrade() -> None:
 
     # === UNIQUE CONSTRAINTS ===
 
-    # Prevent duplicate org memberships
-    op.create_unique_constraint(
-        "uq_org_users_org_user", "org_users", ["org_id", "user_id"]
-    )
+    # Prevent duplicate org memberships (skip if already exists from initial schema as uq_org_user)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_uqs = [c["name"] for c in inspector.get_unique_constraints("org_users")]
+    if "uq_org_user" not in existing_uqs and "uq_org_users_org_user" not in existing_uqs:
+        op.create_unique_constraint(
+            "uq_org_users_org_user", "org_users", ["org_id", "user_id"]
+        )
 
     # === CHECK CONSTRAINTS ===
 
