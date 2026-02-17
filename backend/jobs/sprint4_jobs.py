@@ -4,7 +4,7 @@ Entry points for RQ workers. Sync functions that wrap async services.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -23,13 +23,13 @@ def refresh_all_briefs() -> dict[str, Any]:
         Batch refresh summary dict.
     """
     logger.info("Starting brief refresh check job")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
 
     from backend.briefs.refresh import run_brief_refresh_check
 
     result = run_brief_refresh_check()
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info(f"Brief refresh check completed in {duration:.1f}s: {result}")
     return result
 
@@ -72,13 +72,13 @@ def generate_recommendations(
         Batch summary dict.
     """
     logger.info(f"Starting recommendation batch (limit={limit})")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
 
     from backend.services.recommendation import run_recommendation_batch
 
     result = run_recommendation_batch(limit=limit, min_confidence=min_confidence)
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     result["duration_seconds"] = round(duration, 2)
     logger.info(f"Recommendation batch completed in {duration:.1f}s: {result}")
     return result

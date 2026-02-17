@@ -204,17 +204,24 @@ class SynthesisService:
 
         conditions = [
             "s.embedding IS NOT NULL",
-            f"s.confidence >= {min_confidence}",
+            "s.confidence >= :min_confidence",
             "s.deleted_at IS NULL" if hasattr(self, "_has_deleted_at") else "1=1",
         ]
+        params: dict[str, Any] = {
+            "embedding": embedding_str,
+            "top_k": top_k,
+            "min_confidence": min_confidence,
+        }
 
         if org_id:
-            conditions.append(f"(s.org_id IS NULL OR s.org_id = '{org_id}')")
+            conditions.append("(s.org_id IS NULL OR s.org_id = :org_id)")
+            params["org_id"] = str(org_id)
 
         if industry_id:
             conditions.append(
-                f"s.contract_id IN (SELECT id FROM signal_contracts WHERE industry_id = '{industry_id}')"
+                "s.contract_id IN (SELECT id FROM signal_contracts WHERE industry_id = :industry_id)"
             )
+            params["industry_id"] = str(industry_id)
 
         where_clause = " AND ".join(conditions)
 
@@ -238,7 +245,7 @@ class SynthesisService:
 
         result = await self.db.execute(
             query,
-            {"embedding": embedding_str, "top_k": top_k},
+            params,
         )
         rows = result.fetchall()
 

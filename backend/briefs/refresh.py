@@ -9,7 +9,7 @@ Queued via RQ for async processing.
 import asyncio
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -64,7 +64,7 @@ class BriefRefreshService:
             Summary dict with counts.
         """
         start = time.monotonic()
-        stale_before = datetime.utcnow() - timedelta(hours=stale_hours)
+        stale_before = datetime.now(timezone.utc) - timedelta(hours=stale_hours)
 
         # Find stale published briefs (global query, no org scope)
         result = await self.db.execute(
@@ -157,7 +157,7 @@ class BriefRefreshService:
             return {
                 "status": "refreshed",
                 "brief_id": str(brief_id),
-                "refreshed_at": datetime.utcnow().isoformat(),
+                "refreshed_at": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             logger.error(f"Single brief refresh failed: {brief_id}: {e}")

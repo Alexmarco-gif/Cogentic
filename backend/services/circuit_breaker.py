@@ -9,10 +9,9 @@ import time
 from enum import Enum
 from typing import Any, Callable
 
-from backend.redis_client import get_redis_client
+from backend.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
-redis_client = get_redis_client()
 
 
 class CircuitState(str, Enum):
@@ -56,7 +55,7 @@ class CircuitBreaker:
         self._success_key = f"circuit:{name}:successes"
         self._opened_at_key = f"circuit:{name}:opened_at"
 
-    def call(self, func: Callable, *args, **kwargs) -> Any:
+    async def call(self, func: Callable, *args, **kwargs) -> Any:
         """Execute function with circuit breaker protection.
 
         Args:
@@ -69,19 +68,20 @@ class CircuitBreaker:
         Raises:
             CircuitBreakerError: If circuit is OPEN.
         """
-        state = self._get_state()
+        redis = await get_redis()
+        state = await self._get_state(redis)
 
         if state == CircuitState.OPEN:
             # Check if recovery timeout elapsed
-            opened_at = redis_client.get(self._opened_at_key)
+            opened_at = await redis.get(self._opened_at_key)
             if opened_at:
                 elapsed = time.time() - float(opened_at)
                 if elapsed >= self.recovery_timeout:
                     logger.info(
                         f"Circuit {self.name}: OPEN → HALF_OPEN (timeout elapsed)"
                     )
-                    self._set_state(CircuitState.HALF_OPEN)
-                    redis_client.delete(self._success_key)
+                    await self._set_state(redis, CircuitState.HALF_OPEN)
+                    await redis.delete(self._success_key)
                 else:
                     raise CircuitBreakerError(
                         f"Circuit {self.name} is OPEN. Retry in {int(self.recovery_timeout - elapsed)}s"
@@ -91,74 +91,75 @@ class CircuitBreaker:
 
         # Execute function
         try:
-            result = func(*args, **kwargs)
-            self._on_success()
+            result = await func(*args, **kwargs)
+            await self._on_success(redis)
             return result
         except Exception:
-            self._on_failure()
+            await self._on_failure(redis)
             raise
 
-    def _on_success(self):
+    async def _on_success(self, redis):
         """Handle successful call."""
-        state = self._get_state()
+        state = await self._get_state(redis)
 
         if state == CircuitState.HALF_OPEN:
             # Increment success counter
-            successes = redis_client.incr(self._success_key)
+            successes = await redis.incr(self._success_key)
             if successes >= self.success_threshold:
                 logger.info(
                     f"Circuit {self.name}: HALF_OPEN → CLOSED (recovery confirmed)"
                 )
-                self._set_state(CircuitState.CLOSED)
-                redis_client.delete(
+                await self._set_state(redis, CircuitState.CLOSED)
+                await redis.delete(
                     self._failure_key, self._success_key, self._opened_at_key
                 )
         elif state == CircuitState.CLOSED:
             # Reset failure counter on success
-            redis_client.delete(self._failure_key)
+            await redis.delete(self._failure_key)
 
-    def _on_failure(self):
+    async def _on_failure(self, redis):
         """Handle failed call."""
-        state = self._get_state()
+        state = await self._get_state(redis)
 
         if state == CircuitState.HALF_OPEN:
             # Immediate re-open on failure during recovery
             logger.warning(f"Circuit {self.name}: HALF_OPEN → OPEN (recovery failed)")
-            self._set_state(CircuitState.OPEN)
-            redis_client.set(self._opened_at_key, time.time())
-            redis_client.delete(self._success_key)
+            await self._set_state(redis, CircuitState.OPEN)
+            await redis.set(self._opened_at_key, time.time())
+            await redis.delete(self._success_key)
         elif state == CircuitState.CLOSED:
             # Increment failure counter
-            failures = redis_client.incr(self._failure_key)
-            redis_client.expire(self._failure_key, 300)  # 5min rolling window
+            failures = await redis.incr(self._failure_key)
+            await redis.expire(self._failure_key, 300)  # 5min rolling window
 
             if failures >= self.failure_threshold:
                 logger.error(
                     f"Circuit {self.name}: CLOSED → OPEN "
                     f"({failures} failures exceed threshold {self.failure_threshold})"
                 )
-                self._set_state(CircuitState.OPEN)
-                redis_client.set(self._opened_at_key, time.time())
+                await self._set_state(redis, CircuitState.OPEN)
+                await redis.set(self._opened_at_key, time.time())
 
-    def _get_state(self) -> CircuitState:
+    async def _get_state(self, redis) -> CircuitState:
         """Get current circuit state."""
-        state_str = redis_client.get(self._state_key)
+        state_str = await redis.get(self._state_key)
         if not state_str:
             return CircuitState.CLOSED
         return CircuitState(
             state_str.decode() if isinstance(state_str, bytes) else state_str
         )
 
-    def _set_state(self, state: CircuitState):
+    async def _set_state(self, redis, state: CircuitState):
         """Set circuit state."""
-        redis_client.set(self._state_key, state.value)
+        await redis.set(self._state_key, state.value)
 
-    def get_status(self) -> dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get circuit breaker status."""
-        state = self._get_state()
-        failures = int(redis_client.get(self._failure_key) or 0)
-        successes = int(redis_client.get(self._success_key) or 0)
-        opened_at = redis_client.get(self._opened_at_key)
+        redis = await get_redis()
+        state = await self._get_state(redis)
+        failures = int(await redis.get(self._failure_key) or 0)
+        successes = int(await redis.get(self._success_key) or 0)
+        opened_at = await redis.get(self._opened_at_key)
 
         status = {
             "name": self.name,

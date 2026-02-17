@@ -9,7 +9,7 @@ Uses:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import numpy as np
@@ -52,7 +52,7 @@ class CausalInferenceService:
             Test results with p-values and optimal lag
         """
         # Fetch time series data
-        cutoff = datetime.utcnow() - timedelta(days=lookback_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
         # Cause signals
         cause_query = (
@@ -357,7 +357,7 @@ class CausalInferenceService:
         daily_counts = np.zeros(lookback_days)
 
         for timestamp, confidence in data:
-            days_ago = (datetime.utcnow() - timestamp).days
+            days_ago = (datetime.now(timezone.utc) - timestamp).days
             if 0 <= days_ago < lookback_days:
                 # Aggregate by count * average confidence
                 daily_counts[lookback_days - days_ago - 1] += confidence

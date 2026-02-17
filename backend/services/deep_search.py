@@ -10,7 +10,7 @@ import hashlib
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -215,12 +215,16 @@ class DeepSearchService:
             "s.embedding IS NOT NULL",
             "s.confidence >= 0.50",
         ]
+        params: dict[str, Any] = {"embedding": embedding_str, "limit": limit}
+
         if org_id:
-            conditions.append(f"(s.org_id IS NULL OR s.org_id = '{org_id}')")
+            conditions.append("(s.org_id IS NULL OR s.org_id = :org_id)")
+            params["org_id"] = str(org_id)
         if industry_id:
             conditions.append(
-                f"s.contract_id IN (SELECT id FROM signal_contracts WHERE industry_id = '{industry_id}')"
+                "s.contract_id IN (SELECT id FROM signal_contracts WHERE industry_id = :industry_id)"
             )
+            params["industry_id"] = str(industry_id)
 
         where_clause = " AND ".join(conditions)
 
@@ -239,7 +243,7 @@ class DeepSearchService:
         )
 
         result = await self.db.execute(
-            query, {"embedding": embedding_str, "limit": limit}
+            query, params
         )
         rows = result.fetchall()
 
@@ -345,7 +349,7 @@ class DeepSearchService:
         if hasattr(dt, "tzinfo") and dt.tzinfo:
             now = datetime.now(timezone.utc)
         else:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
         age_days = (now - dt).days
         if age_days < 1:

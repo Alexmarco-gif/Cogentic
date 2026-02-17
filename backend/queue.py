@@ -46,6 +46,22 @@ def _get_queue(name: str) -> Queue:
         return _default_queue
 
 
+# Public queue accessors for worker.py and external consumers
+def get_high_priority_queue() -> Queue:
+    """Get the high priority queue instance."""
+    return _get_queue("high")
+
+
+def get_default_queue() -> Queue:
+    """Get the default queue instance."""
+    return _get_queue("default")
+
+
+def get_low_priority_queue() -> Queue:
+    """Get the low priority queue instance."""
+    return _get_queue("low")
+
+
 def enqueue_job(
     func: Any, *args, queue_name: str = "default", job_timeout: str = "10m", **kwargs
 ) -> Job:

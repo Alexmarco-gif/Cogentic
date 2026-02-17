@@ -28,6 +28,10 @@ from backend.models.regulatory_knowledge import (
     RegulatoryPattern,
     RegulatoryRule,
 )
+from backend.models.beta_account import BetaAccount
+from backend.models.credit_transaction import CreditTransaction
+from backend.models.feature_gate import FeatureGate
+from backend.models.pricing_config import PricingConfig
 from backend.models.search_query import SearchQuery
 from backend.models.signal import Signal
 from backend.models.signal_contract import SignalContract
@@ -79,4 +83,9 @@ __all__ = [
     "RegulatoryRule",
     "RegulatoryImpact",
     "RegulatoryPattern",
+    # Pricing & Feature Gating
+    "BetaAccount",
+    "CreditTransaction",
+    "FeatureGate",
+    "PricingConfig",
 ]

@@ -62,11 +62,13 @@ class RegulatoryEvent(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("signals.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     source_event_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("regulatory_events.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     historical_precedents: Mapped[list[UUID] | None] = mapped_column(
         ARRAY(PG_UUID(as_uuid=True)),
@@ -84,6 +86,7 @@ class RegulatoryEvent(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -118,6 +121,7 @@ class RegulatoryRule(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("regulatory_events.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     rule_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -146,6 +150,7 @@ class RegulatoryRule(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -172,16 +177,19 @@ class RegulatoryImpact(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("regulatory_events.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     rule_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("regulatory_rules.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     entity_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("entities.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     impact_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -206,6 +214,7 @@ class RegulatoryImpact(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

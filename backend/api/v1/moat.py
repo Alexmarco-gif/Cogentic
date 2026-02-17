@@ -211,7 +211,11 @@ async def take_snapshot(
 
     Snapshots are stored in the database and used for trend analysis.
     Designed to be called daily (via cron/scheduler) or on-demand.
+    Requires admin or owner role.
     """
+    from backend.auth.guards import require_role
+
+    require_role(auth, "admin")
     from backend.services.moat_metrics import MoatMetricsService
 
     service = MoatMetricsService(db)
@@ -347,7 +351,11 @@ async def run_blind_test(
     specificity gap, and causal insight uniqueness.
 
     Uses OpenAI credits — use judiciously.
+    Requires admin or owner role.
     """
+    from backend.auth.guards import require_role
+
+    require_role(auth, "admin")
     from backend.services.replicability_test import ReplicabilityBlindTestService
 
     service = ReplicabilityBlindTestService(db)

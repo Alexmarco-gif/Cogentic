@@ -4,7 +4,7 @@ Implements robust retry logic with exponential backoff and DLQ for failed jobs.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from rq import Retry
@@ -39,7 +39,7 @@ class DeadLetterQueue:
             "args": str(args),
             "kwargs": str(kwargs),
             "error": error,
-            "failed_at": datetime.utcnow().isoformat(),
+            "failed_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Store in Redis set with 7-day TTL

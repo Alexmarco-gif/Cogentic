@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -102,6 +102,12 @@ class CausalEdge(Base, UUIDMixin, TimestampMixin):
     """
 
     __tablename__ = "causal_edges"
+    __table_args__ = (
+        UniqueConstraint(
+            "cause_event_id", "effect_event_id", "relationship_label",
+            name="uq_causal_edges_cause_effect_label",
+        ),
+    )
 
     cause_event_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),

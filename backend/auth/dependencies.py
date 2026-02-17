@@ -224,12 +224,8 @@ async def _handle_user_token(
         # User not synced yet - this shouldn't happen if webhooks working
         logger.warning(f"User {payload.sub} not found in local DB, creating...")
 
-        # Extract email from token (if available)
-        email = (
-            payload.sub.split("|")[-1]
-            if "|" in payload.sub
-            else f"{payload.sub}@unknown.com"
-        )
+        # Extract email from token claims (preferred) or use placeholder
+        email = payload.email or f"{payload.sub}@placeholder.cogent.ai"
 
         user = await user_repo.create(
             auth0_id=payload.sub,

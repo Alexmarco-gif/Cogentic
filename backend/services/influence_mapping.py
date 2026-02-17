@@ -10,7 +10,9 @@ This is a P1 feature that builds on Entity Resolution 2.0 to add:
 - Influence path discovery
 """
 
+import asyncio
 import logging
+import time
 from typing import Any
 from uuid import UUID
 
@@ -22,6 +24,11 @@ from backend.models.entity import Entity
 from backend.models.entity_relationship import EntityRelationship
 
 logger = logging.getLogger(__name__)
+
+# Module-level graph cache with TTL
+_graph_cache: dict[str, tuple[nx.DiGraph, float]] = {}
+_graph_cache_lock = asyncio.Lock()
+_GRAPH_CACHE_TTL = 300  # 5 minutes
 
 
 class InfluenceMappingService:
@@ -68,7 +75,7 @@ class InfluenceMappingService:
             Influence metrics and overall score
         """
         # Build network graph
-        graph = await self._build_network_graph(industry_id=industry_id)
+        graph = await self._get_or_build_graph(industry_id=industry_id)
 
         if not graph.has_node(str(entity_id)):
             return {
@@ -157,7 +164,7 @@ class InfluenceMappingService:
             Ranked list of influential entities
         """
         # Build network
-        graph = await self._build_network_graph(
+        graph = await self._get_or_build_graph(
             industry_id=industry_id, entity_type=entity_type
         )
 
@@ -214,7 +221,7 @@ class InfluenceMappingService:
             Influence path with intermediaries and strength
         """
         # Build network
-        graph = await self._build_network_graph()
+        graph = await self._get_or_build_graph()
 
         source_id = str(source_entity_id)
         target_id = str(target_entity_id)
@@ -327,7 +334,7 @@ class InfluenceMappingService:
             Cascade prediction with affected entities and impact scores
         """
         # Build network
-        graph = await self._build_network_graph()
+        graph = await self._get_or_build_graph()
 
         origin_id = str(origin_entity_id)
 
@@ -397,6 +404,38 @@ class InfluenceMappingService:
                 "min_threshold": min_influence_threshold,
             },
         }
+
+    async def _get_or_build_graph(
+        self,
+        *,
+        industry_id: UUID | None = None,
+        entity_type: str | None = None,
+    ) -> nx.DiGraph:
+        """Get cached graph or build a new one.
+
+        Uses a TTL-based in-memory cache keyed by (industry_id, entity_type).
+        An asyncio.Lock prevents concurrent builds for the same cache key.
+        """
+        cache_key = f"{industry_id}:{entity_type}"
+
+        # Fast path: check cache without lock
+        if cache_key in _graph_cache:
+            graph, cached_at = _graph_cache[cache_key]
+            if (time.time() - cached_at) < _GRAPH_CACHE_TTL:
+                return graph
+
+        # Slow path: acquire lock, double-check, then build
+        async with _graph_cache_lock:
+            if cache_key in _graph_cache:
+                graph, cached_at = _graph_cache[cache_key]
+                if (time.time() - cached_at) < _GRAPH_CACHE_TTL:
+                    return graph
+
+            graph = await self._build_network_graph(
+                industry_id=industry_id, entity_type=entity_type
+            )
+            _graph_cache[cache_key] = (graph, time.time())
+            return graph
 
     async def _build_network_graph(
         self,

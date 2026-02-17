@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Float, ForeignKey, String
+from sqlalchemy import Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +28,9 @@ class EntityAlias(Base, UUIDMixin, TimestampMixin):
     """
 
     __tablename__ = "entity_aliases"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "alias_name", name="uq_entity_aliases_entity_alias"),
+    )
 
     entity_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),

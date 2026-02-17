@@ -109,7 +109,8 @@ async def update_contract(
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update an existing signal contract."""
+    """Update an existing signal contract. Requires admin or owner role."""
+    require_role(auth, "admin")
     repo = SignalContractRepository(db)
     update_data = body.model_dump(exclude_unset=True)
     if not update_data:
@@ -127,7 +128,8 @@ async def delete_contract(
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a signal contract."""
+    """Delete a signal contract. Requires admin or owner role."""
+    require_role(auth, "admin")
     repo = SignalContractRepository(db)
     deleted = await repo.delete(contract_id)
     if not deleted:
@@ -143,7 +145,9 @@ async def trigger_fetch(
     """Manually trigger a fetch for a specific contract.
 
     Enqueues an RQ job — does not block the request.
+    Requires admin or owner role.
     """
+    require_role(auth, "admin")
     repo = SignalContractRepository(db)
     contract = await repo.get(contract_id)
     if not contract:
@@ -173,7 +177,8 @@ async def activate_contract(
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Activate a signal contract."""
+    """Activate a signal contract. Requires admin or owner role."""
+    require_role(auth, "admin")
     repo = SignalContractRepository(db)
     contract = await repo.update(
         contract_id, is_active=True, status="active", failure_count=0
@@ -189,7 +194,8 @@ async def deactivate_contract(
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Deactivate a signal contract."""
+    """Deactivate a signal contract. Requires admin or owner role."""
+    require_role(auth, "admin")
     repo = SignalContractRepository(db)
     contract = await repo.update(contract_id, is_active=False, status="disabled")
     if not contract:

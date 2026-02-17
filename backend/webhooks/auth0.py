@@ -15,7 +15,7 @@ Security:
 import hashlib
 import hmac
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -169,7 +169,7 @@ async def handle_user_signup(
         email=email,
         name=name,
         picture_url=picture,
-        last_login_at=datetime.utcnow(),
+        last_login_at=datetime.now(timezone.utc),
         login_count=1,
     )
 
@@ -238,7 +238,7 @@ async def handle_user_login(
     # Update login stats
     await user_repo.update(
         user.id,
-        last_login_at=datetime.utcnow(),
+        last_login_at=datetime.now(timezone.utc),
         login_count=user.login_count + 1,
     )
 
@@ -328,7 +328,7 @@ async def auth0_webhook(
     email = payload.get("email", "unknown@example.com")
 
     # Generate event ID for idempotency
-    event_id = f"{event_type}:{user_id}:{payload.get('timestamp', datetime.utcnow().isoformat())}"
+    event_id = f"{event_type}:{user_id}:{payload.get('timestamp', datetime.now(timezone.utc).isoformat())}"
     event_id_hash = hashlib.sha256(event_id.encode()).hexdigest()
 
     # Check idempotency

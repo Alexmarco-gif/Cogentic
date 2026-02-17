@@ -106,17 +106,13 @@ async def bulk_fetch_signals(
     )
     
     repo = SignalRepository(db)
-    found_signals = []
-
-    for sid in body.signal_ids:
-        signal = await repo.get(sid)
-        if signal:
-            found_signals.append(SignalResponse.model_validate(signal))
+    found_signals = await repo.get_by_ids(body.signal_ids)
+    signal_responses = [SignalResponse.model_validate(s) for s in found_signals]
 
     return BulkSignalsResponse(
-        signals=found_signals,
-        found=len(found_signals),
-        missing=len(body.signal_ids) - len(found_signals),
+        signals=signal_responses,
+        found=len(signal_responses),
+        missing=len(body.signal_ids) - len(signal_responses),
     )
 
 
@@ -148,17 +144,13 @@ async def bulk_fetch_briefs(
     )
     
     repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
-    found_briefs = []
-
-    for bid in body.brief_ids:
-        brief = await repo.get(bid)
-        if brief:
-            found_briefs.append(BriefResponse.model_validate(brief))
+    found_briefs = await repo.get_by_ids(body.brief_ids)
+    brief_responses = [BriefResponse.model_validate(b) for b in found_briefs]
 
     return BulkBriefsResponse(
-        briefs=found_briefs,
-        found=len(found_briefs),
-        missing=len(body.brief_ids) - len(found_briefs),
+        briefs=brief_responses,
+        found=len(brief_responses),
+        missing=len(body.brief_ids) - len(brief_responses),
     )
 
 
@@ -176,17 +168,16 @@ async def bulk_archive_signals(
     updated = 0
     errors = 0
 
-    for sid in body.signal_ids:
+    # Batch-fetch all signals in one query
+    signals = await repo.get_by_ids(body.signal_ids)
+
+    for signal in signals:
         try:
-            if body.archived is not None:
-                # Soft delete implementation
-                signal = await repo.get(sid)
-                if signal:
-                    if body.archived:
-                        await repo.soft_delete(sid)
-                    updated += 1
+            if body.archived is not None and body.archived:
+                await repo.soft_delete(signal.id)
+                updated += 1
         except Exception as e:
-            logger.error(f"Bulk archive failed for {sid}: {e}")
+            logger.error(f"Bulk archive failed for {signal.id}: {e}")
             errors += 1
 
     await db.commit()

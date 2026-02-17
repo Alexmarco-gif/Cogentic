@@ -228,7 +228,14 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      console.warn('[WEBHOOK] ⚠️  No webhook secret configured - skipping signature verification');
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[WEBHOOK] CRITICAL: No webhook secret configured in production');
+        return NextResponse.json(
+          { error: 'Webhook verification not configured' },
+          { status: 500 }
+        );
+      }
+      console.warn('[WEBHOOK] ⚠️  No webhook secret configured - skipping verification (dev only)');
     }
     
     // Parse the event
@@ -295,10 +302,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -108,7 +108,10 @@ async def create_entity(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Create a new canonical entity with aliases."""
+    """Create a new canonical entity with aliases. Requires admin or owner role."""
+    from backend.auth.guards import require_role
+
+    require_role(auth, "admin")
     from backend.services.entity_resolution import EntityResolutionService
 
     service = EntityResolutionService(db)
@@ -191,7 +194,10 @@ async def upsert_relationship(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Create or strengthen a relationship between two entities."""
+    """Create or strengthen a relationship between two entities. Requires admin or owner role."""
+    from backend.auth.guards import require_role
+
+    require_role(auth, "admin")
     from backend.services.entity_resolution import EntityResolutionService
 
     service = EntityResolutionService(db)

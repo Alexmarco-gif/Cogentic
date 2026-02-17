@@ -27,12 +27,12 @@ def get_rate_limit_key(request: Request) -> str:
     - Authenticated users: Use user_id (allows higher limits)
     - Unauthenticated: Use IP address (lower limits for abuse prevention)
     """
-    # Check if request has auth context (set by get_current_user dependency)
-    auth: AuthContext | None = getattr(request.state, "auth", None)
+    # Check if request has token payload (set by JWTMiddleware)
+    token_payload = getattr(request.state, "token_payload", None)
 
-    if auth:
-        # Use user_id for authenticated requests
-        key = f"user:{auth.user_id}"
+    if token_payload and hasattr(token_payload, "sub"):
+        # Use token subject (user ID) for authenticated requests
+        key = f"user:{token_payload.sub}"
         logger.debug(f"Rate limit key: {key}")
         return key
 
@@ -49,30 +49,39 @@ def get_rate_limit_for_user(request: Request) -> str:
     Returns:
         Rate limit string (e.g., "100/minute")
     """
-    auth: AuthContext | None = getattr(request.state, "auth", None)
+    token_payload = getattr(request.state, "token_payload", None)
 
-    if not auth:
+    if not token_payload:
         # Public endpoints: 20/min per IP
         return "20/minute"
 
-    # Super admins get highest limits
-    if auth.is_super_admin:
-        return "1000/minute"
+    # Check auth context if available (set by get_current_user dependency)
+    auth: AuthContext | None = getattr(request.state, "auth", None)
 
-    # Admins and owners get high limits
-    if auth.is_admin_or_higher:
-        return "1000/minute"
+    if auth:
+        # Super admins get highest limits
+        if auth.is_super_admin:
+            return "1000/minute"
+
+        # Admins and owners get high limits
+        if auth.is_admin_or_higher:
+            return "1000/minute"
 
     # Regular authenticated users
     return "100/minute"
 
 
-# Create limiter instance
+# Create limiter instance with shared Redis storage
+# This ensures rate limits are enforced consistently across all worker processes
+from backend.config import get_settings
+
+_settings = get_settings()
+
 limiter = Limiter(
     key_func=get_rate_limit_key,
     default_limits=["100/minute"],  # Default for authenticated endpoints
     headers_enabled=True,  # Return X-RateLimit-* headers
-    storage_uri="memory://",  # Use in-memory storage (can switch to Redis)
+    storage_uri=_settings.redis_url,  # Shared Redis storage for accurate cross-worker rate limiting
 )
 
 

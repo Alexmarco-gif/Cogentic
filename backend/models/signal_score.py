@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Float, ForeignKey, String
+from sqlalchemy import Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,9 @@ class SignalScore(Base, UUIDMixin, TimestampMixin):
     """
 
     __tablename__ = "signal_scores"
+    __table_args__ = (
+        UniqueConstraint("signal_id", "score_type", name="uq_signal_scores_signal_type"),
+    )
 
     signal_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),

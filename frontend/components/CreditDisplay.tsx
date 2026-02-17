@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useCreditWarning } from '@/lib/hooks/useFeatureGate';
+import { useCredits } from '@/lib/hooks/useCredits';
 import { AlertCircle, DollarSign } from 'lucide-react';
 
 /**
@@ -9,7 +9,7 @@ import { AlertCircle, DollarSign } from 'lucide-react';
  * Shows credit balance with visual indicators
  */
 export function CreditDisplay() {
-  const { credits, isLow, hasOverage, percentage, loading } = useCreditWarning();
+  const { credits, isLow, hasOverage, percentage, loading } = useCredits();
 
   if (loading || !credits) {
     return null;

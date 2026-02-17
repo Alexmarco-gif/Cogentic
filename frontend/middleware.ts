@@ -23,7 +23,6 @@ export default withMiddlewareAuthRequired();
 export const config = {
   matcher: [
     '/api/protected/:path*',
-    // Add more protected routes here as needed
-    // '/dashboard/:path*',
+    '/dashboard/:path*',
   ],
 };

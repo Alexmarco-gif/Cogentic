@@ -1,6 +1,6 @@
 """Beta account repository for beta lifecycle management"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -28,7 +28,7 @@ class BetaRepository(BaseRepository[BetaAccount]):
         Get beta accounts expiring within N days.
         Only returns accounts that haven't transitioned yet.
         """
-        threshold = datetime.utcnow() + timedelta(days=days)
+        threshold = datetime.now(timezone.utc) + timedelta(days=days)
 
         result = await self.db.execute(
             select(BetaAccount).where(
@@ -42,7 +42,7 @@ class BetaRepository(BaseRepository[BetaAccount]):
         """Get all beta accounts that have expired but not transitioned"""
         result = await self.db.execute(
             select(BetaAccount).where(
-                BetaAccount.beta_end_date <= datetime.utcnow(),
+                BetaAccount.beta_end_date <= datetime.now(timezone.utc),
                 BetaAccount.transitioned_to_standard == False,
             )
         )

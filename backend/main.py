@@ -1,5 +1,6 @@
 """FastAPI main application"""
 
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -57,6 +58,20 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 class MetricsMiddleware(BaseHTTPMiddleware):
     """Track request metrics for Prometheus"""
 
+    # Pre-compiled regex for UUID and numeric path segments
+    _UUID_RE = re.compile(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        re.IGNORECASE,
+    )
+    _NUMERIC_SEGMENT_RE = re.compile(r"/\d+(?=/|$)")
+
+    @staticmethod
+    def _sanitize_endpoint(path: str) -> str:
+        """Replace UUIDs and numeric IDs with placeholders to bound label cardinality."""
+        path = MetricsMiddleware._UUID_RE.sub("{id}", path)
+        path = MetricsMiddleware._NUMERIC_SEGMENT_RE.sub("/{id}", path)
+        return path
+
     async def dispatch(self, request: Request, call_next):
         # Skip metrics endpoint itself
         if request.url.path == "/metrics":
@@ -71,8 +86,8 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         # Calculate duration
         duration = time.time() - start_time
 
-        # Extract endpoint (remove IDs for cleaner metrics)
-        endpoint = request.url.path
+        # Extract endpoint (sanitize IDs for bounded cardinality)
+        endpoint = self._sanitize_endpoint(request.url.path)
         method = request.method
         status_code = response.status_code
 

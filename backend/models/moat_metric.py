@@ -5,7 +5,7 @@ Technical Implementation Moat Strategy. Each snapshot captures the full
 state at a point in time, enabling trend analysis and target tracking.
 """
 
-from sqlalchemy import Float, Integer, String
+from sqlalchemy import Float, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +28,9 @@ class MoatMetricSnapshot(Base, UUIDMixin, TimestampMixin):
     """
 
     __tablename__ = "moat_metric_snapshots"
+    __table_args__ = (
+        UniqueConstraint("snapshot_date", name="uq_moat_metric_snapshots_date"),
+    )
 
     # Timing
     snapshot_date: Mapped[str] = mapped_column(

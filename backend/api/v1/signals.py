@@ -37,10 +37,14 @@ async def list_signals(
 
     if signal_type:
         items = await repo.get_by_type(
-            signal_type, min_confidence=min_confidence, skip=skip, limit=limit
+            signal_type,
+            org_id=auth.org_id,
+            min_confidence=min_confidence,
+            skip=skip,
+            limit=limit,
         )
     else:
-        items = await repo.get_visible(skip=skip, limit=limit)
+        items = await repo.get_visible(org_id=auth.org_id, skip=skip, limit=limit)
 
     total = await repo.count()
     return SignalListResponse(
@@ -53,13 +57,14 @@ async def list_signals(
 
 @router.get("/trending", response_model=list[SignalResponse])
 async def get_trending_signals(
+    skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get ML-ranked trending signals."""
     repo = SignalRepository(db)
-    signals = await repo.get_trending(limit=limit)
+    signals = await repo.get_trending(org_id=auth.org_id, skip=skip, limit=limit)
     return [SignalResponse.model_validate(s) for s in signals]
 
 
@@ -76,6 +81,7 @@ async def get_signal_feed(
     """Real-time signal feed (paginated, filterable)."""
     repo = SignalRepository(db)
     items = await repo.get_feed(
+        org_id=auth.org_id,
         industry_id=industry_id,
         signal_type=signal_type,
         min_confidence=min_confidence,
@@ -117,7 +123,11 @@ async def get_signals_by_entity(
     """Get all signals linked to a given entity."""
     repo = SignalRepository(db)
     items = await repo.get_by_entity(
-        entity_id, min_confidence=min_confidence, skip=skip, limit=limit
+        entity_id,
+        org_id=auth.org_id,
+        min_confidence=min_confidence,
+        skip=skip,
+        limit=limit,
     )
     return SignalListResponse(
         items=[SignalResponse.model_validate(s) for s in items],
@@ -137,7 +147,7 @@ async def get_signals_by_contract(
 ):
     """Get all signals from a specific contract."""
     repo = SignalRepository(db)
-    items = await repo.get_by_contract(contract_id, skip=skip, limit=limit)
+    items = await repo.get_by_contract(contract_id, org_id=auth.org_id, skip=skip, limit=limit)
     total = await repo.count_by_contract(contract_id)
     return SignalListResponse(
         items=[SignalResponse.model_validate(s) for s in items],

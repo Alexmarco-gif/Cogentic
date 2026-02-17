@@ -4,7 +4,7 @@ Health check endpoints.
 Provides system health status with optional authentication checks.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -24,7 +24,7 @@ async def health_check() -> dict[str, Any]:
     """
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "cogent-api",
         "version": "1.0.0",
     }
@@ -42,7 +42,7 @@ async def health_check_with_auth(
     """
     response = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "cogent-api",
         "version": "1.0.0",
     }

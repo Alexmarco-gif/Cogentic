@@ -50,7 +50,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         """
         # Skip auth for public paths
         if request.url.path in self.PUBLIC_PATHS or request.url.path.startswith(
-            "/webhooks"
+            "/webhooks/"
         ):
             return await call_next(request)
 
@@ -72,7 +72,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
             # Attach to request state for dependencies
             request.state.token_payload = payload
-            request.state.raw_token = token
 
             logger.debug(f"Request authenticated for user: {payload.sub}")
 

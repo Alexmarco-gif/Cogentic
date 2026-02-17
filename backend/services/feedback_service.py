@@ -421,22 +421,25 @@ class FeedbackService:
         self,
         user_id: UUID,
         *,
+        org_id: UUID | None = None,
         days: int = 30,
     ) -> dict[str, Any]:
-        """Get a summary of a user's feedback activity."""
+        """Get a summary of a user's feedback activity (org-scoped)."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+        conditions = [
+            UserFeedback.user_id == user_id,
+            UserFeedback.created_at >= cutoff,
+        ]
+        if org_id is not None:
+            conditions.append(UserFeedback.org_id == org_id)
 
         query = (
             select(
                 UserFeedback.feedback_type,
                 func.count(UserFeedback.id).label("count"),
             )
-            .where(
-                and_(
-                    UserFeedback.user_id == user_id,
-                    UserFeedback.created_at >= cutoff,
-                )
-            )
+            .where(and_(*conditions))
             .group_by(UserFeedback.feedback_type)
         )
 

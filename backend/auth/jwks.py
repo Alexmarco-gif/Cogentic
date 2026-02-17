@@ -5,6 +5,7 @@ Fetches and caches Auth0's public keys for JWT signature verification.
 Implements automatic refresh and error handling.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -35,6 +36,7 @@ class JWKSClient:
         self._last_fetch: datetime | None = None
         self._cache_ttl = timedelta(minutes=30)
         self._http_client = httpx.AsyncClient(timeout=10.0)
+        self._lock = asyncio.Lock()
 
     async def get_signing_key(self, kid: str) -> Any:
         """
@@ -49,14 +51,21 @@ class JWKSClient:
         Raises:
             ValueError: If key not found or JWKS fetch fails
         """
-        # Check cache
+        # Fast path: check cache without lock
         if self._is_cache_valid() and kid in self._keys:
             logger.debug(f"JWKS cache hit for kid={kid}")
             return self._keys[kid]
 
-        # Cache miss or expired - refresh
-        logger.info("JWKS cache miss or expired, fetching from Auth0")
-        await self._fetch_jwks()
+        # Slow path: acquire lock, double-check, then refresh
+        async with self._lock:
+            # Double-check after acquiring lock (another coroutine may have refreshed)
+            if self._is_cache_valid() and kid in self._keys:
+                logger.debug(f"JWKS cache hit after lock for kid={kid}")
+                return self._keys[kid]
+
+            # Cache miss or expired - refresh
+            logger.info("JWKS cache miss or expired, fetching from Auth0")
+            await self._fetch_jwks()
 
         # Check again after refresh
         if kid not in self._keys:

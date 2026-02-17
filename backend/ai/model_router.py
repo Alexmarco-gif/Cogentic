@@ -73,7 +73,7 @@ class ModelRouter:
     """Routes AI tasks to appropriate models with fallback support."""
 
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     def get_model_for_task(
         self,

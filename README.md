@@ -1,6 +1,79 @@
 # Cogent - AI-Powered SaaS Platform
 
-Multi-tenant SaaS application with Auth0 authentication, role-based access control, and FastAPI backend.
+
+## 1. Architecture Overview
+
+**Cogent** is an AI-powered market intelligence platform with a three-tier architecture:
+
+| Layer | Technology | Role |
+|-------|-----------|------|
+| **Frontend** | Next.js 14 (App Router) + Tailwind + Auth0 SDK | SSR/CSR SPA, handles auth flow, renders dashboards |
+| **Backend API** | FastAPI (async) + SQLAlchemy 2.0 + Pydantic v2 | REST API, JWT auth, business logic, AI orchestration |
+| **Workers** | RQ (Redis Queue) + Python | Background jobs: signal acquisition, document analysis, ML training |
+| **Data Stores** | PostgreSQL (Neon) + pgvector, Redis, Neo4j | Relational data, caching/queues, knowledge graph |
+
+
+
+
+```
+Routes (api/v1/) → Services (services/) → Repositories (repositories/) → Models (models/) → PostgreSQL
+                 ↘ AI layer (ai/)       → OpenAI API
+                 ↘ ML layer (ml/)       → ONNX Runtime (local inference)
+                 ↘ Signals (signals/)   → External data sources (RSS, APIs)
+```
+
+**Key Subsystems:**
+
+- **Signal Intelligence Pipeline**: Fetchers → Processors → Dedup → Scoring → Storage
+- **Causal Knowledge Graph**: Entity resolution → Relationship mapping → Causal inference (Neo4j + pgvector)
+- **Intelligence Moat**: Feedback loops → Prediction backtesting → Replicability testing → Moat metrics
+- **Chat Agent**: OpenAI-powered chat with tool calling, RAG over signals/briefs
+- **Pricing & Feature Gating**: Tier-based access (Free → Starter → Professional → Enterprise)
+
+---
+
+## 2. System Flow Diagram
+
+```
+User Browser
+    │
+    ├─── Auth0 Login ──→ Auth0 ──→ JWT issued
+    │
+    ▼
+Next.js Frontend (localhost:3000)
+    │ fetch('/api/v1/...')        ← NO proxy configured (CORS issue)
+    ▼
+FastAPI Backend (localhost:8000)
+    │
+    ├── CORS Middleware (outermost)
+    ├── RequestID Middleware
+    ├── Metrics Middleware (Prometheus)
+    ├── JWT Middleware (Auth0 JWKS validation)
+    │          │
+    │          ├── Token valid → request.state.token_payload
+    │          └── Token invalid → 401
+    │
+    ├── Rate Limiter (slowapi) ← BROKEN: in-memory, never reads user ID
+    │
+    ▼
+API v1 Router (146 endpoints)
+    │
+    ├── get_current_user() dependency → DB lookup → AuthContext
+    │          │
+    │          └── Auto-creates user if not found ← BUG: garbage email
+    │
+    ├── Service Layer ← Some routes bypass this (direct DB access)
+    │      │
+    │      ├── OpenAI API (chat, synthesis, embeddings)
+    │      ├── ONNX Runtime (scoring, anomaly detection)
+    │      └── Neo4j (causal graph queries)
+    │
+    ├── Repository Layer → SQLAlchemy AsyncSession → PostgreSQL (Neon)
+    │
+    └── Background Jobs → Redis Queue → RQ Worker ← BROKEN: won't start
+              │
+              └── Signal acquisition, document analysis, ML training
+```
 
 ---
 

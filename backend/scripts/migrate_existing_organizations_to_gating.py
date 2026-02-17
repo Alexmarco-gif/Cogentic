@@ -14,7 +14,7 @@ Usage:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -59,8 +59,8 @@ async def migrate_existing_organizations():
 
                     # Enroll in beta pricing (90 days from now)
                     org.is_beta_account = True
-                    org.beta_start_date = datetime.utcnow()
-                    org.beta_end_date = datetime.utcnow() + timedelta(days=90)
+                    org.beta_start_date = datetime.now(timezone.utc)
+                    org.beta_end_date = datetime.now(timezone.utc) + timedelta(days=90)
                     org.beta_discount_percent = 50.00
 
                     # Set trial status as converted (existing customers are past trial)
@@ -74,7 +74,7 @@ async def migrate_existing_organizations():
                     org.credits_overage_rate = 0.10  # $0.10 per credit overage
 
                     # Set billing cycle start (use today for existing customers)
-                    org.billing_cycle_start = datetime.utcnow().date()
+                    org.billing_cycle_start = datetime.now(timezone.utc).date()
 
                     # Create corresponding beta_accounts record for lifecycle tracking
                     beta_account = BetaAccount(

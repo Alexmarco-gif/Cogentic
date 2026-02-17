@@ -80,7 +80,11 @@ async def trigger_recommendation_batch(
     """Trigger batch recommendation generation.
 
     Enqueues an RQ job. Called after refinement pipeline or manually.
+    Requires admin or owner role.
     """
+    from backend.auth.guards import require_role
+
+    require_role(auth, "admin")
     from backend.services.recommendation import run_recommendation_batch
 
     job = enqueue_job(

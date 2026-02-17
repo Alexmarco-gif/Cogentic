@@ -153,6 +153,8 @@ async def get_trending_signals(
 @router.get("/predictions/accuracy")
 async def get_prediction_accuracy(
     lookback_days: int = Query(default=90, ge=7, le=365),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
@@ -164,7 +166,11 @@ async def get_prediction_accuracy(
     from backend.services.feedback_service import FeedbackService
 
     service = FeedbackService(db)
-    accuracy = await service.get_prediction_accuracy(lookback_days=lookback_days)
+    accuracy = await service.get_prediction_accuracy(
+        lookback_days=lookback_days,
+        skip=skip,
+        limit=limit
+    )
     return accuracy
 
 
@@ -178,5 +184,5 @@ async def get_my_feedback_summary(
     from backend.services.feedback_service import FeedbackService
 
     service = FeedbackService(db)
-    summary = await service.get_user_feedback_summary(auth.user_id, days=days)
+    summary = await service.get_user_feedback_summary(auth.user_id, org_id=auth.org_id, days=days)
     return summary

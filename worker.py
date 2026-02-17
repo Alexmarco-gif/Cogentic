@@ -24,7 +24,7 @@ sys.path.insert(0, str(project_root))
 from rq import SimpleWorker, Worker
 from rq.logutils import setup_loghandlers
 
-from backend.queue import default_queue, high_priority_queue, low_priority_queue
+from backend.queue import get_default_queue, get_high_priority_queue, get_low_priority_queue
 from backend.redis_client import get_redis_client
 
 # Setup logging
@@ -56,13 +56,13 @@ def main():
 
     # Select queues to process
     if args.queue == "high":
-        queues = [high_priority_queue]
+        queues = [get_high_priority_queue()]
     elif args.queue == "default":
-        queues = [default_queue]
+        queues = [get_default_queue()]
     elif args.queue == "low":
-        queues = [low_priority_queue]
+        queues = [get_low_priority_queue()]
     else:  # all
-        queues = [high_priority_queue, default_queue, low_priority_queue]
+        queues = [get_high_priority_queue(), get_default_queue(), get_low_priority_queue()]
 
     queue_names = [q.name for q in queues]
     logger.info(f"Starting RQ worker for queues: {', '.join(queue_names)}")

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
+from backend.auth.guards import require_role
 from backend.auth.schemas import AuthContext
 from backend.briefs.generator import BriefGenerator
 from backend.briefs.refresh import BriefRefreshService
@@ -186,7 +187,8 @@ async def update_brief_status(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Publish, archive, or revert a brief to draft."""
+    """Publish, archive, or revert a brief to draft. Requires admin or owner role."""
+    require_role(auth, "admin")
     repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     brief = await repo.get(brief_id)
     if not brief:
@@ -234,7 +236,9 @@ async def refresh_all_briefs(
     """Trigger batch refresh check for all published briefs.
 
     Enqueues an RQ job — returns immediately.
+    Requires admin or owner role.
     """
+    require_role(auth, "admin")
     from backend.briefs.refresh import run_brief_refresh_check
 
     job = enqueue_job(

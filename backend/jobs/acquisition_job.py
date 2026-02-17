@@ -7,7 +7,7 @@ Enqueued by the APScheduler (scheduler.py) or manual API triggers.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,13 +25,13 @@ def fetch_signals_by_tier(tier: str) -> dict[str, Any]:
         Stats dict with contract/signal counts.
     """
     logger.info(f"Starting signal fetch job for tier: {tier}")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
 
     from backend.services.signal_acquisition import run_fetch_by_tier
 
     result = run_fetch_by_tier(tier)
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     result["duration_seconds"] = round(duration, 2)
     logger.info(f"Tier '{tier}' fetch completed in {duration:.1f}s: {result}")
     return result
@@ -49,13 +49,13 @@ def fetch_single_contract(contract_id: str) -> dict[str, Any]:
         Result dict with fetched/deduped/stored counts.
     """
     logger.info(f"Starting on-demand fetch for contract: {contract_id}")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
 
     from backend.services.signal_acquisition import run_fetch_contract
 
     result = run_fetch_contract(contract_id)
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     result["duration_seconds"] = round(duration, 2)
     logger.info(f"Contract {contract_id} fetch completed in {duration:.1f}s: {result}")
     return result

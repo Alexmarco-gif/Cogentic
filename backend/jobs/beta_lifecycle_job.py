@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from backend.database import async_session_maker
 from backend.services.beta_lifecycle_service import BetaLifecycleService
@@ -50,6 +50,6 @@ def run_beta_lifecycle_job():
 
 if __name__ == "__main__":
     # Allow manual execution for testing
-    print(f"Running beta lifecycle job at {datetime.utcnow()}")
+    print(f"Running beta lifecycle job at {datetime.now(timezone.utc)}")
     result = run_beta_lifecycle_job()
     print(f"Results: {result}")

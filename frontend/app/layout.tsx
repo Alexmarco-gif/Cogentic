@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { UserProvider } from '@auth0/nextjs-auth0/client'
+import { PricingProvider } from '@/lib/contexts/PricingContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,7 +20,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <UserProvider>
-          {children}
+          <PricingProvider>
+            {children}
+          </PricingProvider>
         </UserProvider>
       </body>
     </html>

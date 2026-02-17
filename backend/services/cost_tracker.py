@@ -13,20 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.ai_usage_log import AIUsageLog
-from backend.redis_client import get_redis_client
+from backend.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
-
-# Lazy-initialized Redis client (avoids crash if Redis is down at import time)
-_redis_client = None
-
-
-def _get_redis():
-    """Lazy initialization of sync Redis client."""
-    global _redis_client
-    if _redis_client is None:
-        _redis_client = get_redis_client()
-    return _redis_client
 
 
 # Cost budgets (tokens per day)
@@ -79,12 +68,13 @@ class CostTracker:
         org_key = f"ai_usage:{today}:org:{org_id}"
 
         # Atomic increment with 25-hour TTL
-        pipe = _get_redis().pipeline()
+        redis = await get_redis()
+        pipe = redis.pipeline()
         pipe.incrby(user_key, total_tokens)
         pipe.expire(user_key, 90000)  # 25 hours
         pipe.incrby(org_key, total_tokens)
         pipe.expire(org_key, 90000)
-        user_total, _, org_total, _ = pipe.execute()
+        user_total, _, org_total, _ = await pipe.execute()
 
         # Log to database
         log = AIUsageLog(
@@ -136,9 +126,9 @@ class CostTracker:
         user_key = f"ai_usage:{today}:user:{user_id}"
         org_key = f"ai_usage:{today}:org:{org_id}"
 
-        redis = _get_redis()
-        user_total = int(redis.get(user_key) or 0)
-        org_total = int(redis.get(org_key) or 0)
+        redis = await get_redis()
+        user_total = int(await redis.get(user_key) or 0)
+        org_total = int(await redis.get(org_key) or 0)
 
         return {
             "user_tokens": user_total,

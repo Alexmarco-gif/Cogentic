@@ -5,7 +5,7 @@ Enqueued after signal acquisition or by weekly cron (training).
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,13 +26,13 @@ def refine_signals(signal_ids: list[str]) -> dict[str, Any]:
         Refinement summary dict.
     """
     logger.info(f"Starting refinement job for {len(signal_ids)} signals")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
 
     from backend.services.refinement_service import run_refine_batch
 
     result = run_refine_batch(signal_ids)
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     result["duration_seconds"] = round(duration, 2)
     logger.info(f"Refinement completed in {duration:.1f}s: {result}")
     return result
@@ -50,13 +50,13 @@ def refine_unprocessed(limit: int = 100) -> dict[str, Any]:
         Refinement summary dict.
     """
     logger.info(f"Starting unprocessed refinement job (limit={limit})")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
 
     from backend.services.refinement_service import run_refine_unprocessed
 
     result = run_refine_unprocessed(limit=limit)
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     result["duration_seconds"] = round(duration, 2)
     logger.info(f"Unprocessed refinement completed in {duration:.1f}s: {result}")
     return result
@@ -75,7 +75,7 @@ def train_all_models() -> dict[str, Any]:
         Training summary dict.
     """
     logger.info("Starting weekly model training job")
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
     results = {}
 
     # 1. Train anomaly detector
@@ -108,7 +108,7 @@ def train_all_models() -> dict[str, Any]:
         logger.error(f"Confidence training failed: {e}")
         results["confidence_calibrator"] = {"status": "failed", "error": str(e)}
 
-    duration = (datetime.utcnow() - start).total_seconds()
+    duration = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info(f"Model training completed in {duration:.1f}s: {results}")
 
     return {

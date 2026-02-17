@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from backend.database import async_session_maker
 from backend.services.trial_service import TrialService
@@ -37,6 +37,6 @@ def run_trial_expiry_job():
 
 if __name__ == "__main__":
     # Allow manual execution for testing
-    print(f"Running trial expiry job at {datetime.utcnow()}")
+    print(f"Running trial expiry job at {datetime.now(timezone.utc)}")
     result = run_trial_expiry_job()
     print(f"Processed {result} trials")

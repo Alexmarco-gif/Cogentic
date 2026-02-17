@@ -8,7 +8,7 @@ Supports both pre_built and auto_generated brief types.
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -120,7 +120,7 @@ class BriefGenerator:
                 },
                 outlook=None,
                 decision_lens=None,
-                refreshed_at=datetime.utcnow(),
+                refreshed_at=datetime.now(timezone.utc),
             )
             self.db.add(brief)
             await self.db.flush()
@@ -146,7 +146,7 @@ class BriefGenerator:
             },
             outlook=content.get("outlook", ""),
             decision_lens=content.get("decision_lens", ""),
-            refreshed_at=datetime.utcnow(),
+            refreshed_at=datetime.now(timezone.utc),
         )
         self.db.add(brief)
         await self.db.flush()
@@ -221,7 +221,7 @@ class BriefGenerator:
         }
         brief.outlook = content.get("outlook", brief.outlook)
         brief.decision_lens = content.get("decision_lens", brief.decision_lens)
-        brief.refreshed_at = datetime.utcnow()
+        brief.refreshed_at = datetime.now(timezone.utc)
 
         await self.db.flush()
         logger.info(f"Brief '{brief.title}' regenerated ({len(signals)} signals)")

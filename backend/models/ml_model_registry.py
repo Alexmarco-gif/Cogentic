@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,9 @@ class MLModelRegistry(Base, UUIDMixin, TimestampMixin):
     """
 
     __tablename__ = "ml_model_registry"
+    __table_args__ = (
+        UniqueConstraint("model_name", "model_version", name="uq_ml_model_registry_name_version"),
+    )
 
     # Model identity
     model_name: Mapped[str] = mapped_column(
