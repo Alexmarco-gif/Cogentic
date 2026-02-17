@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 
@@ -106,12 +106,9 @@ async def resolve_entity(
 async def create_entity(
     body: EntityCreateRequest,
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Create a new canonical entity with aliases. Requires admin or owner role."""
-    from backend.auth.guards import require_role
-
-    require_role(auth, "admin")
     from backend.services.entity_resolution import EntityResolutionService
 
     service = EntityResolutionService(db)
@@ -192,12 +189,9 @@ async def get_entity_network(
 async def upsert_relationship(
     body: RelationshipUpsertRequest,
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Create or strengthen a relationship between two entities. Requires admin or owner role."""
-    from backend.auth.guards import require_role
-
-    require_role(auth, "admin")
     from backend.services.entity_resolution import EntityResolutionService
 
     service = EntityResolutionService(db)

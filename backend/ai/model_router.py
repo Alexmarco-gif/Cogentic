@@ -70,7 +70,25 @@ FALLBACK_CHAIN = {
 
 
 class ModelRouter:
-    """Routes AI tasks to appropriate models with fallback support."""
+    """Routes AI tasks to appropriate models with fallback support.
+
+    Unified router that considers both task type and input complexity
+    (merged from model_router + model_selector).
+    """
+
+    # Complexity-based pricing (from model_selector)
+    MODEL_CONFIGS = {
+        "gpt-4o-mini": {
+            "max_tokens": 16000,
+            "cost_per_1m_prompt": 0.15,
+            "cost_per_1m_completion": 0.60,
+        },
+        "gpt-4o": {
+            "max_tokens": 128000,
+            "cost_per_1m_prompt": 2.50,
+            "cost_per_1m_completion": 10.00,
+        },
+    }
 
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
@@ -80,19 +98,48 @@ class ModelRouter:
         task_type: TaskType,
         *,
         force_tier: ModelTier | None = None,
+        query_length: int | None = None,
+        context_length: int | None = None,
+        signal_count: int | None = None,
+        message_history_length: int | None = None,
     ) -> str:
         """Get the appropriate model for a task type.
+
+        Considers both task type mapping and input complexity.
 
         Args:
             task_type: Type of AI task
             force_tier: Force a specific tier (overrides default)
+            query_length: Query string length (for synthesis complexity)
+            context_length: Total context length (for synthesis complexity)
+            signal_count: Number of signals (for brief complexity)
+            message_history_length: Chat history length (for chat complexity)
 
         Returns:
             Model name (e.g., "gpt-4o-mini")
         """
-        tier = force_tier or TASK_TIER_MAP.get(task_type, ModelTier.STANDARD)
-        model = TIER_MODEL_MAP[tier]
-        return model
+        if force_tier:
+            return TIER_MODEL_MAP[force_tier]
+
+        tier = TASK_TIER_MAP.get(task_type, ModelTier.STANDARD)
+
+        # Complexity-based override: promote cheap → standard for complex inputs
+        if tier == ModelTier.CHEAP:
+            if task_type == TaskType.SEARCH_SYNTHESIS and query_length and context_length:
+                if query_length >= 100 or context_length >= 2000:
+                    tier = ModelTier.STANDARD
+            elif task_type == TaskType.CHAT_RESPONSE and message_history_length:
+                if message_history_length >= 5:
+                    tier = ModelTier.STANDARD
+
+        return TIER_MODEL_MAP[tier]
+
+    @staticmethod
+    def get_model_config(model_name: str) -> dict[str, Any]:
+        """Get model configuration details."""
+        return ModelRouter.MODEL_CONFIGS.get(
+            model_name, ModelRouter.MODEL_CONFIGS["gpt-4o"]
+        )
 
     async def complete_with_fallback(
         self,

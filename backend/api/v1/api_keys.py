@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
-from backend.auth.guards import require_org_membership, require_role
+from backend.auth.guards import require_admin, require_org_membership
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import require_feature
@@ -107,7 +107,7 @@ async def create_api_key(
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
-    require_role(auth, "admin")
+    require_admin(auth)
 
     # Check max API keys limit (prevent abuse)
     repo = APIKeyRepository(db)
@@ -172,7 +172,7 @@ async def list_api_keys(
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
-    require_role(auth, "admin")
+    require_admin(auth)
 
     repo = APIKeyRepository(db)
     api_keys = await repo.list_by_org(org_id, include_revoked=include_revoked)
@@ -217,7 +217,7 @@ async def revoke_api_key(
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
-    require_role(auth, "admin")
+    require_admin(auth)
 
     repo = APIKeyRepository(db)
     api_key = await repo.get(key_id)
@@ -281,7 +281,7 @@ async def get_api_key(
     """
     # Verify org membership and admin+ role
     require_org_membership(auth, org_id)
-    require_role(auth, "admin")
+    require_admin(auth)
 
     repo = APIKeyRepository(db)
     api_key = await repo.get(key_id)

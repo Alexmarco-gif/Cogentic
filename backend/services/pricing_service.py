@@ -1,6 +1,6 @@
 """Pricing service for subscription price calculation"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -52,7 +52,7 @@ class PricingService:
         if not organization.beta_end_date:
             return False
 
-        if datetime.utcnow() > organization.beta_end_date.replace(tzinfo=None):
+        if datetime.now(timezone.utc) > organization.beta_end_date.replace(tzinfo=timezone.utc):
             return False
 
         return True

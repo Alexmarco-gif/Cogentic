@@ -65,12 +65,14 @@ async def list_contracts(
 
 @router.get("/degraded", response_model=list[SignalContractResponse])
 async def list_degraded_contracts(
+    skip: int = Query(0, ge=0, description="Records to skip"),
+    limit: int = Query(100, ge=1, le=200, description="Max records to return"),
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all degraded contracts (needing attention)."""
     repo = SignalContractRepository(db)
-    contracts = await repo.get_degraded_contracts()
+    contracts = await repo.get_degraded_contracts(skip=skip, limit=limit)
     return [SignalContractResponse.model_validate(c) for c in contracts]
 
 

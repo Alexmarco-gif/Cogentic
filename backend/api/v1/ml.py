@@ -9,10 +9,10 @@ Provides endpoints for:
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.ml.inference import get_inference_engine
@@ -104,16 +104,17 @@ async def get_ml_status(
 )
 async def get_model_runs(
     model_name: str | None = None,
-    limit: int = 20,
+    skip: int = Query(0, ge=0, description="Records to skip"),
+    limit: int = Query(20, ge=1, le=200, description="Max records to return"),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get recent ML model runs (optionally filtered by model name)."""
     repo = MLModelRunRepository(db)
     if model_name:
-        runs = await repo.get_by_model(model_name, limit=limit)
+        runs = await repo.get_by_model(model_name, skip=skip, limit=limit)
     else:
-        runs = await repo.get_multi(limit=limit)
+        runs = await repo.get_multi(skip=skip, limit=limit)
     return [MLModelRunResponse.model_validate(r) for r in runs]
 
 
@@ -126,15 +127,17 @@ async def get_model_runs(
 )
 async def get_model_registry(
     model_name: str | None = None,
+    skip: int = Query(0, ge=0, description="Records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get registered model versions."""
     repo = MLModelRegistryRepository(db)
     if model_name:
-        entries = await repo.get_versions(model_name)
+        entries = await repo.get_versions(model_name, limit=limit)
     else:
-        entries = await repo.get_multi(limit=50)
+        entries = await repo.get_multi(skip=skip, limit=limit)
     return [MLModelRegistryResponse.model_validate(e) for e in entries]
 
 
@@ -147,14 +150,12 @@ async def get_model_registry(
 )
 async def train_model(
     request: TrainingRequest,
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Trigger training of a specific ML model (async via RQ).
 
     Only admins can trigger training.
     """
-    if auth.role not in ("admin", "owner"):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     from backend.jobs.refinement_job import train_single_model
     from backend.queue import enqueue_job
@@ -176,11 +177,9 @@ async def train_model(
     "/train/all",
 )
 async def train_all_models(
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Trigger training of all 3 ML models (async via RQ)."""
-    if auth.role not in ("admin", "owner"):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     from backend.jobs.refinement_job import train_all_models
     from backend.queue import enqueue_job
@@ -202,11 +201,9 @@ async def train_all_models(
 )
 async def refine_unprocessed(
     limit: int = 100,
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Trigger refinement of unprocessed signals (async via RQ)."""
-    if auth.role not in ("admin", "owner"):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     from backend.jobs.refinement_job import refine_unprocessed
     from backend.queue import enqueue_job

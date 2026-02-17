@@ -8,8 +8,7 @@ import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
-from backend.auth.guards import require_role
+from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.jobs.retry_strategy import DeadLetterQueue
@@ -24,10 +23,9 @@ router = APIRouter(prefix="/monitoring")
 
 @router.get("/slo")
 async def get_slo_metrics(
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get SLO compliance metrics for all operations. Requires admin or owner role."""
-    require_role(auth, "admin")
     return {
         "metrics": await SLOMetrics.get_all_stats(),
     }
@@ -35,10 +33,9 @@ async def get_slo_metrics(
 
 @router.get("/cache")
 async def get_cache_metrics(
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get cache hit rate metrics. Requires admin or owner role."""
-    require_role(auth, "admin")
     return {
         "metrics": await CacheMetrics.get_all_stats(),
         "target_hit_rate": 70.0,
@@ -47,10 +44,9 @@ async def get_cache_metrics(
 
 @router.get("/circuit-breakers")
 async def get_circuit_breaker_status(
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get circuit breaker status. Requires admin or owner role."""
-    require_role(auth, "admin")
     return {
         "openai": await openai_breaker.get_status(),
     }
@@ -59,10 +55,9 @@ async def get_circuit_breaker_status(
 @router.get("/cost/budget")
 async def get_cost_budget(
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get AI usage budget status for current user/org. Requires admin or owner role."""
-    require_role(auth, "admin")
     tracker = CostTracker(db)
     return await tracker.check_budget(auth.user_id, auth.org_id)
 
@@ -71,20 +66,18 @@ async def get_cost_budget(
 async def get_cost_summary(
     days: int = 7,
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get AI usage cost summary for last N days. Requires admin or owner role."""
-    require_role(auth, "admin")
     tracker = CostTracker(db)
     return await tracker.get_usage_summary(auth.org_id, days=days)
 
 
 @router.get("/dlq")
 async def get_dead_letter_queue(
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get jobs in dead letter queue. Requires admin or owner role."""
-    require_role(auth, "admin")
     return {
         "jobs": DeadLetterQueue.get_all(),
     }
@@ -93,10 +86,9 @@ async def get_dead_letter_queue(
 @router.get("/health")
 async def get_system_health(
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Get overall system health summary. Requires admin or owner role."""
-    require_role(auth, "admin")
     # SLO compliance
     slo_stats = await SLOMetrics.get_all_stats()
     meeting_slos = sum(1 for s in slo_stats if s["meeting_slo"])

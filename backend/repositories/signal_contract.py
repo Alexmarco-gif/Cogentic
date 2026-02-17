@@ -149,9 +149,14 @@ class SignalContractRepository(BaseRepository[SignalContract]):
             last_error=error_message,
         )
 
-    async def get_degraded_contracts(self) -> list[SignalContract]:
+    async def get_degraded_contracts(
+        self, *, skip: int = 0, limit: int = 100
+    ) -> list[SignalContract]:
         """Get all degraded contracts (needing attention)"""
         result = await self.db.execute(
-            select(SignalContract).where(SignalContract.status == "degraded")
+            select(SignalContract)
+            .where(SignalContract.status == "degraded")
+            .offset(skip)
+            .limit(limit)
         )
         return list(result.scalars().all())

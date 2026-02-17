@@ -8,7 +8,7 @@ Tracks token usage and costs per user/org/endpoint to enable:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -73,8 +73,8 @@ class CostTracker:
         total_cost = input_cost + output_cost
 
         # Update Redis counters
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        month = datetime.utcnow().strftime("%Y-%m")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
 
         if user_id:
             user_key = f"cost:user:{user_id}:daily"
@@ -136,7 +136,7 @@ class CostTracker:
         Returns:
             Dict with current usage and whether limits are exceeded
         """
-        month = datetime.utcnow().strftime("%Y-%m")
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
 
         user_cost = 0.0
         if user_id:
@@ -185,7 +185,7 @@ class CostTracker:
             Dict of endpoint -> total_cost_usd
         """
         if not date:
-            date = datetime.utcnow().strftime("%Y-%m-%d")
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         metrics_key = f"cost:metrics:{date}"
         raw = self.redis.hgetall(metrics_key)

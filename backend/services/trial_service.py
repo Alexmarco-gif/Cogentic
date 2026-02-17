@@ -1,6 +1,6 @@
 """Trial service for reverse trial management"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -33,8 +33,8 @@ class TrialService:
 
         # Set trial dates
         organization.trial_status = TrialStatus.ACTIVE.value
-        organization.trial_start_date = datetime.utcnow()
-        organization.trial_end_date = datetime.utcnow() + timedelta(
+        organization.trial_start_date = datetime.now(timezone.utc)
+        organization.trial_end_date = datetime.now(timezone.utc) + timedelta(
             days=trial_config["duration_days"]
         )
 
@@ -67,7 +67,7 @@ class TrialService:
             return organization
 
         # Check if trial has expired
-        if datetime.utcnow() < organization.trial_end_date.replace(tzinfo=None):
+        if datetime.now(timezone.utc) < organization.trial_end_date.replace(tzinfo=timezone.utc):
             return organization
 
         # Trial expired - check if user has subscribed
@@ -106,7 +106,7 @@ class TrialService:
         organization.pricing_tier = selected_tier
 
         # Set billing cycle start
-        organization.billing_cycle_start = datetime.utcnow().date()
+        organization.billing_cycle_start = datetime.now(timezone.utc).date()
 
         # Allocate credits based on tier
         tier_credits = {
@@ -135,7 +135,7 @@ class TrialService:
 
     async def get_expiring_trials(self, days: int) -> list[Organization]:
         """Get trials expiring within N days"""
-        threshold = datetime.utcnow() + timedelta(days=days)
+        threshold = datetime.now(timezone.utc) + timedelta(days=days)
 
         result = await self.db.execute(
             select(Organization).where(

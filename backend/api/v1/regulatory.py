@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.repositories.regulatory import RegulatoryRepository
 from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
 
 logger = logging.getLogger(__name__)
@@ -158,6 +159,7 @@ async def list_regulatory_events(
     event_type: str | None = Query(None, description="Filter by event type"),
     sector: str | None = Query(None, description="Filter by affected sector"),
     verified_only: bool = Query(True, description="Only show expert-verified events"),
+    skip: int = Query(0, ge=0, description="Records to skip"),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -166,33 +168,15 @@ async def list_regulatory_events(
 
     Shows the dynamic regulatory intelligence accumulated over time.
     """
-    from sqlalchemy import and_, desc, select
-
-    from backend.models.regulatory_knowledge import RegulatoryEvent
-
-    filters = []
-
-    if issuing_body:
-        filters.append(RegulatoryEvent.issuing_body == issuing_body)
-
-    if event_type:
-        filters.append(RegulatoryEvent.event_type == event_type)
-
-    if sector:
-        filters.append(RegulatoryEvent.affected_sectors.contains([sector]))
-
-    if verified_only:
-        filters.append(RegulatoryEvent.verified_by_expert == True)
-
-    query = (
-        select(RegulatoryEvent)
-        .where(and_(*filters) if filters else True)
-        .order_by(desc(RegulatoryEvent.announced_at))
-        .limit(limit)
+    repo = RegulatoryRepository(db)
+    events = await repo.list_events(
+        issuing_body=issuing_body,
+        event_type=event_type,
+        sector=sector,
+        verified_only=verified_only,
+        skip=skip,
+        limit=limit,
     )
-
-    result = await db.execute(query)
-    events = result.scalars().all()
 
     return [
         RegulatoryEventResponse(
@@ -221,12 +205,8 @@ async def create_regulatory_rule(
     Experts can codify regulatory requirements as structured rules
     that the system can automatically apply to signals.
     """
-    from uuid import uuid4
-
-    from backend.models.regulatory_knowledge import RegulatoryRule
-
-    rule = RegulatoryRule(
-        id=uuid4(),
+    repo = RegulatoryRepository(db)
+    rule = await repo.create_rule(
         rule_type=body.rule_type,
         rule_category=body.rule_category,
         condition=body.condition,
@@ -242,8 +222,6 @@ async def create_regulatory_rule(
         verified_by_expert=True,
         confidence_score=0.9,
     )
-
-    db.add(rule)
     await db.commit()
 
     return {
@@ -393,44 +371,11 @@ async def get_regulatory_knowledge_stats(
 
     Shows how much the system has learned over time.
     """
-    from sqlalchemy import func, select
-
-    from backend.models.regulatory_knowledge import (
-        RegulatoryEvent,
-        RegulatoryImpact,
-        RegulatoryRule,
-    )
-
-    # Count events by issuing body
-    events_by_body = await db.execute(
-        select(
-            RegulatoryEvent.issuing_body, func.count(RegulatoryEvent.id).label("count")
-        ).group_by(RegulatoryEvent.issuing_body)
-    )
-
-    # Count verified vs. auto-extracted
-    verified_count = await db.execute(
-        select(func.count(RegulatoryEvent.id)).where(
-            RegulatoryEvent.verified_by_expert == True
-        )
-    )
-
-    total_events = await db.execute(select(func.count(RegulatoryEvent.id)))
-
-    total_rules = await db.execute(
-        select(func.count(RegulatoryRule.id)).where(RegulatoryRule.is_active == True)
-    )
-
-    total_impacts = await db.execute(select(func.count(RegulatoryImpact.id)))
+    repo = RegulatoryRepository(db)
+    stats = await repo.get_stats()
 
     return {
-        "total_events": total_events.scalar_one(),
-        "verified_events": verified_count.scalar_one(),
-        "active_rules": total_rules.scalar_one(),
-        "recorded_impacts": total_impacts.scalar_one(),
-        "events_by_regulator": [
-            {"regulator": row[0], "count": row[1]} for row in events_by_body
-        ],
+        **stats,
         "knowledge_base_age_days": 0,  # TODO: Calculate from first event
         "learning_velocity": "Growing",  # TODO: Calculate trend
     }
@@ -549,6 +494,7 @@ async def learn_regulatory_patterns(
 async def list_regulatory_patterns(
     pattern_type: str | None = Query(None, description="Filter by pattern type"),
     min_confidence: float = Query(0.5, ge=0, le=1),
+    skip: int = Query(0, ge=0, description="Records to skip"),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -560,24 +506,13 @@ async def list_regulatory_patterns(
     - Identify typical regulatory sequences
     - Reveal temporal patterns and cycles
     """
-    from sqlalchemy import and_, select
-
-    from backend.models.regulatory_knowledge import RegulatoryPattern
-
-    filters = [RegulatoryPattern.confidence_score >= min_confidence]
-
-    if pattern_type:
-        filters.append(RegulatoryPattern.pattern_type == pattern_type)
-
-    query = (
-        select(RegulatoryPattern)
-        .where(and_(*filters))
-        .order_by(RegulatoryPattern.confidence_score.desc())
-        .limit(limit)
+    repo = RegulatoryRepository(db)
+    patterns = await repo.list_patterns(
+        pattern_type=pattern_type,
+        min_confidence=min_confidence,
+        skip=skip,
+        limit=limit,
     )
-
-    result = await db.execute(query)
-    patterns = result.scalars().all()
 
     return [
         PatternResponse(

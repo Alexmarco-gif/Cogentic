@@ -370,3 +370,4 @@ But not yet.
 3. Keep Stripe structure simple: 4 products, 2 prices, 1 coupon.
 4. Implement webhooks for core billing events.
 5. Avoid over-engineering for V1; focus on clean, scalable design.
+

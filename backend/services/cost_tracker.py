@@ -5,7 +5,7 @@ Integrates with Redis for real-time counters and PostgreSQL for audit.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -63,7 +63,7 @@ class CostTracker:
         cost = self._calculate_cost(model, prompt_tokens, completion_tokens)
 
         # Increment Redis counters (today's usage)
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         user_key = f"ai_usage:{today}:user:{user_id}"
         org_key = f"ai_usage:{today}:org:{org_id}"
 
@@ -122,7 +122,7 @@ class CostTracker:
         org_id: UUID,
     ) -> dict[str, Any]:
         """Check current budget status without logging usage."""
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         user_key = f"ai_usage:{today}:user:{user_id}"
         org_key = f"ai_usage:{today}:org:{org_id}"
 
@@ -147,7 +147,7 @@ class CostTracker:
         days: int = 7,
     ) -> dict[str, Any]:
         """Get usage summary for last N days."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         result = await self.db.execute(
             select(AIUsageLog).where(
                 AIUsageLog.org_id == org_id,

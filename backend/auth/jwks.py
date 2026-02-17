@@ -7,7 +7,7 @@ Implements automatic refresh and error handling.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -112,7 +112,7 @@ class JWKSClient:
                 raise ValueError("No valid keys found in JWKS")
 
             self._keys = new_keys
-            self._last_fetch = datetime.utcnow()
+            self._last_fetch = datetime.now(timezone.utc)
             logger.info(f"JWKS cache updated with {len(new_keys)} keys")
 
         except httpx.HTTPError as e:
@@ -127,7 +127,7 @@ class JWKSClient:
         if not self._last_fetch:
             return False
 
-        age = datetime.utcnow() - self._last_fetch
+        age = datetime.now(timezone.utc) - self._last_fetch
         is_valid = age < self._cache_ttl
 
         if not is_valid:

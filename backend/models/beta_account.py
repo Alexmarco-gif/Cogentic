@@ -8,13 +8,13 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.base import Base, UUIDMixin
+from backend.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from backend.models.organization import Organization
 
 
-class BetaAccount(Base, UUIDMixin):
+class BetaAccount(Base, UUIDMixin, TimestampMixin):
     """
     Beta account lifecycle tracking.
     Manages notifications and transitions for beta pricing accounts.
@@ -48,11 +48,6 @@ class BetaAccount(Base, UUIDMixin):
     # Transition status
     transitioned_to_standard: Mapped[bool] = mapped_column(
         Boolean, default=False, index=True
-    )
-
-    # Timestamp
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     # Relationship

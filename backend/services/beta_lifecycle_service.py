@@ -1,6 +1,6 @@
 """Beta lifecycle service for managing beta account transitions"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -103,7 +103,7 @@ class BetaLifecycleService:
             raise ValueError(f"Organization not found: {org_id}")
 
         # Update organization
-        beta_start = datetime.utcnow()
+        beta_start = datetime.now(timezone.utc)
         beta_end = beta_start + timedelta(days=duration_days)
 
         organization.is_beta_account = True

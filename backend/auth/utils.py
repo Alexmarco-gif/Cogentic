@@ -3,7 +3,7 @@ Utility functions for JWT token handling and validation.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import Request
 from jose import JWTError, jwt
@@ -102,7 +102,7 @@ async def verify_token(token: str) -> TokenPayload:
 
     except ExpiredSignatureError as e:
         logger.warning("Token expired")
-        raise TokenExpiredError(expired_at=datetime.utcnow().isoformat()) from e
+        raise TokenExpiredError(expired_at=datetime.now(timezone.utc).isoformat()) from e
 
     except JWTClaimsError as e:
         logger.error(f"JWT claims validation failed: {e}")

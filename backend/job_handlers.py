@@ -10,7 +10,7 @@ TODO: Replace with real implementations in Phase 3 sprints:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -37,7 +37,7 @@ def simple_test_job(name: str, message: str) -> dict[str, Any]:
         "message": message,
         "status": "completed",
         "result": f"Successfully processed: {message}",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -78,7 +78,7 @@ def process_document_analysis(
     result = {
         "analysis_type": analysis_type,
         "document_id": document_id,
-        "processed_at": datetime.utcnow().isoformat(),
+        "processed_at": datetime.now(timezone.utc).isoformat(),
         "summary": f"[PLACEHOLDER] AI analysis not yet implemented for document {document_id}",
         "confidence": 0.0,
         "_placeholder": True,
@@ -176,7 +176,7 @@ def cleanup_expired_documents(days: int = 30) -> dict[str, Any]:
 
     async def cleanup():
         async with get_db_context() as db:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
             result = await db.execute(
                 select(Document).where(Document.deleted_at < cutoff_date)
@@ -236,7 +236,7 @@ def generate_analytics_report(
             "start": start_date,
             "end": end_date,
         },
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "completed",
     }
 
@@ -270,7 +270,7 @@ def send_email_notification(
     return {
         "to": to_email,
         "subject": subject,
-        "sent_at": datetime.utcnow().isoformat(),
+        "sent_at": datetime.now(timezone.utc).isoformat(),
         "status": "sent",
     }
 
@@ -299,7 +299,7 @@ def send_webhook_notification(
             json={
                 "event": event_type,
                 "data": payload,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
             timeout=10,
         )
@@ -307,12 +307,12 @@ def send_webhook_notification(
         return {
             "status": "success",
             "status_code": response.status_code,
-            "sent_at": datetime.utcnow().isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
         logger.error(f"Webhook failed: {e}")
         return {
             "status": "failed",
             "error": str(e),
-            "sent_at": datetime.utcnow().isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }

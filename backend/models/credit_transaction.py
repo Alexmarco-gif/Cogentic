@@ -9,14 +9,14 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.base import Base, UUIDMixin
+from backend.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from backend.models.organization import Organization
     from backend.models.user import User
 
 
-class CreditTransaction(Base, UUIDMixin):
+class CreditTransaction(Base, UUIDMixin, TimestampMixin):
     """Audit trail for credit consumption"""
 
     __tablename__ = "credit_transactions"
@@ -41,11 +41,6 @@ class CreditTransaction(Base, UUIDMixin):
 
     # Metadata for additional context
     metadata: Mapped[dict | None] = mapped_column(JSONB)
-
-    # Timestamp
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
 
     # Relationships (optional, for easier queries)
     organization: Mapped["Organization"] = relationship(foreign_keys=[org_id])
