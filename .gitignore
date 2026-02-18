@@ -64,3 +64,18 @@ alembic/versions/*.pyc
 # Docker volumes
 postgres_data/
 redis_data/
+
+
+# Documentation
+WP-0.3_Environment_Setup.md
+WP-0.2_Technical_Planning.md
+WP-0.1_Requirements_Finalization.md
+Technical_Specification_Definition.md
+Technical_Implementation_Moat_Strategy.md
+Strategic_Intelligence_Differentiation_Blueprint.md
+payment_integration.md
+Phase_0_Exit_Criteria.md
+Implementation_Planning_WBS.md
+Feature_gating_plan.md
+Feature_Gating_Implementation_Plan.md
+Agriculture_Domain_Implementation_Plan.md

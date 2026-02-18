@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # Database (Neon PostgreSQL)
     database_url: str
+    database_read_url: str | None = None  # Read replica URL (falls back to primary)
     database_pool_size: int = 5
     database_max_overflow: int = 10
 

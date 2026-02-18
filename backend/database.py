@@ -51,6 +51,41 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+# ── Read Replica Engine (for read-heavy dashboards / list endpoints) ──
+
+_read_database_url = settings.database_read_url or database_url
+if _read_database_url.startswith("postgresql://"):
+    _read_database_url = _read_database_url.replace(
+        "postgresql://", "postgresql+asyncpg://", 1
+    )
+elif _read_database_url.startswith("postgres://"):
+    _read_database_url = _read_database_url.replace(
+        "postgres://", "postgresql+asyncpg://", 1
+    )
+
+read_engine = create_async_engine(
+    _read_database_url,
+    echo=settings.debug,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=3600,
+    pool_pre_ping=True,
+    connect_args={
+        "server_settings": {
+            "application_name": "cogent_backend_read",
+        }
+    },
+)
+
+AsyncSessionLocalRead = async_sessionmaker(
+    read_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
 
 # === QUERY PERFORMANCE MONITORING ===
 
@@ -85,7 +120,7 @@ def after_cursor_execute(**kw):
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    FastAPI dependency for database sessions.
+    FastAPI dependency for database sessions (read-write, primary).
 
     Usage:
         @app.get("/items")
@@ -99,6 +134,25 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+        finally:
+            await session.close()
+
+
+async def get_db_read() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for read-only database sessions (uses read replica).
+
+    Routes to ``DATABASE_READ_URL`` when configured, otherwise falls back
+    to the primary.  Use for heavy list/dashboard/feed queries that
+    don't need write access.
+
+    Usage:
+        @app.get("/feed")
+        async def feed(db: AsyncSession = Depends(get_db_read)):
+            ...
+    """
+    async with AsyncSessionLocalRead() as session:
+        try:
+            yield session
         finally:
             await session.close()
 

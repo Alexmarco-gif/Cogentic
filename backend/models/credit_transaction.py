@@ -1,10 +1,9 @@
 """Credit Transaction model for tracking credit consumption"""
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,8 +38,8 @@ class CreditTransaction(Base, UUIDMixin, TimestampMixin):
     credits_consumed: Mapped[int] = mapped_column(Integer, nullable=False)
     credits_remaining: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Metadata for additional context
-    metadata: Mapped[dict | None] = mapped_column(JSONB)
+    # Metadata for additional context (renamed from 'metadata' to avoid SQLAlchemy reserved word)
+    transaction_metadata: Mapped[dict | None] = mapped_column(JSONB)
 
     # Relationships (optional, for easier queries)
     organization: Mapped["Organization"] = relationship(foreign_keys=[org_id])

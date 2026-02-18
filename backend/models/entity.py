@@ -47,7 +47,9 @@ class Entity(Base, UUIDMixin, TimestampMixin):
     )
     aliases: Mapped[list] = mapped_column(
         JSONB, default=list, server_default="[]"
-    )  # Legacy: simple alias list (kept for backward compat)
+    )  # DEPRECATED: Use alias_records relationship (entity_aliases table) instead.
+    # This column is kept for backward compatibility during migration.
+    # New code should read/write via self.alias_records (EntityAlias model).
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     extra_data: Mapped[dict] = mapped_column(
         JSONB, default=dict, server_default="{}", name="metadata"

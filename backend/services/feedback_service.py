@@ -387,6 +387,8 @@ class FeedbackService:
                 ["signal_useful", "signal_saved", "signal_shared"]
             ),
         ]
+        if org_id is not None:
+            conditions.append(UserFeedback.org_id == org_id)
 
         query = (
             select(

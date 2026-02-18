@@ -4,19 +4,69 @@ Auth introspection endpoints.
 Provides information about the authenticated user and their permissions.
 """
 
-from typing import Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from backend.auth import AuthContext, get_current_user, get_user_permissions
 
 router = APIRouter(prefix="/auth")
 
 
-@router.get("/me")
+# ── Response Schemas ─────────────────────────────────────────────────
+
+
+class UserInfo(BaseModel):
+    id: str
+    auth0_id: str
+    email: str
+
+
+class OrgInfo(BaseModel):
+    id: str
+    role: str
+
+
+class SubscriptionInfo(BaseModel):
+    plan: str
+
+
+class TokenInfo(BaseModel):
+    expires_at: str
+
+
+class CurrentUserResponse(BaseModel):
+    """Full user context response."""
+
+    user: UserInfo
+    organization: OrgInfo
+    subscription: SubscriptionInfo
+    permissions: dict[str, bool]
+    token: TokenInfo
+
+
+class PermissionsResponse(BaseModel):
+    """Permission matrix response."""
+
+    user_id: str
+    org_id: str
+    role: str
+    permissions: dict[str, bool]
+
+
+class TokenVerifyResponse(BaseModel):
+    """Token verification response."""
+
+    valid: bool
+    user_id: str
+    org_id: str
+    expires_at: str
+
+
+@router.get("/me", response_model=CurrentUserResponse)
 async def get_current_user_info(
     auth: AuthContext = Depends(get_current_user),
-) -> dict[str, Any]:
+):
     """
     Get current authenticated user information.
 
@@ -54,10 +104,10 @@ async def get_current_user_info(
     }
 
 
-@router.get("/permissions")
+@router.get("/permissions", response_model=PermissionsResponse)
 async def get_permissions(
     auth: AuthContext = Depends(get_current_user),
-) -> dict[str, Any]:
+):
     """
     Get detailed permission matrix for current user.
 
@@ -76,10 +126,10 @@ async def get_permissions(
     }
 
 
-@router.get("/token/verify")
+@router.get("/token/verify", response_model=TokenVerifyResponse)
 async def verify_token(
     auth: AuthContext = Depends(get_current_user),
-) -> dict[str, Any]:
+):
     """
     Verify token is valid and return basic info.
 

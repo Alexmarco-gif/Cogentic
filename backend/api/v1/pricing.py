@@ -9,8 +9,10 @@ from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import get_current_organization
 from backend.models.organization import Organization
+from backend.repositories.pricing_repository import PricingRepository
 from backend.services.gating_service import GatingService
 from backend.services.pricing_service import PricingService
+from backend.services.trial_service import TrialService
 
 router = APIRouter(prefix="/pricing")
 
@@ -68,7 +70,9 @@ async def get_current_pricing(
             else None
         ),
         beta_ends=(
-            organization.beta_end_date.isoformat() if organization.beta_end_date else None
+            organization.beta_end_date.isoformat()
+            if organization.beta_end_date
+            else None
         ),
         overage_cost=summary["overage_cost"],
         total_monthly_cost=summary["total_cost"],
@@ -82,9 +86,11 @@ async def get_feature_access(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get feature access map for authenticated user.
+    Get tier-based feature access map with gating enforcement.
 
-    Returns which features the user can access based on their tier and role.
+    Returns which features the user can access based on their pricing tier
+    and role, using the GatingService. Different from /features which returns
+    simple boolean feature flags from FeatureFlagService.
     """
     gating_service = GatingService(db)
     feature_map = await gating_service.get_feature_map(organization, auth.role)
@@ -107,8 +113,6 @@ async def upgrade_tier(
     Requires owner or admin role.
     TODO: Integrate with payment processor (Stripe).
     """
-    from backend.services.trial_service import TrialService
-
     # Validate tier
     valid_tiers = ["explorer", "growth", "mid_market", "enterprise"]
     if request.target_tier not in valid_tiers:
@@ -139,8 +143,8 @@ async def upgrade_tier(
 
         # Allocate credits
         pricing_service = PricingService(db)
-        organization.credits_allocated_monthly = (
-            await pricing_service.get_tier_credits(request.target_tier)
+        organization.credits_allocated_monthly = await pricing_service.get_tier_credits(
+            request.target_tier
         )
 
         await db.commit()
@@ -160,8 +164,6 @@ async def get_tier_options(db: AsyncSession = Depends(get_db)):
 
     Public endpoint - no authentication required.
     """
-    from backend.repositories.pricing_repository import PricingRepository
-
     pricing_repo = PricingRepository(db)
 
     tiers = []

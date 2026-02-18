@@ -11,7 +11,12 @@ from backend.repositories.beta_repository import BetaRepository
 
 
 class BetaLifecycleService:
-    """Service for beta account lifecycle management and notifications"""
+    """Service for beta account lifecycle management and notifications.
+
+    Source of truth: BetaAccount table.
+    Organization.is_beta_account / beta_*_date fields are synced for
+    backward compatibility but should NOT be queried directly by new code.
+    """
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -41,9 +46,7 @@ class BetaLifecycleService:
         expiring_7d = await self.beta_repo.get_expiring_soon(7)
         for beta in expiring_7d:
             if not beta.notified_7d_before:
-                await self._send_beta_expiry_notification(
-                    beta.org_id, days_remaining=7
-                )
+                await self._send_beta_expiry_notification(beta.org_id, days_remaining=7)
                 await self.beta_repo.mark_notified(beta.id, "7d")
                 notifications_sent["7d"] += 1
 
@@ -152,9 +155,7 @@ class BetaLifecycleService:
 
         await self.db.commit()
 
-    async def _send_beta_expiry_notification(
-        self, org_id: UUID, days_remaining: int
-    ):
+    async def _send_beta_expiry_notification(self, org_id: UUID, days_remaining: int):
         """
         Send email/notification about beta expiry.
         TODO: Integrate with actual notification service.

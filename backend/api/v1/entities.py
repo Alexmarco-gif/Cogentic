@@ -5,6 +5,7 @@ data — the proprietary entity intelligence layer.
 """
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.services.entity_resolution import EntityResolutionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/entities")
@@ -67,6 +69,24 @@ class RelationshipUpsertRequest(BaseModel):
     evidence_signals: list[str] = Field(default_factory=list)
 
 
+class EntityCreateResponse(BaseModel):
+    """Response for creating an entity."""
+
+    id: str
+    name: str
+    entity_type: str
+    aliases: list[str]
+
+
+class RelationshipUpsertResponse(BaseModel):
+    """Response for upserting a relationship."""
+
+    id: str
+    relationship_type: str
+    strength: float
+    confidence: float
+
+
 # ── Endpoints ────────────────────────────────────────────────────────
 
 
@@ -80,8 +100,6 @@ async def resolve_entity(
 
     Multi-stage resolution: exact alias → fuzzy match → embedding similarity.
     """
-    from backend.services.entity_resolution import EntityResolutionService
-
     service = EntityResolutionService(db)
     result = await service.resolve(body.name, entity_type=body.entity_type)
 
@@ -102,15 +120,13 @@ async def resolve_entity(
     )
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=EntityCreateResponse)
 async def create_entity(
     body: EntityCreateRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Create a new canonical entity with aliases. Requires admin or owner role."""
-    from backend.services.entity_resolution import EntityResolutionService
-
     service = EntityResolutionService(db)
     entity = await service.create_entity(
         name=body.name,
@@ -138,8 +154,6 @@ async def get_entity_profile(
     Returns data from all source profiles (CAC, customs, LinkedIn, etc.),
     aliases, relationship summary, and data richness score.
     """
-    from backend.services.entity_resolution import EntityResolutionService
-
     service = EntityResolutionService(db)
     profile = await service.get_entity_full_profile(entity_id)
 
@@ -173,8 +187,6 @@ async def get_entity_network(
     Useful for visualizing supply chains, competitive landscapes,
     and corporate hierarchies.
     """
-    from backend.services.entity_resolution import EntityResolutionService
-
     service = EntityResolutionService(db)
     network = await service.get_entity_network(
         entity_id, max_depth=max_depth, min_strength=min_strength
@@ -185,15 +197,15 @@ async def get_entity_network(
     )
 
 
-@router.post("/relationships", status_code=201)
+@router.post(
+    "/relationships", status_code=201, response_model=RelationshipUpsertResponse
+)
 async def upsert_relationship(
     body: RelationshipUpsertRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Create or strengthen a relationship between two entities. Requires admin or owner role."""
-    from backend.services.entity_resolution import EntityResolutionService
-
     service = EntityResolutionService(db)
     rel = await service.upsert_relationship(
         source_entity_id=UUID(body.source_entity_id),
@@ -213,7 +225,7 @@ async def upsert_relationship(
     }
 
 
-@router.get("/{entity_id}/with-influence")
+@router.get("/{entity_id}/with-influence", response_model=dict[str, Any])
 async def get_entity_with_influence(
     entity_id: UUID,
     industry_id: UUID | None = Query(
@@ -234,8 +246,6 @@ async def get_entity_with_influence(
     - Assessing entity importance
     - Planning stakeholder engagement
     """
-    from backend.services.entity_resolution import EntityResolutionService
-
     service = EntityResolutionService(db)
     profile = await service.get_entity_with_influence(
         entity_id, industry_id=industry_id

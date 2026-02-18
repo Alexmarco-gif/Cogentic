@@ -17,10 +17,10 @@ router = APIRouter(prefix="/health")
 @router.get("")
 async def health_check() -> dict[str, Any]:
     """
-    Basic health check endpoint (no authentication required).
+    Basic health check (no auth required). Used by load balancers.
 
-    Returns:
-        System health status and timestamp
+    For detailed system health with SLO/cache/circuit-breaker stats,
+    use GET /monitoring/health (admin-only).
     """
     return {
         "status": "healthy",

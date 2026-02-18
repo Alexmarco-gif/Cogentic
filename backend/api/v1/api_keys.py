@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -155,6 +155,8 @@ async def create_api_key(
 async def list_api_keys(
     org_id: UUID,
     include_revoked: bool = False,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -175,7 +177,9 @@ async def list_api_keys(
     require_admin(auth)
 
     repo = APIKeyRepository(db)
-    api_keys = await repo.list_by_org(org_id, include_revoked=include_revoked)
+    api_keys = await repo.list_by_org(
+        org_id, include_revoked=include_revoked, skip=skip, limit=limit
+    )
 
     return [
         APIKeyResponse(

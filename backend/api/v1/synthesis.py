@@ -9,6 +9,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.ai.synthesis import SynthesisService
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
@@ -29,7 +30,7 @@ async def synthesize(
     body: SynthesisRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
-    organization = Depends(get_current_organization),
+    organization=Depends(get_current_organization),
     _feature_check: bool = Depends(require_feature("on_demand_synthesis")),
 ):
     """On-demand RAG synthesis.
@@ -37,16 +38,14 @@ async def synthesize(
     Embeds the query, retrieves top-K similar signals via pgvector,
     synthesizes a response via GPT-4o with guardrails.
     Results cached in Redis for 15 minutes.
-    
+
     Consumes 100 credits per synthesis request.
     """
     start = time.monotonic()
 
-    from backend.ai.synthesis import SynthesisService
-
     service = SynthesisService(db)
     credit_repo = CreditRepository(db)
-    
+
     try:
         # Consume credits for synthesis (100 credits)
         await credit_repo.consume_credits(
@@ -54,9 +53,9 @@ async def synthesize(
             user_id=auth.user_id,
             action_type="on_demand_synthesis",
             credits=100,
-            metadata={"query": body.query, "max_sources": body.max_sources}
+            metadata={"query": body.query, "max_sources": body.max_sources},
         )
-        
+
         result = await service.synthesize(
             query=body.query,
             top_k=body.max_sources,

@@ -5,6 +5,7 @@ Every interaction makes the platform smarter for ALL users.
 """
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.services.feedback_service import FeedbackService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/feedback")
@@ -82,8 +84,6 @@ async def submit_feedback(
       - prediction_accurate/inaccurate → tunes causal intelligence
       - entity_relevant/not_relevant → improves entity resolution
     """
-    from backend.services.feedback_service import FeedbackService
-
     service = FeedbackService(db)
     feedback = await service.record_feedback(
         user_id=auth.user_id,
@@ -112,8 +112,6 @@ async def get_signal_quality(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get aggregated quality score for a signal based on collective feedback."""
-    from backend.services.feedback_service import FeedbackService
-
     service = FeedbackService(db)
     quality = await service.get_signal_quality_score(signal_id)
 
@@ -138,9 +136,9 @@ async def get_trending_signals(
     """Get signals trending by engagement across all ESIP users.
 
     Collective intelligence: what the community finds most valuable.
+    Different from /signals/trending which uses ML scoring.
+    This endpoint ranks by user interaction counts (saves, shares, votes).
     """
-    from backend.services.feedback_service import FeedbackService
-
     service = FeedbackService(db)
     trending = await service.get_trending_signals(
         org_id=auth.org_id,
@@ -150,39 +148,35 @@ async def get_trending_signals(
     return [TrendingSignalResponse(**t) for t in trending]
 
 
-@router.get("/predictions/accuracy")
+@router.get("/predictions/accuracy", response_model=dict[str, Any])
 async def get_prediction_accuracy(
     lookback_days: int = Query(default=90, ge=7, le=365),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Get overall prediction accuracy based on user validation.
+    """Get prediction accuracy based on user validation feedback.
 
     Returns accuracy rate of the causal intelligence engine based on
     user-validated predictions.
+    Different from /moat/metrics/prediction-accuracy which includes
+    automated backtesting data in addition to user feedback.
     """
-    from backend.services.feedback_service import FeedbackService
-
     service = FeedbackService(db)
     accuracy = await service.get_prediction_accuracy(
         lookback_days=lookback_days,
-        skip=skip,
-        limit=limit
     )
     return accuracy
 
 
-@router.get("/me/summary")
+@router.get("/me/summary", response_model=dict[str, Any])
 async def get_my_feedback_summary(
     days: int = Query(default=30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get your feedback activity summary."""
-    from backend.services.feedback_service import FeedbackService
-
     service = FeedbackService(db)
-    summary = await service.get_user_feedback_summary(auth.user_id, org_id=auth.org_id, days=days)
+    summary = await service.get_user_feedback_summary(
+        auth.user_id, org_id=auth.org_id, days=days
+    )
     return summary

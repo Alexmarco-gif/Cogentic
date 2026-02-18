@@ -4,11 +4,13 @@ Provides visibility into SLOs, cache performance, circuit breakers, and cost usa
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user, require_permissions
+from backend.auth.dependencies import require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.jobs.retry_strategy import DeadLetterQueue
@@ -21,7 +23,44 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/monitoring")
 
 
-@router.get("/slo")
+# ── Response Schemas ─────────────────────────────────────────────────
+
+
+class SLOMetricsResponse(BaseModel):
+    metrics: list[dict[str, Any]]
+
+
+class CacheMetricsResponse(BaseModel):
+    metrics: list[dict[str, Any]]
+    target_hit_rate: float
+
+
+class CircuitBreakerResponse(BaseModel):
+    openai: dict[str, Any]
+
+
+class DLQResponse(BaseModel):
+    jobs: list[dict[str, Any]]
+
+
+class HealthDetailsResponse(BaseModel):
+    slos_meeting_target: str
+    cache_target: str
+    circuit_breaker_state: str
+    user_budget_remaining: Any
+    org_budget_remaining: Any
+
+
+class SystemHealthResponse(BaseModel):
+    status: str
+    slo_compliance_pct: float
+    cache_hit_rate_pct: float
+    circuit_breaker_healthy: bool
+    budget_ok: bool
+    details: HealthDetailsResponse
+
+
+@router.get("/slo", response_model=SLOMetricsResponse)
 async def get_slo_metrics(
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
@@ -31,7 +70,7 @@ async def get_slo_metrics(
     }
 
 
-@router.get("/cache")
+@router.get("/cache", response_model=CacheMetricsResponse)
 async def get_cache_metrics(
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
@@ -42,7 +81,7 @@ async def get_cache_metrics(
     }
 
 
-@router.get("/circuit-breakers")
+@router.get("/circuit-breakers", response_model=CircuitBreakerResponse)
 async def get_circuit_breaker_status(
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
@@ -52,7 +91,7 @@ async def get_circuit_breaker_status(
     }
 
 
-@router.get("/cost/budget")
+@router.get("/cost/budget", response_model=dict[str, Any])
 async def get_cost_budget(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(require_permissions(["admin"])),
@@ -62,7 +101,7 @@ async def get_cost_budget(
     return await tracker.check_budget(auth.user_id, auth.org_id)
 
 
-@router.get("/cost/summary")
+@router.get("/cost/summary", response_model=dict[str, Any])
 async def get_cost_summary(
     days: int = 7,
     db: AsyncSession = Depends(get_db),
@@ -73,7 +112,7 @@ async def get_cost_summary(
     return await tracker.get_usage_summary(auth.org_id, days=days)
 
 
-@router.get("/dlq")
+@router.get("/dlq", response_model=DLQResponse)
 async def get_dead_letter_queue(
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
@@ -83,7 +122,7 @@ async def get_dead_letter_queue(
     }
 
 
-@router.get("/health")
+@router.get("/health", response_model=SystemHealthResponse)
 async def get_system_health(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(require_permissions(["admin"])),

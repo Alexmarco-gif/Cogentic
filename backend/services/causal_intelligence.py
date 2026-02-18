@@ -766,6 +766,7 @@ class CausalIntelligenceService:
         self,
         signal_id: UUID,
         *,
+        org_id: UUID | None = None,
         time_horizon_days: int = 30,
     ) -> dict[str, Any]:
         """Analyze the cascading impact of a specific signal.
@@ -784,6 +785,9 @@ class CausalIntelligenceService:
         # Get signal
         signal = await self.db.get(Signal, signal_id)
         if not signal:
+            return {"error": f"Signal {signal_id} not found"}
+        # Enforce org-scoping: prevent cross-tenant access
+        if org_id is not None and signal.org_id is not None and signal.org_id != org_id:
             return {"error": f"Signal {signal_id} not found"}
 
         # Get or create causal event for this signal

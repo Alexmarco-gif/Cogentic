@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
+from backend.auth.guards import require_role
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.queue import enqueue_job
@@ -19,7 +20,10 @@ from backend.schemas.recommendations import (
     RecommendationListResponse,
     RecommendationResponse,
 )
-from backend.services.recommendation import RecommendationService
+from backend.services.recommendation import (
+    RecommendationService,
+    run_recommendation_batch,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recommendations")
@@ -82,10 +86,7 @@ async def trigger_recommendation_batch(
     Enqueues an RQ job. Called after refinement pipeline or manually.
     Requires admin or owner role.
     """
-    from backend.auth.guards import require_role
-
     require_role(auth, "admin")
-    from backend.services.recommendation import run_recommendation_batch
 
     job = enqueue_job(
         run_recommendation_batch,

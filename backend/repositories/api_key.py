@@ -133,14 +133,20 @@ class APIKeyRepository(BaseRepository[APIKey]):
         return api_key
 
     async def list_by_org(
-        self, org_id: UUID, include_revoked: bool = False
+        self,
+        org_id: UUID,
+        include_revoked: bool = False,
+        skip: int = 0,
+        limit: int = 50,
     ) -> list[APIKey]:
         """
-        List all API keys for an organization.
+        List all API keys for an organization (paginated).
 
         Args:
             org_id: Organization ID
             include_revoked: Include revoked keys in results
+            skip: Number of records to skip
+            limit: Maximum number of records to return
 
         Returns:
             List of APIKey models
@@ -154,6 +160,8 @@ class APIKeyRepository(BaseRepository[APIKey]):
 
         if not include_revoked:
             query = query.where(APIKey.revoked_at.is_(None))
+
+        query = query.offset(skip).limit(limit)
 
         result = await self.db.execute(query)
         return list(result.scalars().all())

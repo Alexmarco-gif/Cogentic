@@ -46,7 +46,7 @@ async def list_signals(
     else:
         items = await repo.get_visible(org_id=auth.org_id, skip=skip, limit=limit)
 
-    total = await repo.count()
+    total = await repo.count_visible(org_id=auth.org_id)
     return SignalListResponse(
         items=[SignalResponse.model_validate(s) for s in items],
         total=total,
@@ -62,7 +62,11 @@ async def get_trending_signals(
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get ML-ranked trending signals."""
+    """Get ML-ranked trending signals (scored by anomaly + confidence models).
+
+    Different from /feedback/trending which ranks by user engagement.
+    This endpoint uses ML scoring pipelines for ranking.
+    """
     repo = SignalRepository(db)
     signals = await repo.get_trending(org_id=auth.org_id, skip=skip, limit=limit)
     return [SignalResponse.model_validate(s) for s in signals]
@@ -88,7 +92,7 @@ async def get_signal_feed(
         skip=skip,
         limit=limit,
     )
-    total = await repo.count()
+    total = await repo.count_visible(org_id=auth.org_id)
     return SignalListResponse(
         items=[SignalResponse.model_validate(s) for s in items],
         total=total,
@@ -107,6 +111,10 @@ async def get_signal(
     repo = SignalRepository(db)
     signal = await repo.get(signal_id)
     if not signal:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    # Enforce org-scoping: only allow access to global signals or signals
+    # belonging to the user's org (prevents cross-tenant data leak)
+    if signal.org_id is not None and signal.org_id != auth.org_id:
         raise HTTPException(status_code=404, detail="Signal not found")
     return SignalDetailResponse.model_validate(signal)
 
@@ -147,7 +155,9 @@ async def get_signals_by_contract(
 ):
     """Get all signals from a specific contract."""
     repo = SignalRepository(db)
-    items = await repo.get_by_contract(contract_id, org_id=auth.org_id, skip=skip, limit=limit)
+    items = await repo.get_by_contract(
+        contract_id, org_id=auth.org_id, skip=skip, limit=limit
+    )
     total = await repo.count_by_contract(contract_id)
     return SignalListResponse(
         items=[SignalResponse.model_validate(s) for s in items],

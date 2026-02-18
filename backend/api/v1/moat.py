@@ -19,9 +19,12 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.services.moat_metrics import MoatMetricsService
+from backend.services.prediction_backtest import PredictionBacktestService
+from backend.services.replicability_test import ReplicabilityBlindTestService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/moat")
@@ -102,10 +105,26 @@ class ReplicabilityResponse(BaseModel):
     data_depth: dict | None = None
 
 
+class SnapshotCreateResponse(BaseModel):
+    """Response for taking a new snapshot."""
+
+    id: str
+    snapshot_date: Any
+    moat_health_score: float | None
+
+
+class SnapshotTrendResponse(BaseModel):
+    """Response for snapshot trend data."""
+
+    days_requested: int
+    data_points: int
+    trend: list[dict[str, Any]]
+
+
 # ── Dashboard Endpoints ──────────────────────────────────────────────
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=dict[str, Any])
 async def get_moat_dashboard(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -115,13 +134,11 @@ async def get_moat_dashboard(
     Computes every metric in real-time and returns the composite
     health score plus per-metric breakdowns.
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     return await service.compute_all_metrics()
 
 
-@router.get("/metrics/entity-graph")
+@router.get("/metrics/entity-graph", response_model=dict[str, Any])
 async def get_entity_graph_coverage(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -130,13 +147,11 @@ async def get_entity_graph_coverage(
 
     Target: 1,000+ Nigerian entities with cross-source profiles.
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     return await service.compute_entity_graph_coverage()
 
 
-@router.get("/metrics/causal-chains")
+@router.get("/metrics/causal-chains", response_model=dict[str, Any])
 async def get_causal_chains_discovered(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -145,30 +160,29 @@ async def get_causal_chains_discovered(
 
     Target: 50+ validated causal chains with confidence >= 0.6.
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     return await service.compute_causal_chains_discovered()
 
 
-@router.get("/metrics/prediction-accuracy")
+@router.get("/metrics/prediction-accuracy", response_model=dict[str, Any])
 async def get_prediction_accuracy(
     lookback_days: int = Query(default=90, ge=7, le=365),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Metric 3: Prediction Accuracy.
+    """Metric 3: Prediction Accuracy (Moat KPI).
 
-    Target: >70% on 7-day forecasts based on user validation
-    and automated backtesting.
+    Computes accuracy from causal edge backtesting + user validation.
+    Different from /feedback/predictions/accuracy which uses only
+    user-submitted feedback validation data.
+
+    Target: >70% on 7-day forecasts.
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     return await service.compute_prediction_accuracy(lookback_days)
 
 
-@router.get("/metrics/replicability")
+@router.get("/metrics/replicability", response_model=dict[str, Any])
 async def get_replicability_score(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -178,13 +192,11 @@ async def get_replicability_score(
     Target: <20% ChatGPT-replicable. Uses intelligence layer analysis
     or data coverage heuristic when synthesis context is unavailable.
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     return await service.compute_replicability_score()
 
 
-@router.get("/metrics/user-retention")
+@router.get("/metrics/user-retention", response_model=dict[str, Any])
 async def get_user_retention(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -193,8 +205,6 @@ async def get_user_retention(
 
     Target: >0.4 ratio (strong stickiness).
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     return await service.compute_user_retention()
 
@@ -202,10 +212,10 @@ async def get_user_retention(
 # ── Snapshot Endpoints ───────────────────────────────────────────────
 
 
-@router.post("/snapshots", status_code=201)
+@router.post("/snapshots", status_code=201, response_model=SnapshotCreateResponse)
 async def take_snapshot(
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Take a point-in-time snapshot of all moat metrics.
 
@@ -213,11 +223,6 @@ async def take_snapshot(
     Designed to be called daily (via cron/scheduler) or on-demand.
     Requires admin or owner role.
     """
-    from backend.auth.guards import require_role
-
-    require_role(auth, "admin")
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     snapshot = await service.take_snapshot()
     await db.commit()
@@ -229,14 +234,12 @@ async def take_snapshot(
     }
 
 
-@router.get("/snapshots/latest")
+@router.get("/snapshots/latest", response_model=dict[str, Any])
 async def get_latest_snapshot(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get the most recent daily snapshot."""
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     snapshot = await service.get_latest_snapshot()
     if not snapshot:
@@ -244,7 +247,7 @@ async def get_latest_snapshot(
     return snapshot
 
 
-@router.get("/snapshots/trend")
+@router.get("/snapshots/trend", response_model=SnapshotTrendResponse)
 async def get_snapshot_trend(
     days: int = Query(default=30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -254,8 +257,6 @@ async def get_snapshot_trend(
 
     Enables moat health charting over time.
     """
-    from backend.services.moat_metrics import MoatMetricsService
-
     service = MoatMetricsService(db)
     trend = await service.get_snapshot_trend(days)
     return {"days_requested": days, "data_points": len(trend), "trend": trend}
@@ -264,7 +265,7 @@ async def get_snapshot_trend(
 # ── Backtest Endpoints ───────────────────────────────────────────────
 
 
-@router.get("/backtest")
+@router.get("/backtest", response_model=dict[str, Any])
 async def run_backtest(
     lookback_days: int = Query(default=90, ge=7, le=365),
     forecast_horizon_days: int = Query(default=7, ge=1, le=90),
@@ -278,8 +279,6 @@ async def run_backtest(
     forecast windows have fully elapsed, checking if predicted effects
     actually occurred.
     """
-    from backend.services.prediction_backtest import PredictionBacktestService
-
     service = PredictionBacktestService(db)
     return await service.run_backtest(
         lookback_days=lookback_days,
@@ -288,7 +287,7 @@ async def run_backtest(
     )
 
 
-@router.post("/backtest/chain")
+@router.post("/backtest/chain", response_model=dict[str, Any])
 async def backtest_specific_chain(
     body: BacktestChainRequest,
     db: AsyncSession = Depends(get_db),
@@ -299,8 +298,6 @@ async def backtest_specific_chain(
     Finds all historical instances of the cause event and checks
     whether the effect occurred within the forecast horizon.
     """
-    from backend.services.prediction_backtest import PredictionBacktestService
-
     service = PredictionBacktestService(db)
     return await service.backtest_specific_chain(
         cause_event_type=body.cause_event_type,
@@ -310,7 +307,7 @@ async def backtest_specific_chain(
     )
 
 
-@router.get("/backtest/all-chains")
+@router.get("/backtest/all-chains", response_model=dict[str, Any])
 async def backtest_all_chains(
     lookback_days: int = Query(default=180, ge=30, le=730),
     forecast_horizon_days: int = Query(default=7, ge=1, le=90),
@@ -324,8 +321,6 @@ async def backtest_all_chains(
     Iterates over all distinct cause→effect type pairs in the causal
     edge table that meet confidence and observation thresholds.
     """
-    from backend.services.prediction_backtest import PredictionBacktestService
-
     service = PredictionBacktestService(db)
     return await service.backtest_all_known_chains(
         lookback_days=lookback_days,
@@ -338,11 +333,11 @@ async def backtest_all_chains(
 # ── Replicability Blind Test Endpoints ───────────────────────────────
 
 
-@router.post("/replicability/blind-test")
+@router.post("/replicability/blind-test", response_model=dict[str, Any])
 async def run_blind_test(
     sample_size: int = Query(default=10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
-    auth: AuthContext = Depends(get_current_user),
+    auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Run a blind replicability test against baseline LLM.
 
@@ -353,10 +348,5 @@ async def run_blind_test(
     Uses OpenAI credits — use judiciously.
     Requires admin or owner role.
     """
-    from backend.auth.guards import require_role
-
-    require_role(auth, "admin")
-    from backend.services.replicability_test import ReplicabilityBlindTestService
-
     service = ReplicabilityBlindTestService(db)
     return await service.run_blind_test(sample_size=sample_size)

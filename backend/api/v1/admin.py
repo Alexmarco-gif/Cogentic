@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user, require_permissions
+from backend.auth.dependencies import require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.repositories.pricing_repository import PricingRepository
 from backend.services.beta_lifecycle_service import BetaLifecycleService
 from backend.services.trial_service import TrialService
-from backend.repositories.pricing_repository import PricingRepository
 
 router = APIRouter(prefix="/admin")
 
@@ -34,6 +34,36 @@ class BetaEnrollmentRequest(BaseModel):
     discount_percent: float = 50.0
 
 
+class StatusModeResponse(BaseModel):
+    """Response for pricing mode update."""
+
+    status: str
+    mode: str
+
+
+class BetaEnrollmentResponse(BaseModel):
+    """Response for beta enrollment."""
+
+    status: str
+    org_id: str
+    beta_ends: str
+
+
+class NotificationProcessResponse(BaseModel):
+    """Response for notification processing."""
+
+    status: str
+    notifications_sent: int
+
+
+class ExpirationProcessResponse(BaseModel):
+    """Response for expiration/trial processing."""
+
+    status: str
+    accounts_transitioned: int | None = None
+    trials_processed: int | None = None
+
+
 @router.get("/pricing/mode", response_model=PricingModeResponse)
 async def get_pricing_mode(
     auth: AuthContext = Depends(require_permissions(["owner", "admin"])),
@@ -50,7 +80,7 @@ async def get_pricing_mode(
     return PricingModeResponse(mode=mode)
 
 
-@router.post("/pricing/mode")
+@router.post("/pricing/mode", response_model=StatusModeResponse)
 async def set_pricing_mode(
     request: PricingModeRequest,
     auth: AuthContext = Depends(require_permissions(["owner"])),
@@ -73,7 +103,7 @@ async def set_pricing_mode(
     return {"status": "updated", "mode": request.mode}
 
 
-@router.post("/beta/enroll")
+@router.post("/beta/enroll", response_model=BetaEnrollmentResponse)
 async def enroll_beta_account(
     request: BetaEnrollmentRequest,
     auth: AuthContext = Depends(require_permissions(["owner"])),
@@ -108,12 +138,10 @@ async def enroll_beta_account(
             "beta_ends": organization.beta_end_date.isoformat(),
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.post("/beta/process-notifications")
+@router.post("/beta/process-notifications", response_model=NotificationProcessResponse)
 async def process_beta_notifications(
     auth: AuthContext = Depends(require_permissions(["owner"])),
     db: AsyncSession = Depends(get_db),
@@ -132,7 +160,7 @@ async def process_beta_notifications(
     }
 
 
-@router.post("/beta/process-expirations")
+@router.post("/beta/process-expirations", response_model=ExpirationProcessResponse)
 async def process_beta_expirations(
     auth: AuthContext = Depends(require_permissions(["owner"])),
     db: AsyncSession = Depends(get_db),
@@ -151,7 +179,7 @@ async def process_beta_expirations(
     }
 
 
-@router.post("/trials/process-expiries")
+@router.post("/trials/process-expiries", response_model=ExpirationProcessResponse)
 async def process_trial_expiries(
     auth: AuthContext = Depends(require_permissions(["owner"])),
     db: AsyncSession = Depends(get_db),

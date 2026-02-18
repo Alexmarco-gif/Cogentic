@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from backend.redis_client import get_redis_client
+from backend.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,15 @@ class CostTracker:
     """
 
     def __init__(self):
-        self.redis = get_redis_client()
+        self.redis = None  # Lazy async init
 
-    def track_tokens(
+    async def _get_redis(self):
+        """Lazily get the async Redis client."""
+        if self.redis is None:
+            self.redis = await get_redis()
+        return self.redis
+
+    async def track_tokens(
         self,
         *,
         model: str,
@@ -66,6 +72,8 @@ class CostTracker:
         Returns:
             Dict with cost, warning flags, and limits info
         """
+        redis = await self._get_redis()
+
         # Calculate cost
         pricing = PRICING.get(model, {"input": 0.0, "output": 0.0})
         input_cost = input_tokens * pricing["input"]
@@ -78,15 +86,17 @@ class CostTracker:
 
         if user_id:
             user_key = f"cost:user:{user_id}:daily"
-            user_cost = self._increment_cost(user_key, total_cost, ttl=86400)
+            user_cost = await self._increment_cost(user_key, total_cost, ttl=86400)
         else:
             user_cost = 0.0
 
         if org_id:
             org_daily_key = f"cost:org:{org_id}:daily"
             org_monthly_key = f"cost:org:{org_id}:monthly:{month}"
-            org_daily_cost = self._increment_cost(org_daily_key, total_cost, ttl=86400)
-            org_monthly_cost = self._increment_cost(
+            org_daily_cost = await self._increment_cost(
+                org_daily_key, total_cost, ttl=86400
+            )
+            org_monthly_cost = await self._increment_cost(
                 org_monthly_key, total_cost, ttl=2678400
             )  # 31 days
         else:
@@ -96,8 +106,8 @@ class CostTracker:
         # Track per-endpoint metrics
         if endpoint:
             metrics_key = f"cost:metrics:{today}"
-            self.redis.hincrbyfloat(metrics_key, endpoint, total_cost)
-            self.redis.expire(metrics_key, 2678400)  # 31 days
+            await redis.hincrbyfloat(metrics_key, endpoint, total_cost)
+            await redis.expire(metrics_key, 2678400)  # 31 days
 
         # Check limits
         warnings = []
@@ -125,7 +135,7 @@ class CostTracker:
             "warnings": warnings,
         }
 
-    def check_budget(
+    async def check_budget(
         self,
         *,
         user_id: UUID | None = None,
@@ -136,20 +146,21 @@ class CostTracker:
         Returns:
             Dict with current usage and whether limits are exceeded
         """
+        redis = await self._get_redis()
         month = datetime.now(timezone.utc).strftime("%Y-%m")
 
         user_cost = 0.0
         if user_id:
             user_key = f"cost:user:{user_id}:daily"
-            user_cost = float(self.redis.get(user_key) or 0.0)
+            user_cost = float(await redis.get(user_key) or 0.0)
 
         org_daily_cost = 0.0
         org_monthly_cost = 0.0
         if org_id:
             org_daily_key = f"cost:org:{org_id}:daily"
             org_monthly_key = f"cost:org:{org_id}:monthly:{month}"
-            org_daily_cost = float(self.redis.get(org_daily_key) or 0.0)
-            org_monthly_cost = float(self.redis.get(org_monthly_key) or 0.0)
+            org_daily_cost = float(await redis.get(org_daily_key) or 0.0)
+            org_monthly_cost = float(await redis.get(org_monthly_key) or 0.0)
 
         # Check if any limit is exceeded
         user_exceeded = user_cost >= 5.0
@@ -171,7 +182,7 @@ class CostTracker:
             ),
         }
 
-    def get_endpoint_metrics(
+    async def get_endpoint_metrics(
         self,
         *,
         date: str | None = None,
@@ -184,20 +195,27 @@ class CostTracker:
         Returns:
             Dict of endpoint -> total_cost_usd
         """
+        redis = await self._get_redis()
         if not date:
             date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         metrics_key = f"cost:metrics:{date}"
-        raw = self.redis.hgetall(metrics_key)
+        raw = await redis.hgetall(metrics_key)
 
-        return {endpoint.decode(): float(cost) for endpoint, cost in raw.items()}
+        return {
+            (endpoint.decode() if isinstance(endpoint, bytes) else endpoint): float(
+                cost
+            )
+            for endpoint, cost in raw.items()
+        }
 
-    def _increment_cost(self, key: str, amount: float, ttl: int) -> float:
+    async def _increment_cost(self, key: str, amount: float, ttl: int) -> float:
         """Atomically increment cost counter with TTL."""
-        pipe = self.redis.pipeline()
+        redis = await self._get_redis()
+        pipe = redis.pipeline()
         pipe.incrbyfloat(key, amount)
         pipe.expire(key, ttl)
-        result = pipe.execute()
+        result = await pipe.execute()
         return float(result[0])
 
 

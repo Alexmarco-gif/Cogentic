@@ -92,9 +92,11 @@ class EmbeddingService:
         return embedding
 
     async def batch_embed(self, texts: list[str]) -> list[list[float]]:
-        """Batch-embed multiple texts with rate limit awareness.
+        """Batch-embed multiple texts with per-item Redis caching.
 
-        Splits into chunks of `batch_size`, respects RPM limits.
+        Checks the cache for each text first, then only calls OpenAI for
+        cache misses.  Results are stored back in the cache.
+        Splits API calls into chunks of ``batch_size`` and respects RPM limits.
 
         Args:
             texts: List of texts to embed.
@@ -106,10 +108,29 @@ class EmbeddingService:
             return []
 
         prepared = [self._prepare_text(t) for t in texts]
-        all_embeddings: list[list[float]] = []
+        results: list[list[float] | None] = [None] * len(prepared)
 
-        for i in range(0, len(prepared), self.batch_size):
-            chunk = prepared[i : i + self.batch_size]
+        # ── Phase 1: Check cache for each item ──────────────────────
+        uncached_indices: list[int] = []
+        for idx, text in enumerate(prepared):
+            cached = await self.cache.get(text)
+            if cached is not None:
+                results[idx] = cached
+            else:
+                uncached_indices.append(idx)
+
+        if uncached_indices:
+            logger.debug(
+                f"batch_embed: {len(prepared) - len(uncached_indices)} cache hits, "
+                f"{len(uncached_indices)} misses"
+            )
+
+        # ── Phase 2: Embed cache misses via OpenAI ──────────────────
+        uncached_texts = [prepared[i] for i in uncached_indices]
+        uncached_embeddings: list[list[float]] = []
+
+        for i in range(0, len(uncached_texts), self.batch_size):
+            chunk = uncached_texts[i : i + self.batch_size]
             start = time.monotonic()
 
             async with self._semaphore:
@@ -131,7 +152,7 @@ class EmbeddingService:
                     # Continue processing; validation logs warning
                     pass
 
-            all_embeddings.extend(chunk_embeddings)
+            uncached_embeddings.extend(chunk_embeddings)
 
             elapsed = time.monotonic() - start
             logger.debug(
@@ -140,10 +161,16 @@ class EmbeddingService:
             )
 
             # Rate limit: ~50 reqs/sec max → sleep if we're too fast
-            if elapsed < 0.1 and i + self.batch_size < len(prepared):
+            if elapsed < 0.1 and i + self.batch_size < len(uncached_texts):
                 await asyncio.sleep(0.1 - elapsed)
 
-        return all_embeddings
+        # ── Phase 3: Merge results and populate cache ────────────────
+        for pos, orig_idx in enumerate(uncached_indices):
+            emb = uncached_embeddings[pos]
+            results[orig_idx] = emb
+            await self.cache.set(prepared[orig_idx], emb)
+
+        return results  # type: ignore[return-value]
 
     # ── Domain Helpers ───────────────────────────────────────────────
 

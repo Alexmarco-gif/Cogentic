@@ -6,7 +6,8 @@ Allows domain experts to add, update, and verify regulatory knowledge.
 
 import logging
 from datetime import datetime
-from uuid import UUID
+from typing import Any
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -15,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+from backend.models.regulatory_knowledge import RegulatoryEvent
+from backend.models.signal import Signal
 from backend.repositories.regulatory import RegulatoryRepository
 from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
 
@@ -103,10 +106,73 @@ class SignalEnrichmentResponse(BaseModel):
     interpretation: str | None = None
 
 
+class EventCreateResponse(BaseModel):
+    """Response for creating a regulatory event."""
+
+    id: str
+    event_type: str
+    title: str
+    verified: bool
+
+
+class RuleCreateResponse(BaseModel):
+    """Response for creating a regulatory rule."""
+
+    id: str
+    rule_type: str
+    description: str
+
+
+class ImpactCreateResponse(BaseModel):
+    """Response for recording a regulatory impact."""
+
+    id: str
+    impact_type: str
+    percentage_change: float | None = None
+    lag_days: int | None = None
+
+
+class EventExtractionResponse(BaseModel):
+    """Response for signal event extraction."""
+
+    extracted: bool | None = None
+    detected: bool | None = None
+    event_id: str | None = None
+    event_type: str | None = None
+    issuing_body: str | None = None
+    severity_score: float | None = None
+    message: str | None = None
+
+
+class RuleFeedbackResponse(BaseModel):
+    """Response for rule feedback."""
+
+    rule_id: str
+    feedback_recorded: bool
+    was_accurate: bool
+
+
+class RegulatoryStatsResponse(BaseModel):
+    """Response for regulatory knowledge stats."""
+
+    knowledge_base_age_days: int
+    learning_velocity: str
+    model_config = {"extra": "allow"}
+
+
+class PatternLearningResponse(BaseModel):
+    """Response for pattern learning."""
+
+    total_patterns_discovered: int
+    patterns_by_type: dict[str, list[dict[str, Any]]]
+    lookback_months: int
+    min_occurrences: int
+
+
 # === Endpoints ===
 
 
-@router.post("/events", status_code=201)
+@router.post("/events", status_code=201, response_model=EventCreateResponse)
 async def create_regulatory_event(
     body: RegulatoryEventCreate,
     db: AsyncSession = Depends(get_db),
@@ -119,10 +185,6 @@ async def create_regulatory_event(
 
     Requires: Domain expert or admin permissions
     """
-    from uuid import uuid4
-
-    from backend.models.regulatory_knowledge import RegulatoryEvent
-
     event = RegulatoryEvent(
         id=uuid4(),
         event_type=body.event_type,
@@ -194,7 +256,7 @@ async def list_regulatory_events(
     ]
 
 
-@router.post("/rules", status_code=201)
+@router.post("/rules", status_code=201, response_model=RuleCreateResponse)
 async def create_regulatory_rule(
     body: RegulatoryRuleCreate,
     db: AsyncSession = Depends(get_db),
@@ -231,7 +293,7 @@ async def create_regulatory_rule(
     }
 
 
-@router.post("/impacts", status_code=201)
+@router.post("/impacts", status_code=201, response_model=ImpactCreateResponse)
 async def record_regulatory_impact(
     body: RegulatoryImpactCreate,
     db: AsyncSession = Depends(get_db),
@@ -278,8 +340,6 @@ async def enrich_signal_with_regulatory_context(
     This demonstrates the contextual interpretation layer —
     generic AI can't provide this depth of regulatory analysis.
     """
-    from backend.models.signal import Signal
-
     # Get signal
     signal = await db.get(Signal, signal_id)
     if not signal:
@@ -292,7 +352,9 @@ async def enrich_signal_with_regulatory_context(
     return SignalEnrichmentResponse(**context)
 
 
-@router.post("/signals/{signal_id}/extract-event")
+@router.post(
+    "/signals/{signal_id}/extract-event", response_model=EventExtractionResponse
+)
 async def extract_regulatory_event_from_signal(
     signal_id: UUID,
     auto_create: bool = Query(
@@ -305,8 +367,6 @@ async def extract_regulatory_event_from_signal(
 
     Uses NLP + ML to detect and structure regulatory content.
     """
-    from backend.models.signal import Signal
-
     signal = await db.get(Signal, signal_id)
     if not signal:
         raise HTTPException(status_code=404, detail="Signal not found")
@@ -339,7 +399,7 @@ async def extract_regulatory_event_from_signal(
         }
 
 
-@router.patch("/rules/{rule_id}/feedback")
+@router.patch("/rules/{rule_id}/feedback", response_model=RuleFeedbackResponse)
 async def provide_rule_feedback(
     rule_id: UUID,
     was_accurate: bool = Query(..., description="Was rule application accurate?"),
@@ -362,7 +422,7 @@ async def provide_rule_feedback(
     }
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=RegulatoryStatsResponse)
 async def get_regulatory_knowledge_stats(
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
@@ -425,7 +485,7 @@ class PredictionResponse(BaseModel):
 
 @router.post(
     "/patterns/learn",
-    response_model=dict,
+    response_model=PatternLearningResponse,
     summary="Trigger ML pattern learning",
     description="Analyzes historical regulatory events to discover recurring patterns",
 )
@@ -538,6 +598,7 @@ async def list_regulatory_patterns(
 )
 async def predict_regulatory_actions(
     event_id: UUID,
+    limit: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
 ):
@@ -550,8 +611,6 @@ async def predict_regulatory_actions(
 
     Only works if patterns have been learned (via /patterns/learn endpoint).
     """
-    from backend.models.regulatory_knowledge import RegulatoryEvent
-
     event = await db.get(RegulatoryEvent, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Regulatory event not found")
@@ -573,7 +632,7 @@ async def predict_regulatory_actions(
                 pattern_id=p["pattern_id"],
                 rationale=p["rationale"],
             )
-            for p in predictions
+            for p in predictions[:limit]
         ]
 
     except Exception as e:

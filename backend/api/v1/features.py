@@ -40,10 +40,11 @@ async def list_features(
     flags: FeatureFlagService = Depends(get_feature_flags_service),
 ):
     """
-    List all features and their status for current user.
+    List all feature flags and their status for current user.
 
-    Returns which features are enabled for the authenticated user
-    based on their plan, org, and any user-specific overrides.
+    Returns boolean flags based on plan, org, and user-specific overrides.
+    Different from /pricing/features which returns tier-based access controls
+    with gating enforcement.
 
     Useful for:
     - Frontend feature detection

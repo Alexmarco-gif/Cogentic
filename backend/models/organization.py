@@ -42,18 +42,16 @@ class Organization(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         String(50), nullable=False, default="explorer", index=True
     )
 
-    # Beta Pricing
+    # Beta Pricing (DEPRECATED — prefer BetaAccount table for beta lifecycle)
+    # These fields are kept for backward compatibility during migration.
+    # New code should use BetaAccount queries instead.
     is_beta_account: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     beta_start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     beta_end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    beta_discount_percent: Mapped[float] = mapped_column(
-        Numeric(5, 2), default=50.00
-    )
+    beta_discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=50.00)
 
     # Trial Management
-    trial_status: Mapped[str] = mapped_column(
-        String(50), default="active", index=True
-    )
+    trial_status: Mapped[str] = mapped_column(String(50), default="active", index=True)
     trial_start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     trial_end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     billing_cycle_start: Mapped[date | None] = mapped_column(Date)

@@ -85,9 +85,7 @@ class SignalRepository(BaseRepository[Signal]):
         limit: int = 100,
     ) -> list[Signal]:
         """Get signals with confidence >= 0.85 (eligible for intelligence briefs)"""
-        query = select(Signal).where(
-            Signal.confidence >= 0.85, self._org_scope(org_id)
-        )
+        query = select(Signal).where(Signal.confidence >= 0.85, self._org_scope(org_id))
         if contract_id:
             query = query.where(Signal.contract_id == contract_id)
         result = await self.db.execute(
@@ -165,10 +163,22 @@ class SignalRepository(BaseRepository[Signal]):
         )
         return list(result.scalars().all())
 
-    async def count_by_contract(self, contract_id: UUID) -> int:
-        """Count signals for a given contract"""
+    async def count_by_contract(
+        self, contract_id: UUID, *, org_id: UUID | None = None
+    ) -> int:
+        """Count signals for a given contract (org-scoped)"""
         result = await self.db.execute(
-            select(func.count(Signal.id)).where(Signal.contract_id == contract_id)
+            select(func.count(Signal.id)).where(
+                Signal.contract_id == contract_id,
+                self._org_scope(org_id),
+            )
+        )
+        return result.scalar_one()
+
+    async def count_visible(self, org_id: UUID | None = None) -> int:
+        """Count signals visible to the given org (global + org-specific)."""
+        result = await self.db.execute(
+            select(func.count(Signal.id)).where(self._org_scope(org_id))
         )
         return result.scalar_one()
 
