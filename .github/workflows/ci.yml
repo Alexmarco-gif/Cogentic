@@ -1,4 +1,4 @@
-name: CI — Lint, Test, Type Check
+name: CI
 
 on:
   push:
@@ -6,18 +6,45 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Cancel in-progress runs on the same branch to save runner minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # ── Backend Lint & Format ─────────────────────────────────
-  backend-lint:
-    name: Backend Lint & Format
+  # ── 1. Lint & Format (Ruff) ───────────────────────────────
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install linting deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Ruff — check for errors
+        run: ruff check backend/
+
+      - name: Ruff — check formatting
+        run: ruff format --check backend/
+
+  # ── 2. Type Checking (mypy) ───────────────────────────────
+  typecheck:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
           cache: pip
 
       - name: Install dependencies
@@ -25,48 +52,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Ruff lint
-        run: ruff check backend/
+      - name: mypy
+        run: mypy backend/ --config-file pyproject.toml
 
-      - name: Ruff format check
-        run: ruff format --check backend/
-
-  # ── Backend Tests ─────────────────────────────────────────
-  backend-test:
-    name: Backend Tests
+  # ── 3. Tests ──────────────────────────────────────────────
+  test:
+    name: Tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: cogent_test
-          POSTGRES_USER: cogent
-          POSTGRES_PASSWORD: cogent_test_password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 3s
-          --health-retries 3
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 3s
-          --health-retries 3
-
+    # Tests use SQLite in-memory — no Postgres/Redis services needed
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
 
       - name: Install dependencies
@@ -76,7 +75,8 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+asyncpg://cogent:cogent_test_password@localhost:5432/cogent_test
+          # Tests use SQLite in-memory — these are stubs so imports don't fail
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
           REDIS_URL: redis://localhost:6379/0
           APP_ENV: testing
           AUTH0_DOMAIN: test.auth0.com
@@ -85,23 +85,25 @@ jobs:
           AUTH0_CLAIMS_NAMESPACE: https://cogent.ai/claims/
           SECRET_KEY: test-secret-key-for-ci
         run: |
-          pytest backend/tests/ -v \
+          pytest tests/ \
             -m "not e2e" \
+            --tb=short \
             --cov=backend \
             --cov-report=term-missing \
             --cov-report=xml \
-            --maxfail=3
+            -q
 
-      - name: Upload coverage
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
-        if: github.event_name == 'pull_request'
+        if: always()
         with:
           name: coverage-report
           path: coverage.xml
+          retention-days: 7
 
-  # ── Frontend Lint & Type Check ────────────────────────────
-  frontend-lint:
-    name: Frontend Lint & Type Check
+  # ── 4. Frontend Lint & TypeScript ────────────────────────
+  frontend:
+    name: Frontend Lint & TypeScript
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -109,8 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
@@ -125,21 +126,20 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
-  # ── Security Check ───────────────────────────────────────
-  security-check:
+  # ── 5. Security Audit ─────────────────────────────────────
+  security:
     name: Security Audit
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          cache: pip
 
-      - name: Install & audit
+      - name: Run pip-audit
         run: |
-          pip install -r requirements.txt
-          pip install pip-audit
-          pip-audit --desc
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r requirements.txt --desc

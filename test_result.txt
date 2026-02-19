@@ -1,5 +1,219 @@
+RETURN_CODE: 0
+
 ........................................................................ [ 18%]
 ........................................................................ [ 37%]
 ........................................................................ [ 56%]
 ........................................................................ [ 75%]
-..............................................
+........................................................................ [ 94%]
+.....................                                                    [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.12.6-final-0 _______________
+
+Name                                              Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------------
+backend\__init__.py                                   1      0   100%
+backend\agent\__init__.py                             5      0   100%
+backend\agent\agent.py                              161    131    19%   64-65, 83-145, 172-182, 203-441, 460-473, 481-498
+backend\agent\context.py                             65     45    31%   40, 48-63, 80-93, 113-128, 140-145, 167-173, 177-179, 199-205
+backend\agent\prompts.py                              9      5    44%   219-224, 229
+backend\agent\tools.py                              105     85    19%   279-328, 350-374, 394-403, 431-564, 580-590, 618-697, 715-732, 779-789
+backend\ai\__init__.py                                0      0   100%
+backend\ai\chat.py                                    6      6     0%   11-17
+backend\ai\circuit_breaker.py                         6      6     0%   7-22
+backend\ai\embedding_cache.py                        80     63    21%   37-40, 44-46, 59-77, 86-101, 109-119, 134-140, 148-178
+backend\ai\embeddings.py                            170    145    15%   29-31, 47-56, 72-92, 107-173, 186-207, 218-232, 243, 254-283, 294-321, 333-337, 355-374
+backend\ai\guardrails.py                            135     87    36%   174-217, 241-272, 288-295, 302, 311-315, 320-323, 328-332, 337-352, 357-362, 367-380, 391-393
+backend\ai\model_router.py                           74     74     0%   16-243
+backend\ai\model_selector.py                         18     18     0%   7-51
+backend\ai\synthesis.py                             290    252    13%   48-50, 75-83, 106-184, 203-274, 297-340, 348-393, 403-460, 470-491, 513-580, 602-772, 799-805, 809-818, 822-832
+backend\api\__init__.py                               2      0   100%
+backend\api\v1\__init__.py                           31      0   100%
+backend\api\v1\admin.py                              72     28    61%   77-80, 94-103, 117-141, 154-157, 173-176, 192-195
+backend\api\v1\api_keys.py                           83     36    57%   109-146, 176-184, 223-262, 287-298
+backend\api\v1\auth.py                               42      0   100%
+backend\api\v1\briefs.py                             89     58    35%   51-64, 79-83, 104-131, 147-177, 191-200, 213-228, 241-249
+backend\api\v1\bulk.py                               72     32    56%   94-112, 132-150, 164-185
+backend\api\v1\causal.py                            121     33    73%   89-96, 115-121, 135-146, 164-173, 189-193, 234-245, 283-302
+backend\api\v1\chat.py                               60     35    42%   55-62, 78-83, 100-109, 143-150, 175-184, 198-207
+backend\api\v1\contracts.py                          90     58    36%   41-58, 74-76, 86-90, 101-104, 115-124, 134-138, 152-168, 183-190, 200-205
+backend\api\v1\credits.py                            41      7    83%   55-58, 72-87
+backend\api\v1\documents.py                          99     57    42%   83-98, 134-160, 184-190, 210-220, 246-279, 304-325
+backend\api\v1\entities.py                           93     26    72%   103-114, 130-138, 157-163, 190-194, 209-220, 249-257
+backend\api\v1\features.py                           25      8    68%   55-74, 92-99
+backend\api\v1\feedback.py                           64     16    75%   87-99, 115-118, 142-148, 164-168, 178-182
+backend\api\v1\health.py                             18      8    56%   43-58
+backend\api\v1\influence.py                         108     35    68%   135-149, 172-193, 213-226, 258-276, 298-304
+backend\api\v1\ml.py                                 67     41    39%   49-51, 69-91, 113-118, 136-141, 160-169, 184-192, 208-217
+backend\api\v1\moat.py                              139     32    77%   137-138, 150-151, 163-164, 181-182, 195-196, 208-209, 226-230, 243-247, 260-262, 282-283, 301-302, 324-325, 351-352
+backend\api\v1\monitoring.py                         71     20    72%   68, 78, 89, 100-101, 111-112, 120, 132-159
+backend\api\v1\orgs.py                              125     74    41%   94-99, 121-150, 172-182, 211-238, 260-279, 300-344, 359-377
+backend\api\v1\pipeline.py                           48     26    46%   29-37, 54-64, 76, 84-92, 100-108
+backend\api\v1\pricing.py                            63     27    57%   57-60, 95-98, 117-153, 167-174
+backend\api\v1\recommendations.py                    28      9    68%   47-50, 66-72, 89-98
+backend\api\v1\regulatory.py                        220     67    70%   188-210, 233-243, 270-289, 307-324, 344-352, 370-396, 414-418, 434-437, 507-543, 569-577, 614-640
+backend\api\v1\search.py                             31     15    52%   40-83, 94-97
+backend\api\v1\signals.py                            50     22    56%   39, 49-50, 70-72, 86-96, 113-119, 132-140, 157-162
+backend\api\v1\situation_room.py                     72     54    25%   47-51, 77-96, 121-202
+backend\api\v1\synthesis.py                          29     14    52%   44-88
+backend\api\v1\users.py                              48     11    77%   55-60, 89, 93-100, 126-132
+backend\auth\__init__.py                              7      0   100%
+backend\auth\dependencies.py                        108     84    22%   50-74, 99-105, 144-154, 174-202, 220-275, 303-307, 321, 335, 375-455, 480-482
+backend\auth\enums.py                                31      1    97%   90
+backend\auth\exceptions.py                           35      1    97%   62
+backend\auth\guards.py                               60     19    68%   143, 201, 231, 255-267, 284-295, 328-351
+backend\auth\jwks.py                                 88     69    22%   34-39, 55-75, 84-123, 127-136, 140, 144-146, 163-167, 174-177
+backend\auth\middleware.py                           36      7    81%   59, 66, 100-111, 130-141
+backend\auth\permissions.py                          67     32    52%   49-52, 110-125, 142-144, 161-163, 180-182, 199-201, 246-256, 276-278
+backend\auth\rate_limit.py                           38     22    42%   31-42, 52-71, 93, 98, 103, 108
+backend\auth\schemas.py                              43      0   100%
+backend\auth\utils.py                                74     55    26%   45-51, 75-121, 144-179, 192
+backend\briefs\__init__.py                            0      0   100%
+backend\briefs\generator.py                         124     98    21%   34-36, 56-60, 87-171, 189-228, 234-241, 263-266, 287-365, 386-399
+backend\briefs\refresh.py                           103     74    28%   49, 66-116, 142-164, 180-200, 204-207, 214-219, 223-228, 240-248, 258-267
+backend\briefs\templates\__init__.py                  0      0   100%
+backend\compliance\__init__.py                        0      0   100%
+backend\compliance\consent.py                         0      0   100%
+backend\compliance\data_classification.py            31     31     0%   7-112
+backend\compliance\deletion.py                        0      0   100%
+backend\compliance\export.py                          0      0   100%
+backend\config.py                                    59      2    97%   94, 105
+backend\database.py                                  61     23    62%   25-26, 58, 62, 130-138, 153-157, 163-169
+backend\job_handlers.py                              76     76     0%   12-314
+backend\jobs\__init__.py                              3      0   100%
+backend\jobs\acquisition_job.py                      28     21    25%   27-37, 51-61, 73-80
+backend\jobs\beta_lifecycle_job.py                   21     21     0%   3-48
+backend\jobs\pricing_scheduler.py                    19     19     0%   3-55
+backend\jobs\refinement_job.py                       65     65     0%   7-150
+backend\jobs\retry_strategy.py                       50     31    38%   35-51, 56-73, 78-87, 109-129, 134-135
+backend\jobs\sprint4_jobs.py                         27     20    26%   25-34, 46-52, 74-84
+backend\jobs\trial_expiry_job.py                     19     19     0%   3-35
+backend\main.py                                     139     70    50%   78, 105, 121-203, 258-274
+backend\middleware\feature_gating.py                 54      0   100%
+backend\ml\__init__.py                                0      0   100%
+backend\ml\causal_inference.py                      142    119    16%   31, 55-134, 164-253, 307-345, 357-365, 372-390, 397-415, 445-480
+backend\ml\entity_resolver.py                       111    111     0%   11-266
+backend\ml\inference.py                             146    121    17%   37-55, 80-109, 130-147, 163-167, 171-175, 179, 183-194, 198-205, 209-216, 239-248, 262-279, 287-319, 333-349, 359-361
+backend\ml\models\__init__.py                         0      0   100%
+backend\ml\scoring.py                               184    184     0%   12-437
+backend\ml\training\__init__.py                       0      0   100%
+backend\ml\training\train_anomaly.py                 65     65     0%   12-160
+backend\ml\training\train_confidence.py              76     76     0%   12-195
+backend\ml\training\train_trending.py               110    110     0%   15-245
+backend\models\__init__.py                           36      0   100%
+backend\models\ai_job.py                             31      3    90%   15-17
+backend\models\ai_usage_log.py                       15      0   100%
+backend\models\api_key.py                            37      5    86%   18, 101-103, 107
+backend\models\audit_log.py                          24      2    92%   14-15
+backend\models\base.py                               18      0   100%
+backend\models\beta_account.py                       19      1    95%   14
+backend\models\brief_signal.py                       17      2    88%   13-14
+backend\models\causal_event.py                       39      1    97%   21
+backend\models\chat_message.py                       17      1    94%   14
+backend\models\chat_session.py                       22      4    82%   13-16
+backend\models\credit_transaction.py                 20      2    90%   14-15
+backend\models\document.py                           26      2    92%   15-16
+backend\models\entity.py                             30      5    83%   15-19
+backend\models\entity_alias.py                       17      1    94%   13
+backend\models\entity_relationship.py                26      1    96%   21
+backend\models\entity_source_profile.py              20      1    95%   20
+backend\models\feature_gate.py                       14      0   100%
+backend\models\industry.py                           23      3    87%   14-16
+backend\models\intelligence_brief.py                 27      3    89%   15-17
+backend\models\ml_model_registry.py                  18      0   100%
+backend\models\ml_model_run.py                       16      0   100%
+backend\models\moat_metric.py                        26      0   100%
+backend\models\org_user.py                           22      2    91%   14-15
+backend\models\organization.py                       34      3    91%   13-15
+backend\models\pricing_config.py                     19      1    95%   15
+backend\models\pricing_enums.py                      15      0   100%
+backend\models\recommendation.py                     14      0   100%
+backend\models\regulatory_knowledge.py               98      0   100%
+backend\models\search_query.py                       21      2    90%   14-15
+backend\models\signal.py                             34      4    88%   16-19
+backend\models\signal_contract.py                    32      3    91%   15-17
+backend\models\signal_entity.py                      17      2    88%   13-14
+backend\models\signal_score.py                       18      2    89%   13-14
+backend\models\subscription.py                       26      1    96%   15
+backend\models\user.py                               18      1    94%   12
+backend\models\user_feedback.py                      16      0   100%
+backend\observability.py                             34     25    26%   57-102
+backend\queue.py                                     57     38    33%   20-22, 34-46, 52, 57, 62, 81-92, 105-119, 132-139, 150
+backend\redis_client.py                              25      9    64%   29-37, 68-70, 77-79
+backend\repositories\__init__.py                     10      0   100%
+backend\repositories\api_key.py                      56      8    86%   91, 118-133
+backend\repositories\audit.py                        25      0   100%
+backend\repositories\base.py                        216     28    87%   158, 268-276, 294-296, 331-333, 362-365, 374-383, 436-462, 518-521
+backend\repositories\beta.py                         39     39     0%   3-98
+backend\repositories\beta_repository.py              40     18    55%   31-39, 43-49, 53-64, 68-75
+backend\repositories\chat_session.py                 41      6    85%   73-81, 93-102
+backend\repositories\credit.py                       46     46     0%   3-134
+backend\repositories\credit_repository.py            48     23    52%   32-60, 70, 83, 92-98, 104-112, 116-123
+backend\repositories\document.py                     32      0   100%
+backend\repositories\entity.py                       28      7    75%   68-74, 85-95, 99-106
+backend\repositories\feature_gate_repository.py      19      2    89%   37-40
+backend\repositories\industry.py                     27      6    78%   37-42, 46-51, 55-61
+backend\repositories\intelligence_brief.py           33      5    85%   57, 105-117, 127-137
+backend\repositories\ml_model_registry.py            28     18    36%   17, 24-33, 42-48, 59-70, 83-100
+backend\repositories\ml_model_run.py                 19     10    47%   18, 28-35, 42-51, 60-66
+backend\repositories\organization.py                 74     12    84%   104, 143, 166, 198-219
+backend\repositories\pricing.py                      38     38     0%   3-67
+backend\repositories\pricing_repository.py           39     15    62%   29-47, 51-52, 56-58
+backend\repositories\recommendation.py               37     11    70%   46, 77-81, 120-129
+backend\repositories\regulatory.py                   45     32    29%   25, 31-33, 36, 48-66, 72-74, 86-98, 104-128
+backend\repositories\search_query.py                 20      9    55%   28, 38-63, 71-80
+backend\repositories\signal.py                       58     20    66%   88-94, 130-142, 154-164, 183, 187-193, 209-226
+backend\repositories\signal_contract.py              46      7    85%   87-94, 101-111, 137, 156-162
+backend\repositories\signal_score.py                 27      8    70%   56-61, 77-82
+backend\repositories\user.py                         28      2    93%   31-36
+backend\schemas\__init__.py                           2      0   100%
+backend\schemas\briefs.py                            52      0   100%
+backend\schemas\chat.py                              45      0   100%
+backend\schemas\ml.py                                63      0   100%
+backend\schemas\recommendations.py                   34      0   100%
+backend\schemas\search.py                            38      0   100%
+backend\schemas\signals.py                           88      0   100%
+backend\schemas\situation_room.py                    89      0   100%
+backend\schemas\synthesis.py                         16      0   100%
+backend\services\__init__.py                          3      0   100%
+backend\services\beta_lifecycle_service.py           71     30    58%   33-53, 63-84, 168-172, 183-185
+backend\services\cache_metrics.py                    40      0   100%
+backend\services\causal_intelligence.py             209    183    12%   70, 101-139, 146-153, 184-272, 280-300, 331-419, 448-549, 574-626, 646-756, 786-828
+backend\services\chat_agent_service.py              112     86    23%   53-57, 76-100, 104, 114, 123-129, 133-145, 172-257, 269-288, 298-303, 315
+backend\services\circuit_breaker.py                  88      1    99%   90
+backend\services\cost_tracker.py                     66     13    80%   150-170
+backend\services\credit_service.py                   61      5    92%   116-120, 207, 211
+backend\services\deep_search.py                     162    123    24%   54-57, 82-175, 186-190, 212-250, 272-291, 312-332, 344-363, 378-395, 401-404, 407-415, 418-427, 431, 456-466
+backend\services\entity_resolution.py               230    201    13%   47-48, 75-121, 136-145, 157-183, 193-244, 254-304, 319-346, 358-368, 386-418, 425-430, 450-491, 505-591, 608-665, 704-723
+backend\services\feature_flags.py                    81     19    77%   70-71, 91-93, 99-100, 108-110, 182-188, 255-258, 263-264
+backend\services\feedback_service.py                 95     76    20%   41, 73-94, 99-112, 125-184, 206-238, 256-288, 313-365, 381-409, 430-454
+backend\services\gating_service.py                   42      1    98%   69
+backend\services\influence_mapping.py               151    125    17%   51, 78-134, 167-202, 224-306, 337-391, 419-438, 456-509, 514-523, 547-549
+backend\services\moat_metrics.py                    218    182    17%   50, 59-106, 141-202, 231-276, 299-344, 365-418, 450-492, 529-613, 637-667, 677-697, 723-734, 738-747, 756-809, 813-822, 826-835, 839
+backend\services\prediction_backtest.py              90     78    13%   36, 59-172, 198-272, 303-353
+backend\services\pricing_service.py                  43      0   100%
+backend\services\recommendation.py                  115     86    25%   43, 63-138, 157-191, 205-214, 224-233, 245-274, 286-290, 294-306, 311-315, 321-348, 360-368
+backend\services\refinement_service.py              136    136     0%   14-291
+backend\services\regulatory_intelligence.py         359    319    11%   104-105, 127-197, 202-208, 212-219, 223-239, 243-264, 268-285, 289-304, 309-335, 351-412, 421-450, 459-477, 486-529, 540-583, 606-647, 655-669, 686-755, 764-825, 834-888, 897-944, 956-986, 997-1053, 1064-1152
+backend\services\replicability_test.py              117     94    20%   41-43, 54-56, 75-119, 153-210, 225-232, 241-248, 252-264, 268-287, 308-329, 336-357
+backend\services\signal_acquisition.py              101     77    24%   44-48, 59-91, 105-176, 194-200, 211-212, 223-232, 245-250, 256-261, 267-272
+backend\services\situation_room.py                  140    112    20%   42-48, 59, 90-105, 135-140, 148-150, 162-258, 283-356, 360-377, 388-432, 442-461, 494-512, 526-536, 554
+backend\services\slo_metrics.py                      58      0   100%
+backend\services\trial_service.py                    55      1    98%   67
+backend\services\ws_manager.py                      132    104    21%   45-50, 56-68, 78-86, 96-114, 123-129, 144-157, 165-170, 174-188, 192-223, 229-239, 245, 260-262, 270-291
+backend\signals\__init__.py                           4      0   100%
+backend\signals\contracts\__init__.py                 0      0   100%
+backend\signals\fetchers\__init__.py                 12      4    67%   33-39
+backend\signals\fetchers\api_fetcher.py              94     82    13%   46-114, 126-186, 194-213
+backend\signals\fetchers\base.py                     67     31    54%   38-39, 46, 69-71, 75-82, 86-88, 92-94, 112, 116-117, 121-141
+backend\signals\fetchers\rss_fetcher.py              84     71    15%   39-79, 88-183, 188-192
+backend\signals\fetchers\scraper_fetcher.py         114    103    10%   51-140, 149-227
+backend\signals\fetchers\social_fetcher.py           90     80    11%   42-50, 61-136, 144-234
+backend\signals\processors\__init__.py                3      0   100%
+backend\signals\processors\dedup.py                  54     38    30%   30-31, 42-48, 64-87, 103-137, 142-143
+backend\signals\processors\extractor.py              71     55    23%   63-85, 108-124, 135-154, 169-193, 198-211
+backend\signals\scheduler.py                         73     47    36%   38-45, 49-117, 121-124, 128, 137-148, 153-155, 164-172, 177-184, 189-196, 201-209, 219-221
+backend\webhooks\__init__.py                          2      0   100%
+backend\webhooks\auth0.py                           107     76    29%   66-104, 120-126, 154-199, 227-247, 276-287, 319-384
+-------------------------------------------------------------------------------
+TOTAL                                             11860   6551    45%
+381 passed in 177.10s (0:02:57)

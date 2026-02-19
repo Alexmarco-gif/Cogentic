@@ -97,6 +97,30 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
 
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+strict = false
+warn_unused_ignores = true
+warn_return_any = true
+warn_unreachable = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+exclude = [
+    "alembic/",
+    "tests/",
+    "backend/scripts/",
+    "backend/ml/training/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "backend.services.*",
+    "backend.repositories.*",
+    "backend.middleware.*",
+]
+disallow_untyped_defs = true
+
 [tool.coverage.run]
 source = ["backend"]
 omit = [
