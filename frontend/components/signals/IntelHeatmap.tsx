@@ -114,7 +114,7 @@ export function IntelHeatmap({ quadrants, loading }: IntelHeatmapProps) {
     return (
       <div className="bg-surface border border-border rounded-card shadow-card p-5">
         <div className="h-4 bg-muted rounded w-1/3 mb-4 animate-pulse" />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-40 bg-muted rounded-xl animate-pulse" />
           ))}
@@ -155,7 +155,7 @@ export function IntelHeatmap({ quadrants, loading }: IntelHeatmapProps) {
       </div>
 
       {/* 2×2 Grid */}
-      <div className="grid grid-cols-2 gap-px bg-border/50">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border/50">
         {quadrants.map(q => {
           const style = LEVEL_STYLE[q.level]
           const trend = TREND_CONFIG[q.trend]

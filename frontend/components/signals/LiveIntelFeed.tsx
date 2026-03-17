@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Search,
   FileText,
-  Filter,
 } from 'lucide-react'
 import { LiveIndicator } from '@/components/ui'
 import type { FeedEvent, FeedCategory, Signal } from '@/lib/hooks/useSignals'
@@ -66,10 +65,13 @@ type FeedFilter = 'all' | 'critical' | 'opportunities' | 'risks'
 
 interface LiveIntelFeedProps {
   events: FeedEvent[]
-  signals: Signal[]
+  signals?: Signal[]
   loading?: boolean
   onEventClick?: (signal: Signal) => void
+  onOpenSignal?: (signalId: string) => void
   lastUpdated?: Date
+  liveConnected?: boolean
+  onViewTimeline?: () => void
 }
 
 function timeAgo(date: Date): string {
@@ -81,7 +83,16 @@ function timeAgo(date: Date): string {
   return `${Math.floor(mins / 60)}h ago`
 }
 
-export function LiveIntelFeed({ events, signals, loading, onEventClick, lastUpdated }: LiveIntelFeedProps) {
+export function LiveIntelFeed({
+  events,
+  signals = [],
+  loading,
+  onEventClick,
+  onOpenSignal,
+  lastUpdated,
+  liveConnected = false,
+  onViewTimeline,
+}: LiveIntelFeedProps) {
   const [filter, setFilter] = useState<FeedFilter>('all')
 
   const filteredEvents = useMemo(() => {
@@ -98,6 +109,11 @@ export function LiveIntelFeed({ events, signals, loading, onEventClick, lastUpda
   }, [events, filter])
 
   const handleEventClick = (event: FeedEvent) => {
+    if (event.signalId && onOpenSignal) {
+      onOpenSignal(event.signalId)
+      return
+    }
+
     if (event.signalId && onEventClick) {
       const signal = signals.find(s => s.id === event.signalId)
       if (signal) onEventClick(signal)
@@ -141,7 +157,7 @@ export function LiveIntelFeed({ events, signals, loading, onEventClick, lastUpda
                 Updated {timeAgo(lastUpdated)}
               </span>
             )}
-            <LiveIndicator label="Live" />
+            <LiveIndicator label={liveConnected ? 'Live' : 'Auto-refresh'} />
           </div>
         </div>
         {/* Filter tabs */}
@@ -173,6 +189,14 @@ export function LiveIntelFeed({ events, signals, loading, onEventClick, lastUpda
 
       {/* Event list */}
       <div className="divide-y divide-border/50">
+        {filteredEvents.length === 0 && (
+          <div className="px-5 py-10 text-center">
+            <p className="text-sm font-medium text-heading">No live events yet</p>
+            <p className="mt-1 text-xs text-subtle">
+              New signals for this industry will appear here as they are ingested.
+            </p>
+          </div>
+        )}
         {filteredEvents.map((event, idx) => {
           const catConfig = CATEGORY_CONFIG[event.category]
           const isClickable = !!event.signalId
@@ -182,7 +206,7 @@ export function LiveIntelFeed({ events, signals, loading, onEventClick, lastUpda
               key={event.id}
               onClick={() => handleEventClick(event)}
               className={cn(
-                'px-5 py-4 transition-all',
+                'group px-5 py-4 transition-all',
                 isClickable && 'cursor-pointer hover:bg-muted/40',
                 // Animate in effect — stagger by index
                 'animate-in fade-in slide-in-from-bottom-1',
@@ -256,7 +280,12 @@ export function LiveIntelFeed({ events, signals, loading, onEventClick, lastUpda
         <p className="text-[11px] text-subtle">
           Showing {filteredEvents.length} of {events.length} events
         </p>
-        <button className="text-[11px] font-medium text-primary flex items-center gap-1 hover:underline">
+        <button
+          type="button"
+          onClick={onViewTimeline}
+          disabled={!onViewTimeline}
+          className="text-[11px] font-medium text-primary flex items-center gap-1 hover:underline"
+        >
           View full timeline
           <ArrowRight size={11} />
         </button>

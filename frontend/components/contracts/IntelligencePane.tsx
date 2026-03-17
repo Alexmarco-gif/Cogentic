@@ -355,7 +355,9 @@ function ContractList({
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
-                    onClick={() => void onTriggerContractFetch(contract.id)}
+                    onClick={() => {
+                      void onTriggerContractFetch(contract.id).catch(() => {})
+                    }}
                     disabled={!canManageContracts || !contract.is_active || isBusy}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-[11px] font-medium text-body transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -363,7 +365,9 @@ function ContractList({
                     Fetch now
                   </button>
                   <button
-                    onClick={() => void onToggleContractActive(contract.id, contract.is_active)}
+                    onClick={() => {
+                      void onToggleContractActive(contract.id, contract.is_active).catch(() => {})
+                    }}
                     disabled={!canManageContracts || isBusy}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-[11px] font-medium text-body transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -380,7 +384,9 @@ function ContractList({
                     )}
                   </button>
                   <button
-                    onClick={() => void onDeleteContract(contract.id)}
+                    onClick={() => {
+                      void onDeleteContract(contract.id).catch(() => {})
+                    }}
                     disabled={!canManageContracts || isBusy}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-medium text-rose-600 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
                   >
