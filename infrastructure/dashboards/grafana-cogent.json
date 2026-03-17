@@ -1,0 +1,157 @@
+{
+  "__comment": "Grafana Dashboard for Cogent — import via Dashboards → Import JSON",
+  "dashboard": {
+    "title": "Cogent — Production Overview",
+    "uid": "cogent-prod-overview",
+    "tags": ["cogent", "production"],
+    "timezone": "utc",
+    "refresh": "30s",
+    "time": { "from": "now-1h", "to": "now" },
+    "panels": [
+      {
+        "title": "HTTP Request Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(cogent_http_requests_total[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Latency (p50 / p95 / p99)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(cogent_http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cogent_http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(cogent_http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p99"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate (%)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(cogent_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(cogent_http_requests_total[5m])) * 100",
+            "legendFormat": "5xx %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Database Pool — Primary",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [
+          { "expr": "cogent_db_pool_checked_out{engine=\"primary\"}", "legendFormat": "checked out" },
+          { "expr": "cogent_db_pool_overflow{engine=\"primary\"}", "legendFormat": "overflow" },
+          { "expr": "cogent_db_pool_size{engine=\"primary\"}", "legendFormat": "pool size" }
+        ]
+      },
+      {
+        "title": "Database Query Performance",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          { "expr": "rate(cogent_db_query_total[5m])", "legendFormat": "queries/s" },
+          { "expr": "rate(cogent_db_slow_query_total[5m])", "legendFormat": "slow queries/s" },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cogent_db_query_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95 duration"
+          }
+        ]
+      },
+      {
+        "title": "Redis — Memory & Connections",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+        "targets": [
+          { "expr": "cogent_redis_used_memory_bytes / 1024 / 1024", "legendFormat": "Memory (MB)" },
+          { "expr": "cogent_redis_connected_clients", "legendFormat": "Connections" },
+          { "expr": "cogent_redis_total_keys", "legendFormat": "Total Keys" }
+        ]
+      },
+      {
+        "title": "Job Queue — Pending / Failed",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+        "targets": [
+          { "expr": "cogent_job_queue_pending", "legendFormat": "pending — {{queue}}" },
+          { "expr": "cogent_job_queue_failed", "legendFormat": "failed — {{queue}}" },
+          { "expr": "cogent_job_queue_scheduled", "legendFormat": "scheduled — {{queue}}" }
+        ]
+      },
+      {
+        "title": "AI Cost — Token Consumption",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+        "targets": [
+          { "expr": "rate(cogent_ai_tokens_total[1h])", "legendFormat": "{{model}} — {{type}}" },
+          { "expr": "rate(cogent_ai_cost_usd_total[1h])", "legendFormat": "cost/hr — {{model}}" }
+        ]
+      },
+      {
+        "title": "AI Budget Usage Ratio",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 28 },
+        "targets": [
+          { "expr": "cogent_ai_budget_usage_ratio", "legendFormat": "{{scope}}" }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1.5,
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 0.8, "color": "yellow" },
+                { "value": 1.0, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "WebSocket Connections",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 28 },
+        "targets": [
+          { "expr": "cogent_ws_connections_active", "legendFormat": "active" },
+          { "expr": "cogent_ws_rooms_active", "legendFormat": "rooms" },
+          { "expr": "rate(cogent_ws_messages_sent_total[5m])", "legendFormat": "msg/s" }
+        ]
+      },
+      {
+        "title": "Build Info",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+        "targets": [
+          { "expr": "cogent_app_info", "legendFormat": "{{version}} / {{environment}}" }
+        ]
+      }
+    ]
+  }
+}

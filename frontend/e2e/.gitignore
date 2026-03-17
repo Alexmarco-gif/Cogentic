@@ -1,0 +1,7 @@
+# Playwright auth state (contains session cookies)
+e2e/.auth/
+
+# Playwright reports & results
+playwright-report/
+test-results/
+blob-report/

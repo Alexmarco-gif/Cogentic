@@ -1,0 +1,146 @@
+# Prometheus Alerting Rules for Cogent
+# Deploy to Alertmanager or import into Grafana Cloud Alerts.
+#
+# Usage with Alertmanager:
+#   Add to prometheus.yml:  rule_files: ["alerting/prometheus-alerts.yml"]
+#
+# Usage with Grafana Cloud:
+#   Import via Alerting → Alert Rules → Import.
+
+groups:
+  - name: cogent.availability
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(cogent_http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(cogent_http_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate (>5%)"
+          description: "{{ $value | humanizePercentage }} of requests are returning 5xx errors."
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(cogent_http_request_duration_seconds_bucket[5m])) by (le))
+          > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP p95 latency exceeds 5 seconds"
+          description: "p95 latency is {{ $value | humanizeDuration }}."
+
+      - alert: HealthEndpointDown
+        expr: up{job="cogent-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Cogent backend is down"
+          description: "Prometheus cannot scrape the /metrics endpoint."
+
+  - name: cogent.database
+    interval: 30s
+    rules:
+      - alert: DatabasePoolExhausted
+        expr: |
+          cogent_db_pool_checked_out{engine="primary"}
+          >=
+          cogent_db_pool_size{engine="primary"} * 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool >90% utilised"
+          description: "{{ $value }} connections checked out of pool."
+
+      - alert: HighSlowQueryRate
+        expr: |
+          rate(cogent_db_slow_query_total[5m])
+          > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sustained slow query rate (>1/s for 10m)"
+          description: "{{ $value }} slow queries per second."
+
+  - name: cogent.redis
+    interval: 30s
+    rules:
+      - alert: RedisMemoryHigh
+        expr: cogent_redis_used_memory_bytes > 500 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage exceeds 500MB"
+          description: "Redis is using {{ $value | humanize1024 }}B."
+
+      - alert: RedisConnectionsHigh
+        expr: cogent_redis_connected_clients > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of Redis connections (>50)"
+          description: "{{ $value }} Redis connections."
+
+  - name: cogent.workers
+    interval: 60s
+    rules:
+      - alert: FailedJobsAccumulating
+        expr: cogent_job_queue_failed > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 10 failed jobs in queue {{ $labels.queue }}"
+          description: "{{ $value }} failed jobs. Check dead letter queue."
+
+      - alert: JobQueueBacklog
+        expr: cogent_job_queue_pending > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Job queue backlog exceeds 100 pending jobs"
+          description: "{{ $value }} pending jobs in {{ $labels.queue }} queue."
+
+  - name: cogent.ai_cost
+    interval: 60s
+    rules:
+      - alert: AIBudgetWarning
+        expr: cogent_ai_budget_usage_ratio{scope="org"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI budget usage exceeds 80%"
+          description: "Org budget usage ratio is {{ $value }}."
+
+      - alert: AIBudgetExceeded
+        expr: cogent_ai_budget_usage_ratio{scope="org"} > 1.0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AI budget exceeded — org is over daily limit"
+          description: "Org budget usage ratio is {{ $value }}. Throttle or block AI calls."
+
+  - name: cogent.websocket
+    interval: 30s
+    rules:
+      - alert: HighWebSocketConnections
+        expr: cogent_ws_connections_active > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 500 active WebSocket connections"
+          description: "{{ $value }} active WS connections. Monitor memory."

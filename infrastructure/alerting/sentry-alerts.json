@@ -1,0 +1,109 @@
+{
+  "_comment": "Sentry Alert Rules — apply via Sentry API or UI. See https://docs.sentry.io/api/alerts/",
+  "alerts": [
+    {
+      "name": "P0 — Error Spike",
+      "description": "Fires when error rate exceeds 10 events/minute for 5 minutes",
+      "actionMatch": "any",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+          "value": 10,
+          "interval": "5m"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.integrations.slack.notify_action.SlackNotifyServiceAction",
+          "channel": "#cogent-alerts",
+          "workspace_id": "<SLACK_WORKSPACE_ID>"
+        },
+        {
+          "id": "sentry.integrations.pagerduty.notify_action.PagerDutyNotifyServiceAction",
+          "service": "<PAGERDUTY_SERVICE_ID>"
+        }
+      ],
+      "frequency": 300,
+      "environment": "production"
+    },
+    {
+      "name": "P0 — New Unhandled Exception",
+      "description": "Fires on first occurrence of a new unhandled exception",
+      "actionMatch": "all",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.first_seen_event.FirstSeenEventCondition"
+        }
+      ],
+      "filters": [
+        {
+          "id": "sentry.rules.filters.level.LevelFilter",
+          "match": "gte",
+          "level": "error"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.integrations.slack.notify_action.SlackNotifyServiceAction",
+          "channel": "#cogent-alerts",
+          "workspace_id": "<SLACK_WORKSPACE_ID>"
+        }
+      ],
+      "frequency": 0,
+      "environment": "production"
+    },
+    {
+      "name": "P1 — Performance Regression",
+      "description": "Transaction duration p95 > 5s for any endpoint",
+      "actionMatch": "any",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.event_frequency.EventFrequencyPercentCondition",
+          "value": 95,
+          "interval": "1h"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.integrations.slack.notify_action.SlackNotifyServiceAction",
+          "channel": "#cogent-eng",
+          "workspace_id": "<SLACK_WORKSPACE_ID>"
+        }
+      ],
+      "frequency": 3600,
+      "environment": "production"
+    },
+    {
+      "name": "P1 — AI Budget Warning",
+      "description": "Fires when AI budget usage log message appears (80%+ threshold)",
+      "actionMatch": "all",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.every_event.EveryEventCondition"
+        }
+      ],
+      "filters": [
+        {
+          "id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+          "key": "logger",
+          "match": "eq",
+          "value": "backend.services.cost_tracker"
+        },
+        {
+          "id": "sentry.rules.filters.level.LevelFilter",
+          "match": "gte",
+          "level": "warning"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.integrations.slack.notify_action.SlackNotifyServiceAction",
+          "channel": "#cogent-alerts",
+          "workspace_id": "<SLACK_WORKSPACE_ID>"
+        }
+      ],
+      "frequency": 1800,
+      "environment": "production"
+    }
+  ]
+}

@@ -1,0 +1,298 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- Google Fonts ------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&family=Merriweather:wght@300;400&display=swap');
+
+/* --- CSS Design Tokens -------------------------------------- */
+:root {
+  /* Backgrounds */
+  --color-canvas:     #F8FAFC;
+  --color-surface:    #FFFFFF;
+  --color-surface-2:  #F8FAFC;
+  --color-surface-3:  #F1F5F9;
+  --color-hover:      #F1F5F9;
+  --color-muted:      #F1F5F9;
+  --color-border:     #E2E8F0;
+  --color-border-hover: #CBD5E1;
+  --color-accent:     #4F46E5;
+
+  /* Brand */
+  --color-primary:       #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-primary-light: #EEF2FF;
+
+  /* Semantic */
+  --color-success:    #059669;
+  --color-success-bg: #ECFDF5;
+  --color-warning:    #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-critical:   #E11D48;
+  --color-critical-bg:#FFF1F2;
+  --color-neutral:    #64748B;
+
+  /* Text */
+  --color-heading: #0F172A;
+  --color-body:    #334155;
+  --color-data:    #475569;
+  --color-subtle:  #94A3B8;
+
+  /* Typography */
+  --font-sans:  'Inter', 'Geist', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', 'Geist Mono', monospace;
+  --font-serif: 'Merriweather', Georgia, serif;
+
+  /* Spacing */
+  --nav-rail-collapsed: 64px;
+  --nav-rail-expanded:  240px;
+  --omnibar-height:     64px;
+}
+
+/* --- Dark Mode Token Overrides ------------------------------ */
+.dark {
+  /* Backgrounds */
+  --color-canvas:     #0F1117;
+  --color-surface:    #1A1D27;
+  --color-surface-2:  #16192A;
+  --color-surface-3:  #252836;
+  --color-hover:      #252836;
+  --color-muted:      #252836;
+  --color-border:     #2E3347;
+  --color-border-hover: #475569;
+  --color-accent:     #6366F1;
+
+  /* Brand (unchanged — Indigo stays Indigo) */
+  --color-primary:       #6366F1;
+  --color-primary-hover: #818CF8;
+  --color-primary-light: #1E1B4B;
+
+  /* Semantic (slightly brightened for dark bg) */
+  --color-success:    #34D399;
+  --color-success-bg: #022C22;
+  --color-warning:    #FBBF24;
+  --color-warning-bg: #1C1408;
+  --color-critical:   #FB7185;
+  --color-critical-bg:#1F0A10;
+  --color-neutral:    #94A3B8;
+
+  /* Text */
+  --color-heading: #F1F5F9;
+  --color-body:    #CBD5E1;
+  --color-data:    #94A3B8;
+  --color-subtle:  #475569;
+}
+
+/* --- Base Resets -------------------------------------------- */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply min-h-screen bg-canvas text-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-heading font-light;
+  }
+
+  /* Scrollbar -- thin and subtle */
+  ::-webkit-scrollbar        { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: #CBD5E1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- Component Utilities ------------------------------------ */
+@layer components {
+  /* Skeleton shimmer loader */
+  .skeleton {
+    @apply rounded bg-slate-100;
+    background: linear-gradient(
+      90deg,
+      #F1F5F9 25%,
+      #E2E8F0 50%,
+      #F1F5F9 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite linear;
+  }
+
+  /* Indigo = AI indicator (reserved) */
+  .ai-generated { @apply text-primary; }
+
+  /* Confidence pills */
+  .confidence-high   { @apply bg-[#ECFDF5] text-[#059669]; }
+  .confidence-medium { @apply bg-[#FFFBEB] text-[#D97706]; }
+  .confidence-low    { @apply bg-[#FFF1F2] text-[#E11D48]; }
+
+  /* Live pulse indicator */
+  .live-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-[#059669];
+    animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Glass surface */
+  .glass {
+    @apply bg-white/80 backdrop-blur-sm border border-border;
+  }
+}
+
+/* --- Keyframe Animations ------------------------------------ */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes fade-up {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+
+/* --- Utility Classes ---------------------------------------- */
+@layer utilities {
+  .animate-fade-up {
+    animation: fade-up 0.2s ease-out both;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Safe area helpers for notched/home-bar devices */
+  .pt-safe  { padding-top:    env(safe-area-inset-top);    }
+  .pb-safe  { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe  { padding-left:   env(safe-area-inset-left);   }
+  .pr-safe  { padding-right:  env(safe-area-inset-right);  }
+
+  /* Consistent focus ring — replaces per-component focus-visible classes */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1;
+  }
+}
+
+/* --- Dark Mode Skeleton ---------------------------------------- */
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 25%,
+    var(--color-border) 50%,
+    var(--color-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* --- Dark Mode Scrollbars ------------------------------------- */
+.dark ::-webkit-scrollbar-thumb       { background: #334155; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* --- Dark Mode Glass ------------------------------------------ */
+.dark .glass {
+  @apply bg-surface bg-opacity-70 backdrop-blur-sm border border-border;
+}
+
+/* --- Reduced Motion ------------------------------------------- */
+/*  Disable all animations & transitions for users who requested it.
+    Framer Motion checks this internally via `useReducedMotion`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration:        0.01ms !important;
+    animation-iteration-count: 1      !important;
+    transition-duration:       0.01ms !important;
+    scroll-behavior:           auto   !important;
+  }
+
+  .skeleton {
+    animation: none;
+    background: var(--color-muted);
+  }
+}
+
+/* --- Print styles --------------------------------------------- */
+@media print {
+  /* Hide navigation chrome */
+  nav,
+  header,
+  [aria-label="Mobile navigation"],
+  [aria-label="Main navigation"],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset shell offsets */
+  main {
+    padding-left:   0 !important;
+    padding-top:    0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+    font-size: 10pt;
+  }
+
+  a::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75em;
+    color: #666;
+  }
+
+  /* Prevent cards from splitting across pages */
+  .rounded-2xl,
+  .rounded-lg {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* ── Auth slideshow & typewriter keyframes ── */
+@keyframes auth-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+@keyframes auth-progress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+.auth-cursor-blink {
+  animation: auth-cursor-blink 1s step-end infinite;
+}
+.auth-progress-bar {
+  animation: auth-progress 5s linear forwards;
+}

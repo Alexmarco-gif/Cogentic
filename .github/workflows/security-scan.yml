@@ -1,0 +1,137 @@
+# =============================================================================
+# Security Scan — OWASP ZAP + Trivy
+# =============================================================================
+# Runs on staging deployments and weekly schedule.
+# - OWASP ZAP API scan against the OpenAPI spec
+# - Trivy container image vulnerability scan
+# - Results uploaded as artifacts and to GitHub Security tab
+
+name: Security Scan
+
+on:
+  # Run after successful staging deploy
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+    branches: [main]
+  # Weekly scheduled scan
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ── OWASP ZAP API Scan ──────────────────────────────────────────────
+  zap-scan:
+    name: OWASP ZAP API Scan
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          target: ${{ vars.STAGING_API_URL || 'https://api-staging.cogent.ai' }}/openapi.json
+          rules_file_name: 'scripts/zap-config.conf'
+          cmd_options: '-f openapi -I'
+          allow_issue_writing: false
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-scan-report
+          path: report_html.html
+          retention-days: 30
+
+  # ── Trivy Container Scan ──────────────────────────────────────────────
+  trivy-scan:
+    name: Trivy Container Scan
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    strategy:
+      matrix:
+        image:
+          - name: backend
+            dockerfile: Dockerfile
+            context: "."
+          - name: worker
+            dockerfile: Dockerfile.worker
+            context: "."
+          - name: frontend
+            dockerfile: frontend/Dockerfile
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build -t cogent-${{ matrix.image.name }}:scan \
+            -f ${{ matrix.image.dockerfile }} \
+            ${{ matrix.image.context }}
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cogent-${{ matrix.image.name }}:scan
+          format: 'sarif'
+          output: 'trivy-${{ matrix.image.name }}.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image.name }}.sarif
+          category: trivy-${{ matrix.image.name }}
+
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-${{ matrix.image.name }}-report
+          path: trivy-${{ matrix.image.name }}.sarif
+          retention-days: 30
+
+  # ── Dependency Audit ──────────────────────────────────────────────────
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Python dependency audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --desc --output pip-audit-report.json --format json || true
+
+      - name: Node dependency audit
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --json > ../npm-audit-report.json || true
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit-reports
+          path: |
+            pip-audit-report.json
+            npm-audit-report.json
+          retention-days: 30

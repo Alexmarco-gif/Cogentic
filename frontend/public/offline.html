@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cogent — You're offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --primary:  #4F46E5;
+      --canvas:   #F8FAFC;
+      --surface:  #FFFFFF;
+      --border:   #E2E8F0;
+      --heading:  #0F172A;
+      --body:     #334155;
+      --subtle:   #94A3B8;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary:  #6366F1;
+        --canvas:   #0F1117;
+        --surface:  #1A1D27;
+        --border:   #2E3347;
+        --heading:  #F1F5F9;
+        --body:     #CBD5E1;
+        --subtle:   #475569;
+      }
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+      background: var(--canvas);
+      color: var(--body);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100svh;
+      padding: 2rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: var(--primary);
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--heading);
+    }
+
+    p {
+      margin: 0 0 2rem;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--subtle);
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.625rem 1.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    button:hover { opacity: 0.88; }
+
+    .status {
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      color: var(--subtle);
+    }
+
+    #status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #E11D48;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- Stem logo mark -->
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 512 512" aria-hidden="true">
+        <rect x="144" y="108" width="112" height="112" rx="22" fill="white" />
+        <rect x="280" y="108" width="136" height="136" rx="24" fill="white" />
+        <rect x="96" y="244" width="160" height="160" rx="26" fill="white" />
+        <rect x="292" y="256" width="124" height="124" rx="23" fill="white" />
+      </svg>
+    </div>
+
+    <h1>You're offline</h1>
+    <p>
+      Cogent needs an internet connection to deliver live signals and intelligence.<br/>
+      Please check your connection and try again.
+    </p>
+
+    <button onclick="tryReconnect()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+        <path d="M8 16H3v5"/>
+      </svg>
+      Try to reconnect
+    </button>
+
+    <p class="status">
+      <span id="status-dot"></span>
+      <span id="status-text">No connection</span>
+    </p>
+  </div>
+
+  <script>
+    function tryReconnect() {
+      window.location.reload()
+    }
+
+    // Update dot when connection returns
+    window.addEventListener('online', () => {
+      document.getElementById('status-dot').style.background = '#059669'
+      document.getElementById('status-text').textContent = 'Back online — reloading…'
+      setTimeout(() => window.location.reload(), 800)
+    })
+  </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+
+# Environment files (use secrets management instead)
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Frontend (not needed in backend container)
+frontend/
+node_modules/
+
+# Infrastructure
+infrastructure/
+*.terraform/
+terraform.tfstate*
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic (optional - keep migrations)
+# alembic/versions/*.pyc
+
+# Test files
+test_*.py
+test_*.txt
+*_test.py
+tests/

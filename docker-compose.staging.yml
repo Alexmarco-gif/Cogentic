@@ -1,0 +1,119 @@
+# =============================================================================
+# Cogent — Docker Compose for Local Staging Simulation
+# =============================================================================
+# Mimics the production topology locally: backend + worker + frontend + Redis.
+# Database is NOT included — staging uses Azure PostgreSQL Flexible Server.
+#
+# Usage:
+#   cp .env.example .env            # fill in staging values
+#   docker compose -f docker-compose.staging.yml up --build
+# =============================================================================
+
+services:
+  # ── Backend API ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      APP_ENV: staging
+      ENVIRONMENT: staging
+      REQUIRE_HEALTHY_DB_ON_STARTUP: "true"
+      REQUIRE_HEALTHY_REDIS_ON_STARTUP: "true"
+      REDIS_URL: redis://redis:6379/0
+      # Web Search (SerpApi)
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      WEB_SEARCH_PROVIDER: ${WEB_SEARCH_PROVIDER:-serpapi}
+      WEB_SEARCH_CACHE_TTL: ${WEB_SEARCH_CACHE_TTL:-900}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # ── Background Worker ───────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    environment:
+      APP_ENV: staging
+      ENVIRONMENT: staging
+      REDIS_URL: redis://redis:6379/0
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      WEB_SEARCH_PROVIDER: ${WEB_SEARCH_PROVIDER:-serpapi}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── Frontend ─────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    env_file: ./frontend/.env.local
+    environment:
+      NODE_ENV: production
+      AUTH0_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis_data:

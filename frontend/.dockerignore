@@ -1,0 +1,19 @@
+# =============================================================================
+# Docker ignore — Cogent frontend
+# =============================================================================
+
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+__tests__/
+e2e/
+coverage/
+*.md
+.git
+.gitignore
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

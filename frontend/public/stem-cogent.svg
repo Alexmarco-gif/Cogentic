@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Stem icon</title>
+  <desc id="desc">Refined icon-only logo for Stem in electric blue.</desc>
+  <rect x="144" y="108" width="112" height="112" rx="22" fill="#4F46E5"/>
+  <rect x="280" y="108" width="136" height="136" rx="24" fill="#4F46E5"/>
+  <rect x="96" y="244" width="160" height="160" rx="26" fill="#4F46E5"/>
+  <rect x="292" y="256" width="124" height="124" rx="23" fill="#4F46E5"/>
+</svg>

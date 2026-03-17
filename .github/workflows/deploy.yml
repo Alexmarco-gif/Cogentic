@@ -1,0 +1,237 @@
+# =============================================================================
+# Deploy Pipeline — Cogent
+# =============================================================================
+# Builds Docker images, pushes to Azure Container Registry, and deploys to
+# the target environment (staging on push to main, production on release tag).
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false          # Never cancel a running deployment
+
+env:
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}         # e.g. cogentacr.azurecr.io
+  BACKEND_IMAGE: cogent-backend
+  WORKER_IMAGE: cogent-worker
+  FRONTEND_IMAGE: cogent-frontend
+
+permissions:
+  id-token: write     # Required for Azure OIDC login
+  contents: read
+
+jobs:
+  # ── Determine environment ──────────────────────────────────────────────────
+  resolve-env:
+    name: "Resolve environment"
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      image_tag: ${{ steps.env.outputs.image_tag }}
+    steps:
+      - id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "image_tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=staging" >> "$GITHUB_OUTPUT"
+            echo "image_tag=sha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Run CI first ───────────────────────────────────────────────────────────
+  ci:
+    name: "CI gate"
+    uses: ./.github/workflows/ci.yml
+
+  # ── Build images ───────────────────────────────────────────────────────────
+  build:
+    name: "Build & Push"
+    runs-on: ubuntu-latest
+    needs: [ci, resolve-env]
+    environment: ${{ needs.resolve-env.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.worker
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.WORKER_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.WORKER_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  deploy:
+    name: "Deploy → ${{ needs.resolve-env.outputs.environment }}"
+    runs-on: ubuntu-latest
+    needs: [build, resolve-env]
+    environment: ${{ needs.resolve-env.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run database migrations
+        run: |
+          # Migrations run via a temporary Container Apps Job
+          # pointing at the target database with the new image.
+          az containerapp job start \
+            --name cogent-migrate \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --image "${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}" \
+            --command "alembic" "upgrade" "head" \
+            --env-vars "DATABASE_URL=secretref:database-url"
+
+      - name: Deploy backend
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+          containerAppName: cogent-backend
+          imageToDeploy: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+
+      - name: Deploy worker
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+          containerAppName: cogent-worker
+          imageToDeploy: ${{ env.REGISTRY }}/${{ env.WORKER_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+
+      - name: Deploy frontend
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+          containerAppName: cogent-frontend
+          imageToDeploy: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+
+      - name: Verify deployment health
+        run: |
+          echo "Waiting for backend to become healthy…"
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://${{ vars.BACKEND_FQDN }}/health" || true)
+            if [[ "$STATUS" == "200" ]]; then
+              echo "✅ Backend is healthy"
+              break
+            fi
+            echo "  Attempt $i — HTTP $STATUS, retrying in 10s…"
+            sleep 10
+            if [[ $i -eq 30 ]]; then
+              echo "❌ Backend did not become healthy within 5 minutes"
+              exit 1
+            fi
+          done
+
+      - name: Run smoke tests
+        env:
+          SMOKE_TOKEN: "Bearer ${{ secrets.SMOKE_TEST_TOKEN }}"
+          SMOKE_FRONTEND_URL: "https://${{ vars.FRONTEND_FQDN }}"
+        run: |
+          chmod +x scripts/smoke-test.sh
+          bash scripts/smoke-test.sh "https://${{ vars.BACKEND_FQDN }}"
+
+  # ── Canary Verification (production only) ──────────────────────────────────
+  canary:
+    name: "Canary verification"
+    runs-on: ubuntu-latest
+    needs: [deploy, resolve-env]
+    if: needs.resolve-env.outputs.environment == 'production'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Monitor error rate (5 min canary window)
+        env:
+          BACKEND_URL: "https://${{ vars.BACKEND_FQDN }}"
+        run: |
+          echo "🐦 Canary window — monitoring for 5 minutes…"
+          ERRORS=0
+          CHECKS=0
+
+          for i in $(seq 1 30); do
+            CHECKS=$((CHECKS + 1))
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "${BACKEND_URL}/health" --max-time 10 || echo "000")
+
+            if [[ "$STATUS" != "200" ]]; then
+              ERRORS=$((ERRORS + 1))
+              echo "  ⚠ Check $i: HTTP $STATUS"
+            else
+              echo "  ✓ Check $i: healthy"
+            fi
+            sleep 10
+          done
+
+          ERROR_RATE=$(python3 -c "print(f'{$ERRORS/$CHECKS*100:.1f}')")
+          echo ""
+          echo "Canary results: $ERRORS errors out of $CHECKS checks (${ERROR_RATE}%)"
+
+          if [[ $ERRORS -gt 3 ]]; then
+            echo "❌ Error rate too high — canary FAILED"
+            echo "   Consider rolling back to previous revision."
+            exit 1
+          fi
+
+          echo "✅ Canary passed — deployment is stable"
+
+      - name: Run production smoke tests
+        env:
+          SMOKE_TOKEN: "Bearer ${{ secrets.SMOKE_TEST_TOKEN }}"
+          SMOKE_FRONTEND_URL: "https://${{ vars.FRONTEND_FQDN }}"
+        run: |
+          chmod +x scripts/smoke-test.sh
+          bash scripts/smoke-test.sh "https://${{ vars.BACKEND_FQDN }}"
