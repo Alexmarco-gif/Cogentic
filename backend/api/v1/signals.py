@@ -30,7 +30,9 @@ _SIGNAL_TYPE_PATTERN = r"^(news|social|regulatory|financial|market|technology)$"
 
 @router.get("", response_model=SignalListResponse)
 async def list_signals(
-    signal_type: str | None = Query(None, description="Filter by type", pattern=_SIGNAL_TYPE_PATTERN),
+    signal_type: str | None = Query(
+        None, description="Filter by type", pattern=_SIGNAL_TYPE_PATTERN
+    ),
     min_confidence: float = Query(0.6, ge=0.0, le=1.0),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -128,7 +130,6 @@ async def get_intelligence_feed(
 
     from backend.models.causal_event import CausalEvent
     from backend.models.signal import Signal
-    from backend.models.signal_score import SignalScore
 
     # Build base query
     stmt = (
@@ -142,9 +143,7 @@ async def get_intelligence_feed(
     # Org scoping: global signals (org_id=NULL) + org's own signals
     from sqlalchemy import or_
 
-    stmt = stmt.where(
-        or_(Signal.org_id.is_(None), Signal.org_id == auth.org_id)
-    )
+    stmt = stmt.where(or_(Signal.org_id.is_(None), Signal.org_id == auth.org_id))
 
     if latest_only:
         # Only return signals not yet superseded
@@ -155,8 +154,6 @@ async def get_intelligence_feed(
 
     if country:
         # Match on extracted_data->>'country_code' or provenance country_context
-        from sqlalchemy import cast, func
-        from sqlalchemy.dialects.postgresql import JSONB
 
         stmt = stmt.where(
             or_(
@@ -214,7 +211,9 @@ async def get_intelligence_feed(
         reg_flags = ed.get("regulatory_flags", [])
         if isinstance(reg_flags, list) and reg_flags:
             flag = reg_flags[0]
-            base.regulatory_flag = flag.get("flag_type") if isinstance(flag, dict) else str(flag)
+            base.regulatory_flag = (
+                flag.get("flag_type") if isinstance(flag, dict) else str(flag)
+            )
             base.regulatory_body = flag.get("body") if isinstance(flag, dict) else None
 
         enriched.append(base)
@@ -260,6 +259,7 @@ async def get_signal_regions(
                 "severity": "low",
                 "domains": set(),
                 "topSignal": "",
+                "topSignalId": None,
                 "riskLevel": "stable",
                 "opportunityScore": 50,
                 "summary": "",
@@ -273,6 +273,7 @@ async def get_signal_regions(
         if s.confidence and s.confidence > rm["_max_confidence"]:
             rm["_max_confidence"] = s.confidence
             rm["topSignal"] = s.title or ""
+            rm["topSignalId"] = str(s.id)
 
     # Compute severity/risk based on signal count
     for rm in region_map.values():

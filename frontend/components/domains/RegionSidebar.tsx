@@ -169,6 +169,9 @@ interface RegionSidebarProps {
   totalSignals: number
   criticalCount: number
   availableDomains?: string[]
+  loading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -184,10 +187,13 @@ export const RegionSidebar = memo(function RegionSidebar({
   totalSignals,
   criticalCount,
   availableDomains = [],
+  loading = false,
+  error = null,
+  onRetry,
 }: RegionSidebarProps) {
   const domainTabs = buildDomainTabs(availableDomains)
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-border bg-surface overflow-hidden">
+    <aside className="flex h-full w-full shrink-0 flex-col overflow-hidden border-b border-border bg-surface lg:w-80 lg:border-b-0 lg:border-r">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="shrink-0 px-4 py-4 border-b border-border">
@@ -281,16 +287,42 @@ export const RegionSidebar = memo(function RegionSidebar({
           )}
         </div>
 
-        {regions.map((region) => (
-          <RegionCard
-            key={region.id}
-            region={region}
-            isActive={activeRegion?.id === region.id}
-            onSelect={() =>
-              onRegionSelect(activeRegion?.id === region.id ? null : region)
-            }
-          />
-        ))}
+        {loading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-20 animate-pulse rounded-lg border border-border bg-muted/40" />
+          ))
+        ) : error ? (
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-4 text-center">
+            <p className="text-xs font-medium text-rose-100">Unable to load region intelligence.</p>
+            <p className="mt-1 text-[11px] text-rose-200/80">{error}</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="mt-3 rounded-md border border-rose-300/30 px-3 py-1 text-[11px] font-medium text-rose-100 hover:bg-rose-500/10"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        ) : regions.length === 0 ? (
+          <div className="rounded-lg border border-border bg-muted/20 px-3 py-6 text-center">
+            <p className="text-xs font-medium text-heading">No regions mapped yet</p>
+            <p className="mt-1 text-[11px] text-subtle">
+              Regional intelligence will appear once visible signals include geographic metadata.
+            </p>
+          </div>
+        ) : (
+          regions.map((region) => (
+            <RegionCard
+              key={region.id}
+              region={region}
+              isActive={activeRegion?.id === region.id}
+              onSelect={() =>
+                onRegionSelect(activeRegion?.id === region.id ? null : region)
+              }
+            />
+          ))
+        )}
       </div>
 
       {/* ── Risk legend footer ──────────────────────────────────────────────── */}

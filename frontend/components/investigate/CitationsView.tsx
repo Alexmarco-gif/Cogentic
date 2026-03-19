@@ -28,7 +28,8 @@ function CitationCard({ citation }: { citation: Citation }) {
   const rel = RELEVANCE_CONFIG[citation.relevance]
 
   // Split excerpt around highlight to render the highlight portion styled
-  const parts = citation.excerpt.split(citation.highlight)
+  const hasHighlight = Boolean(citation.highlight)
+  const parts = hasHighlight ? citation.excerpt.split(citation.highlight) : [citation.excerpt]
 
   return (
     <div className="border border-border rounded-xl bg-surface hover:border-primary/30 transition-colors group">
@@ -70,9 +71,11 @@ function CitationCard({ citation }: { citation: Citation }) {
       <div className="px-4 py-3">
         <p className="text-[12px] text-body leading-relaxed">
           {parts[0]}
-          <mark className="bg-primary/10 text-primary rounded px-0.5 not-italic font-medium">
-            {citation.highlight}
-          </mark>
+          {hasHighlight && (
+            <mark className="bg-primary/10 text-primary rounded px-0.5 not-italic font-medium">
+              {citation.highlight}
+            </mark>
+          )}
           {parts[1]}
         </p>
       </div>

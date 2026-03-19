@@ -1,7 +1,6 @@
 'use client'
 
-import { CheckCircle2, XCircle, Bot, User, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { CheckCircle2, XCircle, Bot, User, Loader2, AlertTriangle, Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -31,11 +30,13 @@ function sourceLabel(source: string) {
 
 interface EntityRowProps {
   entity: EntityDiscoveryItem
-  onApprove: (id: string) => void
-  onReject: (id: string) => void
+  onApprove: (id: string) => void | Promise<void>
+  onReject: (id: string) => void | Promise<void>
+  actioning?: boolean
+  actionsEnabled?: boolean
 }
 
-function EntityRow({ entity, onApprove, onReject }: EntityRowProps) {
+function EntityRow({ entity, onApprove, onReject, actioning, actionsEnabled = true }: EntityRowProps) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-hover/30 transition-colors">
       {/* Name + type */}
@@ -61,6 +62,8 @@ function EntityRow({ entity, onApprove, onReject }: EntityRowProps) {
           size="sm"
           variant="primary"
           className="h-7 px-2.5 text-xs"
+          loading={actioning}
+          disabled={!actionsEnabled || actioning}
           onClick={() => onApprove(entity.id)}
         >
           <CheckCircle2 size={12} /> Approve
@@ -69,6 +72,7 @@ function EntityRow({ entity, onApprove, onReject }: EntityRowProps) {
           size="sm"
           variant="ghost"
           className="h-7 px-2.5 text-xs text-red-500 hover:text-red-600"
+          disabled={!actionsEnabled || actioning}
           onClick={() => onReject(entity.id)}
         >
           <XCircle size={12} /> Reject
@@ -83,13 +87,27 @@ function EntityRow({ entity, onApprove, onReject }: EntityRowProps) {
 interface EntityReviewPanelProps {
   entities: EntityDiscoveryItem[]
   loading?: boolean
-  onApprove: (id: string) => void
-  onReject: (id: string) => void
+  loadingMore?: boolean
+  hasMore?: boolean
+  error?: string | null
+  actionsEnabled?: boolean
+  actioningId?: string | null
+  onRetry?: () => void | Promise<void>
+  onLoadMore?: () => void | Promise<void>
+  onApprove: (id: string) => void | Promise<void>
+  onReject: (id: string) => void | Promise<void>
 }
 
 export function EntityReviewPanel({
   entities,
   loading,
+  loadingMore,
+  hasMore,
+  error,
+  actionsEnabled = true,
+  actioningId,
+  onRetry,
+  onLoadMore,
   onApprove,
   onReject,
 }: EntityReviewPanelProps) {
@@ -98,6 +116,37 @@ export function EntityReviewPanel({
       <Card>
         <div className="flex items-center justify-center py-10">
           <Loader2 size={20} className="animate-spin text-subtle" />
+        </div>
+      </Card>
+    )
+  }
+
+  if (!actionsEnabled) {
+    return (
+      <Card>
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <Lock size={28} className="mb-2 text-amber-500" />
+          <p className="text-sm font-medium text-heading">Admin review required</p>
+          <p className="mt-1 text-sm text-subtle">
+            Pending entity review is only available to admin or owner accounts.
+          </p>
+        </div>
+      </Card>
+    )
+  }
+
+  if (error && entities.length === 0) {
+    return (
+      <Card>
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <AlertTriangle size={28} className="mb-2 text-rose-400" />
+          <p className="text-sm font-medium text-heading">Pending review could not load.</p>
+          <p className="mt-1 text-sm text-subtle">{error}</p>
+          {onRetry && (
+            <Button size="sm" variant="outline" className="mt-4" onClick={onRetry}>
+              Retry
+            </Button>
+          )}
         </div>
       </Card>
     )
@@ -127,8 +176,17 @@ export function EntityReviewPanel({
             entity={e}
             onApprove={onApprove}
             onReject={onReject}
+            actioning={actioningId === e.id}
+            actionsEnabled={actionsEnabled}
           />
         ))}
+        {hasMore && onLoadMore && (
+          <div className="border-t border-border px-4 py-3">
+            <Button size="sm" variant="outline" onClick={onLoadMore} loading={loadingMore}>
+              Load more entities
+            </Button>
+          </div>
+        )}
       </CardBody>
     </Card>
   )

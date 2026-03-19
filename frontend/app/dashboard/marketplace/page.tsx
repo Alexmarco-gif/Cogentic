@@ -1,16 +1,20 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { ShoppingBag, Search, Star, Globe, RefreshCw, CheckCircle2, Plus, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Globe, Lock, Plus, RefreshCw, Search, ShoppingBag, Star, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
+  friendlyErrorMessage,
+  getIndustries,
   listTemplates,
   listSubscriptions,
   subscribeToTemplate,
   unsubscribeFromTemplate,
+  type IndustryItem,
   type SignalTemplateResponse,
 } from '@/lib/api'
 import { useEffect } from 'react'
+import { useFeatureGate } from '@/lib/hooks/useFeatureGate'
 
 
 const TIER_LABELS: Record<string, { label: string; color: string }> = {
@@ -28,6 +32,22 @@ const TYPE_COLORS: Record<string, string> = {
   technology:  'bg-violet-500/15 text-violet-300 border-violet-500/30',
 }
 
+const COUNTRY_FLAGS: Record<string, string> = {
+  NGA: '🇳🇬',
+  KEN: '🇰🇪',
+  ZAF: '🇿🇦',
+  GHA: '🇬🇭',
+  EGY: '🇪🇬',
+}
+
+const COUNTRY_NAMES: Record<string, string> = {
+  NGA: 'Nigeria',
+  KEN: 'Kenya',
+  ZAF: 'South Africa',
+  GHA: 'Ghana',
+  EGY: 'Egypt',
+}
+
 // ── Template Card ─────────────────────────────────────────────────────────────
 
 function TemplateCard({
@@ -35,11 +55,13 @@ function TemplateCard({
   onSubscribe,
   onUnsubscribe,
   loading,
+  canSubscribe,
 }: {
   template: SignalTemplateResponse
-  onSubscribe: (id: string) => void
-  onUnsubscribe: (id: string) => void
+  onSubscribe: (id: string) => void | Promise<void>
+  onUnsubscribe: (id: string) => void | Promise<void>
   loading: boolean
+  canSubscribe: boolean
 }) {
   const flag    = template.primary_country ? (COUNTRY_FLAGS[template.primary_country] ?? '🌍') : '🌍'
   const country = template.primary_country ? (COUNTRY_NAMES[template.primary_country] ?? template.primary_country) : 'Pan-Africa'
@@ -139,11 +161,11 @@ function TemplateCard({
         ) : (
           <button
             onClick={() => onSubscribe(template.id)}
-            disabled={loading}
+            disabled={loading || !canSubscribe}
             className={cn(
               'flex w-full items-center justify-center gap-2 rounded-lg border border-border',
               'bg-surface-3 px-4 py-2 text-xs font-medium text-heading',
-              'hover:border-accent hover:bg-accent/10 hover:text-accent',
+              canSubscribe && 'hover:border-accent hover:bg-accent/10 hover:text-accent',
               'transition-colors disabled:opacity-50',
             )}
           >
@@ -151,8 +173,8 @@ function TemplateCard({
               <RefreshCw size={12} className="animate-spin" />
             ) : (
               <>
-                <Plus size={12} />
-                Subscribe
+                {canSubscribe ? <Plus size={12} /> : <Lock size={12} />}
+                {canSubscribe ? 'Subscribe' : 'Plan required'}
               </>
             )}
           </button>
@@ -169,12 +191,17 @@ const SIGNAL_TYPES = ['financial', 'regulatory', 'market', 'news', 'technology']
 function FilterBar({
   search, setSearch,
   signalType, setSignalType,
+  industryId, setIndustryId,
+  industries,
   featuredOnly, setFeaturedOnly,
 }: {
   search: string
   setSearch: (v: string) => void
   signalType: string
   setSignalType: (v: string) => void
+  industryId: string
+  setIndustryId: (v: string) => void
+  industries: IndustryItem[]
   featuredOnly: boolean
   setFeaturedOnly: (v: boolean) => void
 }) {
@@ -209,6 +236,17 @@ function FilterBar({
         ))}
       </select>
 
+      <select
+        value={industryId}
+        onChange={e => setIndustryId(e.target.value)}
+        className="rounded-lg border border-border bg-surface-2 py-2 pl-3 pr-8 text-sm text-heading focus:border-accent focus:outline-none"
+      >
+        <option value="">All industries</option>
+        {industries.map(industry => (
+          <option key={industry.id} value={industry.id}>{industry.name}</option>
+        ))}
+      </select>
+
       {/* Featured toggle */}
       <label className="flex cursor-pointer items-center gap-2 text-sm text-heading">
         <input
@@ -226,61 +264,120 @@ function FilterBar({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
+  const pageSize = 24
+  const { hasAccess: canSubscribe, loading: gateLoading } = useFeatureGate('marketplace_subscribe')
   const [templates, setTemplates]       = useState<SignalTemplateResponse[]>([])
   const [total, setTotal]               = useState(0)
+  const [subscriptionTotal, setSubscriptionTotal] = useState(0)
   const [loading, setLoading]           = useState(true)
+  const [loadingMore, setLoadingMore]   = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError]               = useState<string | null>(null)
+  const [industries, setIndustries]     = useState<IndustryItem[]>([])
 
   // Filters
   const [search, setSearch]           = useState('')
   const [signalType, setSignalType]   = useState('')
+  const [industryId, setIndustryId]   = useState('')
   const [featuredOnly, setFeaturedOnly] = useState(false)
   const [activeTab, setActiveTab]     = useState<'browse' | 'subscriptions'>('browse')
 
-  const fetchTemplates = useCallback(async () => {
-    setLoading(true)
+  const fetchTemplates = useCallback(async (opts?: { append?: boolean }) => {
+    const append = opts?.append ?? false
+    const skip = append ? templates.length : 0
+
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+    }
     setError(null)
     try {
       if (activeTab === 'subscriptions') {
         const subs = await listSubscriptions()
         setTemplates(subs)
         setTotal(subs.length)
+        setSubscriptionTotal(subs.length)
       } else {
-        const result = await listTemplates({
-          search: search || undefined,
-          signal_type: signalType || undefined,
-          featured_only: featuredOnly || undefined,
-          limit: 100,
-        })
-        setTemplates(result.items)
+        const [result, subs] = await Promise.all([
+          listTemplates({
+            search: search || undefined,
+            industry_id: industryId || undefined,
+            signal_type: signalType || undefined,
+            featured_only: featuredOnly || undefined,
+            skip,
+            limit: pageSize,
+          }),
+          listSubscriptions(),
+        ])
+        setTemplates(prev => append
+          ? [
+              ...prev,
+              ...result.items.filter(candidate => !prev.some(existing => existing.id === candidate.id)),
+            ]
+          : result.items)
         setTotal(result.total)
+        setSubscriptionTotal(subs.length)
       }
-    } catch {
-      setError('Failed to load marketplace templates')
+    } catch (err) {
+      if (!append) {
+        setTemplates([])
+      }
+      setError(friendlyErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (append) {
+        setLoadingMore(false)
+      } else {
+        setLoading(false)
+      }
     }
-  }, [search, signalType, featuredOnly, activeTab])
+  }, [activeTab, featuredOnly, industryId, pageSize, search, signalType, templates.length])
 
   useEffect(() => {
-    const timer = setTimeout(fetchTemplates, 300)
+    const timer = setTimeout(() => {
+      fetchTemplates()
+    }, 300)
     return () => clearTimeout(timer)
   }, [fetchTemplates])
 
+  useEffect(() => {
+    let cancelled = false
+
+    getIndustries()
+      .then((data) => {
+        if (!cancelled) {
+          setIndustries(data)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIndustries([])
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const handleSubscribe = useCallback(async (templateId: string) => {
+    if (!canSubscribe) {
+      setError('Marketplace subscriptions are not available on your current plan.')
+      return
+    }
     setActionLoading(templateId)
     try {
       await subscribeToTemplate(templateId)
       setTemplates(prev =>
         prev.map(t => t.id === templateId ? { ...t, is_subscribed: true, subscription_count: t.subscription_count + 1 } : t)
       )
-    } catch {
-      setError('Failed to subscribe to template')
+      setSubscriptionTotal(prev => prev + 1)
+    } catch (err) {
+      setError(friendlyErrorMessage(err))
     } finally {
       setActionLoading(null)
     }
-  }, [])
+  }, [canSubscribe])
 
   const handleUnsubscribe = useCallback(async (templateId: string) => {
     setActionLoading(templateId)
@@ -294,14 +391,18 @@ export default function MarketplacePage() {
           prev.map(t => t.id === templateId ? { ...t, is_subscribed: false, subscription_count: Math.max(0, t.subscription_count - 1) } : t)
         )
       }
-    } catch {
-      setError('Failed to unsubscribe from template')
+      setSubscriptionTotal(prev => Math.max(0, prev - 1))
+    } catch (err) {
+      setError(friendlyErrorMessage(err))
     } finally {
       setActionLoading(null)
     }
   }, [activeTab])
 
-  const subscribedCount = templates.filter(t => t.is_subscribed).length
+  const subscribedCount = activeTab === 'subscriptions'
+    ? templates.length
+    : subscriptionTotal
+  const hasMore = activeTab === 'browse' && templates.length < total
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -329,6 +430,21 @@ export default function MarketplacePage() {
             </div>
           )}
         </div>
+
+        {!gateLoading && !canSubscribe && (
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <Lock size={16} className="mt-0.5 shrink-0 text-amber-300" />
+              <span>
+                You can browse the marketplace and manage existing subscriptions, but new subscriptions require a higher plan.
+              </span>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-200">
+              <Star size={11} />
+              Browse-only access
+            </span>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="mt-4 flex gap-1">
@@ -362,6 +478,9 @@ export default function MarketplacePage() {
             setSearch={setSearch}
             signalType={signalType}
             setSignalType={setSignalType}
+            industryId={industryId}
+            setIndustryId={setIndustryId}
+            industries={industries}
             featuredOnly={featuredOnly}
             setFeaturedOnly={setFeaturedOnly}
           />
@@ -372,11 +491,14 @@ export default function MarketplacePage() {
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            <X size={14} />
+            <AlertTriangle size={14} />
             {error}
-            <button onClick={() => setError(null)} className="ml-auto">
-              <X size={12} />
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <button onClick={() => fetchTemplates()} className="rounded-md border border-red-400/30 px-2 py-1 text-xs text-red-100 hover:bg-red-500/10">
+                Retry
+              </button>
+              <button onClick={() => setError(null)}><X size={12} /></button>
+            </div>
           </div>
         )}
 
@@ -422,9 +544,22 @@ export default function MarketplacePage() {
                   onSubscribe={handleSubscribe}
                   onUnsubscribe={handleUnsubscribe}
                   loading={actionLoading === template.id}
+                  canSubscribe={canSubscribe}
                 />
               ))}
             </div>
+            {hasMore && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => fetchTemplates({ append: true })}
+                  disabled={loadingMore}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-4 py-2 text-sm font-medium text-heading transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                >
+                  {loadingMore ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  Load more templates
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

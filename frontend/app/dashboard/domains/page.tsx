@@ -2,14 +2,12 @@
 
 import { useCallback, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Globe, Radio } from 'lucide-react'
+import { AlertTriangle, Globe, Radio } from 'lucide-react'
 import { useDomainMap } from '@/lib/hooks/useDomainMap'
 import type { MapRegion } from '@/lib/hooks/useDomainMap'
-import type { Signal } from '@/lib/hooks/useSignals'
-import { useDomains } from '@/lib/hooks/useDomains'
+import { useSignals } from '@/lib/hooks/useSignals'
 import { RegionSidebar } from '@/components/domains/RegionSidebar'
 import { SignalDrawer } from '@/components/signals/SignalDrawer'
-import { buildRegionSignal } from '@/lib/utils/buildRegionSignal'
 
 // Leaflet MUST be dynamically imported — it references `window`
 const MapCanvas = dynamic(() => import('@/components/domains/MapCanvas'), {
@@ -75,25 +73,45 @@ export default function DomainsPage() {
     filteredRegions,
     criticalCount,
     totalSignals,
+    availableDomains,
+    loading,
+    error,
+    refresh,
   } = useDomainMap()
 
-  const { names: domainNames } = useDomains()
-
-  // ── Brief drawer state ────────────────────────────────────────────────────
-  const [briefSignal, setBriefSignal] = useState<Signal | null>(null)
+  const {
+    activeDrawerSignal,
+    error: drawerError,
+    openDrawerById,
+    closeDrawer,
+    toggleSave,
+  } = useSignals({ enabled: false, mode: 'feed' })
+  const [pageMessage, setPageMessage] = useState<string | null>(null)
 
   // Called from both the sidebar card and the map marker
-  const handleRegionOpen = useCallback((region: MapRegion | null) => {
+  const handleRegionOpen = useCallback(async (region: MapRegion | null) => {
     selectRegion(region)
-    if (region) {
-      setBriefSignal(buildRegionSignal(region))
+    if (!region) {
+      setPageMessage(null)
+      closeDrawer()
+      return
     }
-  }, [selectRegion])
+
+    if (!region.topSignalId) {
+      setPageMessage(`No live signal detail is currently available for ${region.name}.`)
+      closeDrawer()
+      return
+    }
+
+    setPageMessage(null)
+    await openDrawerById(region.topSignalId)
+  }, [closeDrawer, openDrawerById, selectRegion])
 
   const handleBriefClose = useCallback(() => {
-    setBriefSignal(null)
     selectRegion(null)
-  }, [selectRegion])
+    setPageMessage(null)
+    closeDrawer()
+  }, [closeDrawer, selectRegion])
 
   return (
     <div
@@ -103,8 +121,28 @@ export default function DomainsPage() {
       {/* Top strip */}
       <PageHeader totalSignals={totalSignals} criticalCount={criticalCount} />
 
+      {(error || drawerError || pageMessage) && (
+        <div className="border-b border-border bg-rose-500/10 px-6 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2 text-sm text-rose-100">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+              <span>{pageMessage ?? drawerError ?? error}</span>
+            </div>
+            <button
+              onClick={() => {
+                setPageMessage(null)
+                void refresh()
+              }}
+              className="rounded-md border border-rose-300/30 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-500/10"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Main split layout ────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
 
         {/* ── Left sidebar ─────────────────────────────────────────────────── */}
         <RegionSidebar
@@ -117,7 +155,10 @@ export default function DomainsPage() {
           onRegionSelect={handleRegionOpen}
           totalSignals={totalSignals}
           criticalCount={criticalCount}
-          availableDomains={domainNames}
+          availableDomains={availableDomains}
+          loading={loading}
+          error={error}
+          onRetry={() => { void refresh() }}
         />
 
         {/* ── Right: map card ───────────────────────────────────────────────── */}
@@ -139,9 +180,9 @@ export default function DomainsPage() {
       {/* ── Full Intelligence Brief drawer ───────────────────────────────────── */}
       {/* Reuses the exact same SignalDrawer used throughout the app */}
       <SignalDrawer
-        signal={briefSignal}
+        signal={activeDrawerSignal}
         onClose={handleBriefClose}
-        onSave={() => {/* region briefs are not saveable from this surface */}}
+        onSave={toggleSave}
       />
     </div>
   )

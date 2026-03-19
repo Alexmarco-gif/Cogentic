@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Bookmark, Share2, X, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TrendLine } from '@/components/ui'
@@ -28,8 +27,6 @@ function confidenceColor(score: number) {
 }
 
 export function SignalCard({ signal, onClick, onSave, onDismiss }: SignalCardProps) {
-  const [hovered, setHovered] = useState(false)
-
   const domainClass = getDomainPillLight(signal.domain)
   const severityBar = SEVERITY_BAR[signal.severity]
   const sparkColor = getDomainTrend(signal.domain)
@@ -43,8 +40,6 @@ export function SignalCard({ signal, onClick, onSave, onDismiss }: SignalCardPro
         signal.isUnread && 'border-l-[3px] border-l-primary',
       )}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
       {/* Severity bar — narrow left strip */}
       <div className={cn('w-1 shrink-0 rounded-l-card', severityBar, signal.isUnread ? 'opacity-0' : '')} />
@@ -124,8 +119,8 @@ export function SignalCard({ signal, onClick, onSave, onDismiss }: SignalCardPro
           {/* Hover actions */}
           <div
             className={cn(
-              'flex items-center gap-1 transition-all duration-150',
-              hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none',
+              'flex items-center gap-1 opacity-100 translate-y-0 transition-all duration-150',
+              'sm:pointer-events-none sm:opacity-0 sm:translate-y-1 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-hover:translate-y-0',
             )}
           >
             <button

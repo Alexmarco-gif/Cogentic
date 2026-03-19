@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { ExternalLink, Zap, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Lock, Zap, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -32,12 +32,21 @@ function formatDate(iso: string) {
 
 interface SourceRowProps {
   source: DiscoveredSourceResponse
-  onActivate: (id: string) => void
-  onDismiss: (id: string) => void
+  onActivate: (id: string) => void | Promise<void>
+  onDismiss: (id: string) => void | Promise<void>
   activating?: boolean
+  actionsEnabled?: boolean
+  actionsDisabledReason?: string
 }
 
-function SourceRow({ source, onActivate, onDismiss, activating }: SourceRowProps) {
+function SourceRow({
+  source,
+  onActivate,
+  onDismiss,
+  activating,
+  actionsEnabled = true,
+  actionsDisabledReason,
+}: SourceRowProps) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -96,7 +105,7 @@ function SourceRow({ source, onActivate, onDismiss, activating }: SourceRowProps
 
       {/* Expanded details */}
       {expanded && (
-        <div className="px-4 pb-3 flex items-center gap-3 text-xs text-subtle">
+        <div className="flex flex-col gap-3 px-4 pb-3 text-xs text-subtle lg:flex-row lg:items-center">
           <span>First seen: {formatDate(source.created_at)}</span>
           <span className="text-border">|</span>
           <span>Last seen: {formatDate(source.last_seen_at)}</span>
@@ -117,11 +126,12 @@ function SourceRow({ source, onActivate, onDismiss, activating }: SourceRowProps
           </a>
 
           {source.status === 'recommended' && (
-            <div className="flex gap-2 ml-2">
+            <div className="ml-auto flex flex-col items-start gap-2 sm:flex-row sm:items-center">
               <Button
                 size="sm"
                 variant="primary"
                 loading={activating}
+                disabled={!actionsEnabled || activating}
                 onClick={e => { e.stopPropagation(); onActivate(source.id) }}
               >
                 <Zap size={12} /> Activate
@@ -129,10 +139,17 @@ function SourceRow({ source, onActivate, onDismiss, activating }: SourceRowProps
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={!actionsEnabled || activating}
                 onClick={e => { e.stopPropagation(); onDismiss(source.id) }}
               >
                 <XCircle size={12} /> Dismiss
               </Button>
+              {!actionsEnabled && actionsDisabledReason && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600">
+                  <Lock size={11} />
+                  {actionsDisabledReason}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -146,11 +163,32 @@ function SourceRow({ source, onActivate, onDismiss, activating }: SourceRowProps
 interface SourcesTableProps {
   sources: DiscoveredSourceResponse[]
   loading?: boolean
-  onActivate: (id: string) => void
-  onDismiss: (id: string) => void
+  loadingMore?: boolean
+  hasMore?: boolean
+  error?: string | null
+  actioningId?: string | null
+  actionsEnabled?: boolean
+  actionsDisabledReason?: string
+  onLoadMore?: () => void | Promise<void>
+  onRetry?: () => void | Promise<void>
+  onActivate: (id: string) => void | Promise<void>
+  onDismiss: (id: string) => void | Promise<void>
 }
 
-export function SourcesTable({ sources, loading, onActivate, onDismiss }: SourcesTableProps) {
+export function SourcesTable({
+  sources,
+  loading,
+  loadingMore,
+  hasMore,
+  error,
+  actioningId,
+  actionsEnabled = true,
+  actionsDisabledReason,
+  onLoadMore,
+  onRetry,
+  onActivate,
+  onDismiss,
+}: SourcesTableProps) {
   if (loading) {
     return (
       <Card noPadding>
@@ -167,11 +205,26 @@ export function SourcesTable({ sources, loading, onActivate, onDismiss }: Source
     return (
       <Card>
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Zap size={32} className="text-subtle mb-3" />
-          <p className="text-sm text-subtle">
-            No discovered sources yet. As signals are processed, referenced URLs
-            will appear here automatically.
-          </p>
+          {error ? (
+            <>
+              <AlertTriangle size={32} className="mb-3 text-rose-400" />
+              <p className="text-sm font-medium text-heading">Discovery could not load right now.</p>
+              <p className="mt-1 text-sm text-subtle">{error}</p>
+              {onRetry && (
+                <Button size="sm" variant="outline" className="mt-4" onClick={onRetry}>
+                  Retry
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Zap size={32} className="text-subtle mb-3" />
+              <p className="text-sm text-subtle">
+                No discovered sources yet. As signals are processed, referenced URLs
+                will appear here automatically.
+              </p>
+            </>
+          )}
         </div>
       </Card>
     )
@@ -190,8 +243,18 @@ export function SourcesTable({ sources, loading, onActivate, onDismiss }: Source
             source={s}
             onActivate={onActivate}
             onDismiss={onDismiss}
+            activating={actioningId === s.id}
+            actionsEnabled={actionsEnabled}
+            actionsDisabledReason={actionsDisabledReason}
           />
         ))}
+        {hasMore && onLoadMore && (
+          <div className="border-t border-border px-4 py-3">
+            <Button size="sm" variant="outline" onClick={onLoadMore} loading={loadingMore}>
+              Load more sources
+            </Button>
+          </div>
+        )}
       </CardBody>
     </Card>
   )

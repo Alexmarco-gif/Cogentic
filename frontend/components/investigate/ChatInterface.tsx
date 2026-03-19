@@ -1,59 +1,74 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Sparkles, Trash2 } from 'lucide-react'
+import { Sparkles, Square, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LiveIndicator, ScrollArea } from '@/components/ui'
 import { MessageBubble } from './MessageBubble'
-import { ChatInput }     from './ChatInput'
-import type { Message }  from '@/lib/hooks/useInvestigate'
+import { ChatInput } from './ChatInput'
+import type { Message } from '@/lib/hooks/useInvestigate'
 
 interface ChatInterfaceProps {
   messages: Message[]
   isProcessing: boolean
+  sessionTitle?: string | null
   onSend: (text: string) => void
+  onStop: () => void
   onClear: () => void
   onSuggestionClick: (text: string) => void
 }
 
 const STARTER_SUGGESTIONS = [
   "What's driving price pressure on the top entity?",
-  "Analyze the latest regulatory policy changes",
+  'Analyze the latest regulatory policy changes',
 ]
 
 export function ChatInterface({
   messages,
   isProcessing,
+  sessionTitle,
   onSend,
+  onStop,
   onClear,
   onSuggestionClick,
 }: ChatInterfaceProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   return (
-    <div className="flex flex-col h-full bg-surface border-r border-border">
-      {/* ── Header ────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+    <div className="flex h-full flex-col bg-surface">
+      <div className="flex items-start justify-between gap-3 px-5 py-3.5 shrink-0">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
             <Sparkles size={13} className="text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[13px] font-medium text-heading">War Room</p>
-            <p className="text-[10px] text-subtle">Deep-dive intelligence analysis</p>
+            <p className="truncate text-[10px] text-subtle">
+              {sessionTitle || 'Deep-dive intelligence analysis'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <LiveIndicator label="Live data" />
+
+        <div className="flex shrink-0 items-center gap-2">
+          <LiveIndicator label={isProcessing ? 'Streaming' : 'Ready'} />
+          {isProcessing && (
+            <button
+              onClick={onStop}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[10px] font-medium text-body transition-colors hover:border-primary/20 hover:bg-muted"
+              title="Stop current investigation"
+            >
+              <Square size={10} />
+              Stop
+            </button>
+          )}
           {messages.length > 0 && (
             <button
               onClick={onClear}
-              className="p-1.5 rounded-lg text-subtle hover:text-body hover:bg-muted transition-colors"
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-muted hover:text-body"
               title="Clear conversation"
             >
               <Trash2 size={13} />
@@ -62,26 +77,24 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* ── Messages ──────────────────────────────────── */}
-      <ScrollArea className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4 space-y-3">
+      <ScrollArea className="flex-1 overflow-y-auto border-t border-border">
+        <div className="space-y-3 px-4 py-4">
           {messages.length === 0 ? (
             <EmptyState onSuggestionClick={onSuggestionClick} />
           ) : (
             <>
-              {messages.map(msg => (
-                <MessageBubble key={msg.id} message={msg} />
+              {messages.map((message) => (
+                <MessageBubble key={message.id} message={message} />
               ))}
-              {/* Processing indicator */}
               {isProcessing && (
                 <div className="flex justify-start">
-                  <div className="bg-surface border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                  <div className="rounded-2xl rounded-tl-sm border border-border bg-surface px-4 py-3 shadow-sm">
                     <div className="flex items-center gap-1.5">
-                      {[0, 1, 2].map(i => (
+                      {[0, 1, 2].map((index) => (
                         <span
-                          key={i}
-                          className="w-1.5 h-1.5 rounded-full bg-border animate-bounce"
-                          style={{ animationDelay: `${i * 150}ms` }}
+                          key={index}
+                          className="h-1.5 w-1.5 animate-bounce rounded-full bg-border"
+                          style={{ animationDelay: `${index * 150}ms` }}
                         />
                       ))}
                     </div>
@@ -94,7 +107,6 @@ export function ChatInterface({
         </div>
       </ScrollArea>
 
-      {/* ── Input ─────────────────────────────────────── */}
       <ChatInput
         onSend={onSend}
         onClear={onClear}
@@ -105,30 +117,29 @@ export function ChatInterface({
   )
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-function EmptyState({ onSuggestionClick }: { onSuggestionClick: (t: string) => void }) {
+function EmptyState({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-10 gap-4">
-      <div className="w-12 h-12 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center gap-4 py-10">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/10 bg-primary/5">
         <Sparkles size={20} className="text-primary" />
       </div>
       <div className="text-center">
-        <p className="text-[14px] font-medium text-heading mb-1">Cogent Intelligence</p>
-        <p className="text-[12px] text-subtle leading-relaxed max-w-[220px]">
-          Ask anything about your strategic domains — entities, risks, market signals.
+        <p className="mb-1 text-[14px] font-medium text-heading">Cogent Intelligence</p>
+        <p className="max-w-[220px] text-[12px] leading-relaxed text-subtle">
+          Ask anything about your monitored entities, risks, markets, or policy events.
         </p>
       </div>
-      <div className="w-full space-y-1.5 mt-1">
-        {STARTER_SUGGESTIONS.map(s => (
+      <div className="mt-1 w-full space-y-1.5">
+        {STARTER_SUGGESTIONS.map((suggestion) => (
           <button
-            key={s}
-            onClick={() => onSuggestionClick(s)}
+            key={suggestion}
+            onClick={() => onSuggestionClick(suggestion)}
             className={cn(
-              'w-full text-left px-3 py-2.5 rounded-lg border border-border bg-muted/50',
-              'hover:bg-muted hover:border-primary/20 transition-colors text-[12px] text-body',
+              'w-full rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-left text-[12px] text-body transition-colors',
+              'hover:border-primary/20 hover:bg-muted',
             )}
           >
-            {s}
+            {suggestion}
           </button>
         ))}
       </div>

@@ -97,7 +97,7 @@ export function ChatInput({
       {/* Footer row */}
       <div className="flex items-center justify-between mt-1.5 px-0.5">
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-subtle">Stem Cogent can make mistake. Verify Info</span>
+          <span className="text-[10px] text-subtle">Cogent can make mistakes. Verify important information.</span>
           {hasMessages && onClear && (
             <button
               onClick={onClear}

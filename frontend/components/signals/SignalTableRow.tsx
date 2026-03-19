@@ -184,8 +184,7 @@ export const SignalTableRow = memo(function SignalTableRow({
         {/* Actions — hover only */}
         <div
           className={cn(
-            'flex shrink-0 items-center gap-1',
-            'opacity-0 transition-opacity duration-150 group-hover:opacity-100',
+            'flex shrink-0 items-center gap-1 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100',
             isSelected && 'opacity-100',
           )}
           onClick={(e) => e.stopPropagation()}

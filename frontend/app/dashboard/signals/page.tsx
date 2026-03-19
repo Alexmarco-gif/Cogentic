@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useMemo } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useSignals, type Signal, type SignalSeverity } from '@/lib/hooks/useSignals'
 import { useSignalsTable } from '@/lib/hooks/useSignalsTable'
@@ -9,29 +9,64 @@ import { SignalsStatsBar } from '@/components/signals/SignalsStatsBar'
 import { SignalsToolbar } from '@/components/signals/SignalsToolbar'
 import { SignalsTable } from '@/components/signals/SignalsTable'
 import { SignalDrawer } from '@/components/signals/SignalDrawer'
-import { useDomains } from '@/lib/hooks/useDomains'
 
-// ── Filter param → severity / search mapping ──────────────────────────────────
 const FILTER_TO_SEVERITY: Record<string, SignalSeverity | 'All'> = {
   'critical-alerts': 'critical',
-  'risks':           'high',
-  'opportunities':   'medium',
-}
-const FILTER_TO_QUERY: Record<string, string> = {
-  'investigations': 'investigation',
+  risks: 'high',
+  opportunities: 'medium',
 }
 
-// ── Page header ───────────────────────────────────────────────────────────────
+const FILTER_TO_QUERY: Record<string, string> = {
+  investigations: 'investigation',
+}
+
+function escapeCsvCell(value: string | number | boolean | null | undefined): string {
+  const stringValue = value == null ? '' : String(value)
+  return `"${stringValue.replace(/"/g, '""')}"`
+}
+
+export function buildSignalsCsv(signals: Signal[]): string {
+  const header = ['Entity', 'Domain', 'Severity', 'Confidence', 'Headline', 'Summary', 'Published At', 'Saved']
+  const rows = signals.map((signal) => ([
+    signal.entityName,
+    signal.domain,
+    signal.severity,
+    signal.confidence,
+    signal.headline,
+    signal.summary,
+    signal.publishedAt,
+    signal.isSaved,
+  ].map(escapeCsvCell).join(',')))
+
+  return [header.map(escapeCsvCell).join(','), ...rows].join('\n')
+}
+
+export function mergeSignalsQuery(
+  searchParams: URLSearchParams,
+  updates: Record<string, string | null | undefined>,
+): string {
+  const next = new URLSearchParams(searchParams.toString())
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value) {
+      next.set(key, value)
+    } else {
+      next.delete(key)
+    }
+  })
+
+  return next.toString()
+}
 
 function PageHeader({ newSinceLoad }: { newSinceLoad: number }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <div>
         <h1 className="font-display text-xl font-semibold text-heading">
           Intelligence Signals
         </h1>
         <p className="mt-0.5 text-sm text-subtle">
-          Real-time strategic intelligence across your monitored sectors
+          Strategic intelligence across your monitored sectors
         </p>
       </div>
 
@@ -55,25 +90,59 @@ function PageHeader({ newSinceLoad }: { newSinceLoad: number }) {
   )
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+function LoadingState() {
+  return (
+    <div className="rounded-card border border-border bg-canvas p-6">
+      <div className="animate-pulse space-y-3">
+        <div className="h-4 w-40 rounded bg-muted" />
+        <div className="h-16 rounded-xl bg-muted/70" />
+        <div className="h-16 rounded-xl bg-muted/60" />
+        <div className="h-16 rounded-xl bg-muted/50" />
+      </div>
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
+      <p className="font-medium">Signals could not be loaded.</p>
+      <p className="mt-1 text-rose-700">{message}</p>
+      <button
+        onClick={onRetry}
+        className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-800 transition-colors hover:bg-rose-100"
+      >
+        Retry
+      </button>
+    </div>
+  )
+}
 
 function SignalsInner() {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const filterParam  = searchParams.get('filter') ?? ''
+  const filterParam = searchParams.get('filter') ?? ''
+  const openParam = searchParams.get('open') ?? ''
 
   const initialFilterSeverity = FILTER_TO_SEVERITY[filterParam]
-  const initialSearchQuery    = FILTER_TO_QUERY[filterParam] ?? ''
+  const initialSearchQuery = FILTER_TO_QUERY[filterParam] ?? ''
 
   const {
     signals,
+    loading,
+    error,
     activeDrawerSignal,
     openDrawer,
+    openDrawerById,
     closeDrawer,
     toggleSave,
     dismiss,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+    refresh,
   } = useSignals()
-
-  const { names: domainNames } = useDomains()
 
   const {
     rows,
@@ -97,46 +166,71 @@ function SignalsInner() {
     newSinceLoad,
   } = useSignalsTable({ signals, initialFilterSeverity, initialSearchQuery })
 
-  const handleRowClick = useCallback(
-    (signal: Signal) => {
-      if (selectedRowId === signal.id) {
-        setSelectedRowId(null)
-        closeDrawer()
-      } else {
-        setSelectedRowId(signal.id)
-        openDrawer(signal)
-      }
-    },
-    [selectedRowId, setSelectedRowId, openDrawer, closeDrawer],
+  const availableDomains = useMemo(
+    () => Array.from(new Set(signals.map((signal) => signal.domain))).sort(),
+    [signals],
   )
+
+  const replaceQuery = useCallback((updates: Record<string, string | null | undefined>) => {
+    const nextQuery = mergeSignalsQuery(new URLSearchParams(searchParams.toString()), updates)
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
+  useEffect(() => {
+    if (!openParam || activeDrawerSignal?.id === openParam) return
+    setSelectedRowId(openParam)
+    void openDrawerById(openParam)
+  }, [activeDrawerSignal?.id, openDrawerById, openParam, setSelectedRowId])
+
+  const handleRowClick = useCallback((signal: Signal) => {
+    if (selectedRowId === signal.id) {
+      setSelectedRowId(null)
+      closeDrawer()
+      replaceQuery({ open: null })
+      return
+    }
+
+    setSelectedRowId(signal.id)
+    openDrawer(signal)
+    replaceQuery({ open: signal.id })
+  }, [closeDrawer, openDrawer, replaceQuery, selectedRowId, setSelectedRowId])
 
   const handleDrawerClose = useCallback(() => {
     setSelectedRowId(null)
     closeDrawer()
-  }, [setSelectedRowId, closeDrawer])
+    replaceQuery({ open: null })
+  }, [closeDrawer, replaceQuery, setSelectedRowId])
 
-  const handleSave = useCallback(
-    (signal: Signal) => toggleSave(signal.id),
-    [toggleSave],
-  )
+  const handleSave = useCallback((signal: Signal) => {
+    toggleSave(signal.id)
+  }, [toggleSave])
 
-  const handleDismiss = useCallback(
-    (signal: Signal) => {
-      dismiss(signal.id)
-      if (selectedRowId === signal.id) {
-        setSelectedRowId(null)
-        closeDrawer()
-      }
-    },
-    [dismiss, selectedRowId, setSelectedRowId, closeDrawer],
-  )
+  const handleDismiss = useCallback((signal: Signal) => {
+    dismiss(signal.id)
+    if (selectedRowId === signal.id) {
+      setSelectedRowId(null)
+      closeDrawer()
+      replaceQuery({ open: null })
+    }
+  }, [closeDrawer, dismiss, replaceQuery, selectedRowId, setSelectedRowId])
+
+  const handleExport = useCallback(() => {
+    const csv = buildSignalsCsv(rows)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `signals-${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }, [rows])
 
   return (
     <>
       <div
         className={cn(
           'flex min-h-full flex-col gap-5 px-6 py-6 transition-all duration-300',
-          activeDrawerSignal ? 'mr-[440px]' : '',
+          activeDrawerSignal ? 'xl:mr-[440px]' : '',
         )}
       >
         <PageHeader newSinceLoad={newSinceLoad} />
@@ -159,22 +253,49 @@ function SignalsInner() {
           onViewModeChange={setViewMode}
           resultCount={rows.length}
           totalCount={totalCount}
-          availableDomains={domainNames}
+          availableDomains={availableDomains}
+          onExport={handleExport}
         />
 
-        <SignalsTable
-          rows={rows}
-          allSignals={signals}
-          viewMode={viewMode}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          selectedRowId={selectedRowId}
-          onRowClick={handleRowClick}
-          onSave={handleSave}
-          onDismiss={handleDismiss}
-          onSort={toggleSort}
-          className="flex-1"
-        />
+        {error && !loading && signals.length === 0 ? (
+          <ErrorState message={error} onRetry={refresh} />
+        ) : loading && signals.length === 0 ? (
+          <LoadingState />
+        ) : (
+          <>
+            {error && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                {error}
+              </div>
+            )}
+
+            <SignalsTable
+              rows={rows}
+              allSignals={signals}
+              viewMode={viewMode}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              selectedRowId={selectedRowId}
+              onRowClick={handleRowClick}
+              onSave={handleSave}
+              onDismiss={handleDismiss}
+              onSort={toggleSort}
+              className="flex-1"
+            />
+
+            {hasMore && (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => void loadMore()}
+                  disabled={isLoadingMore}
+                  className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-body transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoadingMore ? 'Loading more...' : 'Load more signals'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <SignalDrawer

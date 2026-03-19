@@ -11,17 +11,27 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.models.discovered_source import DiscoveredSource
+from backend.models.signal import Signal
 from backend.services.source_discovery import SourceDiscoveryService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/discovered-sources", tags=["discovered-sources"])
+
+
+def _visible_sources_query(auth: AuthContext):
+    """Scope discovered-source access to global signals plus the caller org."""
+    return (
+        select(DiscoveredSource)
+        .outerjoin(Signal, Signal.id == DiscoveredSource.first_seen_signal_id)
+        .where(or_(Signal.org_id.is_(None), Signal.org_id == auth.org_id))
+    )
 
 
 # ── Schemas ──────────────────────────────────────────────────────────
@@ -91,7 +101,7 @@ async def list_discovered_sources(
     Use status=recommended to see the review queue of sources
     the system recommends activating as signal contracts.
     """
-    query = select(DiscoveredSource).order_by(
+    query = _visible_sources_query(auth).order_by(
         DiscoveredSource.relevance_score.desc(),
         DiscoveredSource.mention_count.desc(),
     )
@@ -139,8 +149,13 @@ async def list_recommended_sources(
     These are sources the system has seen referenced frequently
     across multiple signals with high relevance scores.
     """
-    service = SourceDiscoveryService(db)
-    sources = await service.get_recommended(limit=limit)
+    result = await db.execute(
+        _visible_sources_query(auth)
+        .where(DiscoveredSource.status == "recommended")
+        .order_by(DiscoveredSource.relevance_score.desc())
+        .limit(limit)
+    )
+    sources = result.scalars().all()
 
     return [
         DiscoveredSourceResponse(
@@ -169,9 +184,25 @@ async def get_discovery_stats(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get aggregate statistics on source discovery activity."""
-    service = SourceDiscoveryService(db)
-    stats = await service.get_stats()
-    return DiscoveredSourceStatsResponse(**stats)
+    result = await db.execute(
+        select(
+            DiscoveredSource.status,
+            func.count(DiscoveredSource.id).label("cnt"),
+        )
+        .select_from(DiscoveredSource)
+        .outerjoin(Signal, Signal.id == DiscoveredSource.first_seen_signal_id)
+        .where(or_(Signal.org_id.is_(None), Signal.org_id == auth.org_id))
+        .group_by(DiscoveredSource.status)
+    )
+    counts: dict[str, int] = {row.status: row.cnt for row in result.all()}
+    total = sum(counts.values())
+    return DiscoveredSourceStatsResponse(
+        discovered=counts.get("discovered", 0),
+        recommended=counts.get("recommended", 0),
+        activated=counts.get("activated", 0),
+        dismissed=counts.get("dismissed", 0),
+        total=total,
+    )
 
 
 @router.post("/{source_id}/activate", response_model=ActivateSourceResponse)
@@ -186,6 +217,15 @@ async def activate_source(
     Creates a fully functional SignalContract with proper source_url,
     extraction config, and refresh schedule. Requires admin role.
     """
+    visible_source = await db.execute(
+        _visible_sources_query(auth).where(DiscoveredSource.id == source_id)
+    )
+    if visible_source.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Source not found or inaccessible",
+        )
+
     service = SourceDiscoveryService(db)
     contract = await service.activate_source(
         source_id,
@@ -220,6 +260,12 @@ async def dismiss_source(
     auth: AuthContext = Depends(require_permissions(["admin"])),
 ):
     """Dismiss a discovered source (won't be recommended again). Requires admin role."""
+    visible_source = await db.execute(
+        _visible_sources_query(auth).where(DiscoveredSource.id == source_id)
+    )
+    if visible_source.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Source not found")
+
     service = SourceDiscoveryService(db)
     dismissed = await service.dismiss_source(source_id)
 

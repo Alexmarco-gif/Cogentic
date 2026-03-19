@@ -145,6 +145,7 @@ interface SignalsToolbarProps {
   resultCount: number
   totalCount: number
   availableDomains?: string[]
+  onExport?: () => void
   className?: string
 }
 
@@ -160,6 +161,7 @@ export const SignalsToolbar = memo(function SignalsToolbar({
   resultCount,
   totalCount,
   availableDomains = [],
+  onExport,
   className,
 }: SignalsToolbarProps) {
   const { options: domainOptions, labels: domainLabels } = availableDomains.length > 0
@@ -238,14 +240,15 @@ export const SignalsToolbar = memo(function SignalsToolbar({
 
         <ViewToggle mode={viewMode} onChange={onViewModeChange} />
 
-        {/* Export — visual only */}
         <button
+          onClick={onExport}
           className={cn(
             'flex h-9 items-center gap-1.5 rounded-lg border border-border px-3',
             'text-xs text-subtle transition-colors duration-150',
-            'hover:border-white/15 hover:text-body',
+            'hover:border-white/15 hover:text-body disabled:cursor-not-allowed disabled:opacity-50',
           )}
           aria-label="Export signals"
+          disabled={!onExport}
         >
           <Download className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Export</span>

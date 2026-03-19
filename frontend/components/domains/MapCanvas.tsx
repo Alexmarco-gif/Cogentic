@@ -55,13 +55,13 @@ export default function MapCanvas({
       if (!containerRef.current || mapRef.current) return
 
       const map = L.map(containerRef.current, {
-        // ── Completely static — user cannot pan or zoom ──
-        dragging:          false,
+        // Keep the map calm by default, but allow direct interaction.
+        dragging:          true,
         scrollWheelZoom:   false,
-        doubleClickZoom:   false,
-        touchZoom:         false,
+        doubleClickZoom:   true,
+        touchZoom:         true,
         boxZoom:           false,
-        keyboard:          false,
+        keyboard:          true,
         zoomControl:       false,
         attributionControl: false,
       })

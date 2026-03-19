@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   Search,
   SlidersHorizontal,
@@ -9,6 +9,7 @@ import {
   Radio,
   ChevronDown,
   X,
+  AlertTriangle,
   Loader2,
 } from 'lucide-react'
 import { useLibrary } from '@/lib/hooks/useLibrary'
@@ -133,6 +134,10 @@ export default function LibraryPage() {
   const {
     briefs,
     weeklyReports,
+    loading,
+    error,
+    refresh,
+    isDemoData,
     searchQuery,
     setSearchQuery,
     filterDomain,
@@ -149,19 +154,35 @@ export default function LibraryPage() {
     hasMore,
     isLoadingMore,
     loadMore,
+    loadBriefDetail,
   } = useLibrary()
 
   const [activeBrief, setActiveBrief]   = useState<LibraryBrief | null>(null)
   const [activeWeekly, setActiveWeekly] = useState<LibraryBrief | null>(null)
   const [showFilters, setShowFilters]   = useState(false)
+  const [loadingBriefId, setLoadingBriefId] = useState<string | null>(null)
 
-  const handleOpen = (brief: LibraryBrief) => {
+  const handleOpen = useCallback(async (brief: LibraryBrief) => {
     if (brief.type === 'weekly-report') {
       setActiveWeekly(brief)
     } else {
       setActiveBrief(brief)
     }
-  }
+    setLoadingBriefId(brief.id)
+
+    try {
+      const detailedBrief = await loadBriefDetail(brief.id)
+      if (detailedBrief.type === 'weekly-report') {
+        setActiveWeekly(detailedBrief)
+      } else {
+        setActiveBrief(detailedBrief)
+      }
+    } catch {
+      // Keep the already-open brief visible if the detail fetch fails.
+    } finally {
+      setLoadingBriefId((current) => (current === brief.id ? null : current))
+    }
+  }, [loadBriefDetail])
 
   const latestWeekly = weeklyReports[0] ?? null
 
@@ -184,7 +205,7 @@ export default function LibraryPage() {
           {/* Latest weekly report CTA */}
           {latestWeekly && (
             <button
-              onClick={() => setActiveWeekly(latestWeekly)}
+              onClick={() => { void handleOpen(latestWeekly) }}
               className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-left transition-colors hover:bg-primary/10"
             >
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -298,6 +319,45 @@ export default function LibraryPage() {
 
       {/* ── Grid scroll body ────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto bg-canvas px-6 py-6">
+        {loading && totalCount === 0 && (
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-40 animate-pulse rounded-xl border border-border bg-surface" />
+            ))}
+          </div>
+        )}
+
+        {(error || isDemoData || loadingBriefId) && (
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-2 text-sm text-body">
+              <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${error ? 'text-rose-500' : 'text-amber-500'}`} />
+              <span>
+                {loadingBriefId
+                  ? 'Opening the full brief…'
+                  : error ?? (isDemoData
+                    ? 'Library is showing demo content because the live briefs service is unavailable.'
+                    : null)}
+              </span>
+            </div>
+            {(error || isDemoData) && (
+              <button
+                onClick={() => { void refresh() }}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-body hover:bg-muted"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {!loading && !error && briefs.length === 0 && totalCount === 0 && (
+          <div className="mb-6 rounded-xl border border-border bg-surface p-6 text-center">
+            <h2 className="text-base font-semibold text-heading">No briefs yet</h2>
+            <p className="mt-2 text-sm text-subtle">
+              Generated briefs and weekly reports will appear here as your workspace produces them.
+            </p>
+          </div>
+        )}
 
         {/* Weekly Reports horizontal strip */}
         {weeklyReports.length > 0 && filterType !== 'weekly-report' && (
@@ -312,7 +372,7 @@ export default function LibraryPage() {
               {weeklyReports.map(wr => (
                 <button
                   key={wr.id}
-                  onClick={() => setActiveWeekly(wr)}
+                  onClick={() => { void handleOpen(wr) }}
                   className="flex w-60 flex-shrink-0 items-center gap-3 rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-left transition-colors hover:border-violet-200 hover:bg-violet-100"
                 >
                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
@@ -333,7 +393,7 @@ export default function LibraryPage() {
           briefs={filterType === 'weekly-report'
             ? weeklyReports
             : briefs.filter(b => b.type !== 'weekly-report')}
-          onOpen={handleOpen}
+          onOpen={(brief) => { void handleOpen(brief) }}
           onToggleSave={toggleSave}
         />
 

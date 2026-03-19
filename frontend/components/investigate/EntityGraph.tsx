@@ -25,6 +25,7 @@ interface EntityGraphProps {
 export function EntityGraph({ nodes, edges }: EntityGraphProps) {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
 
   // Compute SVG dimensions from node positions
   const maxX = Math.max(...nodes.map(n => n.x)) + NODE_W + 20
@@ -66,6 +67,8 @@ export function EntityGraph({ nodes, edges }: EntityGraphProps) {
           const my = (y1 + y2) / 2
 
           const isHovered = hoveredEdge === edge.id ||
+            selectedNode === edge.source ||
+            selectedNode === edge.target ||
             hoveredNode === edge.source ||
             hoveredNode === edge.target
 
@@ -103,7 +106,7 @@ export function EntityGraph({ nodes, edges }: EntityGraphProps) {
         {/* ── Nodes (foreign objects so we can use Tailwind) ─ */}
         {nodes.map(node => {
           const cfg = NODE_CONFIG[node.type]
-          const isHovered = hoveredNode === node.id
+          const isHovered = hoveredNode === node.id || selectedNode === node.id
           return (
             <foreignObject
               key={node.id}
@@ -114,6 +117,7 @@ export function EntityGraph({ nodes, edges }: EntityGraphProps) {
               overflow="visible"
               onMouseEnter={() => setHoveredNode(node.id)}
               onMouseLeave={() => setHoveredNode(null)}
+              onClick={() => setSelectedNode(current => current === node.id ? null : node.id)}
               className="cursor-pointer"
             >
               <div
@@ -136,7 +140,7 @@ export function EntityGraph({ nodes, edges }: EntityGraphProps) {
 
       {/* Tip */}
       <p className="text-[10px] text-subtle text-center py-2">
-        Hover nodes and edges to explore relationships
+        Tap or hover nodes to explore relationships
       </p>
     </div>
   )
