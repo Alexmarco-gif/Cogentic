@@ -14,6 +14,7 @@ from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import get_current_organization, require_feature
+from backend.models.organization import Organization
 from backend.repositories.credit_repository import CreditRepository
 from backend.schemas.synthesis import (
     ContractSuggestion,
@@ -33,7 +34,7 @@ async def synthesize(
     body: SynthesisRequest,
     db: AsyncSession = Depends(get_db),
     auth: AuthContext = Depends(get_current_user),
-    organization=Depends(get_current_organization),
+    organization: Organization = Depends(get_current_organization),
     _feature_check: bool = Depends(require_feature("on_demand_synthesis")),
 ):
     """On-demand RAG synthesis.
@@ -64,12 +65,27 @@ async def synthesize(
         web_sources_raw = []
         if body.include_web_search:
             try:
-                from backend.services.web_search import get_web_search_provider
+                from backend.services.web_search import (
+                    WebSearchError,
+                    get_web_search_provider,
+                )
+                from backend.services.web_search.localization import (
+                    resolve_search_locale,
+                )
 
                 provider = get_web_search_provider()
-                if provider.is_available():
-                    web_results = await provider.search(body.query, num_results=5)
-                    if web_results:
+                search_country, search_language = resolve_search_locale(
+                    country=organization.default_country,
+                    language=organization.default_language,
+                )
+                if await provider.is_available():
+                    web_results = await provider.search(
+                        body.query,
+                        num_results=5,
+                        country=search_country,
+                        language=search_language,
+                    )
+                    if web_results and not isinstance(web_results, WebSearchError):
                         web_context = web_results
                         web_sources_raw = [
                             r.to_dict() if hasattr(r, "to_dict") else r

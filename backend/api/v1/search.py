@@ -63,6 +63,8 @@ async def execute_search(
             query=body.query,
             user_id=auth.user_id,
             org_id=auth.org_id,
+            country=organization.default_country,
+            language=organization.default_language,
             max_results=body.max_results,
             synthesize=body.include_synthesis,
         )
