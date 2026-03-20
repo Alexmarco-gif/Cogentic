@@ -652,6 +652,61 @@ class TestDeepSearchFusion:
         assert ranked[-1]["title"] == "low"
 
 
+class TestWebSearchLocalization:
+    """Tests for tenant-aware web-search locale normalization."""
+
+    def test_normalize_search_country_alpha3(self):
+        from backend.services.web_search.localization import normalize_search_country
+
+        assert normalize_search_country("NGA") == "ng"
+
+    def test_normalize_search_country_alpha3_uses_complete_iso_source(self):
+        from backend.services.web_search.localization import normalize_search_country
+
+        assert normalize_search_country("JPN") == "jp"
+
+    def test_normalize_search_country_alpha2(self):
+        from backend.services.web_search.localization import normalize_search_country
+
+        assert normalize_search_country("us") == "us"
+
+    def test_normalize_search_language_bcp47(self):
+        from backend.services.web_search.localization import normalize_search_language
+
+        assert normalize_search_language("en-US") == "en"
+
+    async def test_search_web_uses_resolved_org_locale(self):
+        from backend.services.deep_search import DeepSearchService
+
+        service = object.__new__(DeepSearchService)
+        provider = AsyncMock()
+        provider.is_available.return_value = True
+        provider.search.return_value = [make_web_result(title="Org Localized")]
+        provider.news_search.return_value = []
+        service._web_search = provider
+
+        results = await service._search_web(
+            "fintech regulation",
+            max_results=4,
+            country="NGA",
+            language="en-US",
+        )
+
+        assert len(results) == 1
+        provider.search.assert_awaited_once_with(
+            "fintech regulation",
+            num_results=4,
+            country="ng",
+            language="en",
+        )
+        provider.news_search.assert_awaited_once_with(
+            "fintech regulation",
+            num_results=5,
+            country="ng",
+            language="en",
+        )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # 5. Agent citation extraction tests
 # ═══════════════════════════════════════════════════════════════════════
