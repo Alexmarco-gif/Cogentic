@@ -27,7 +27,6 @@ from backend.auth.guards import (
     can_manage_member,
     require_admin,
     require_can_manage_member,
-    require_feature,
     require_member,
     require_org_membership,
     require_owner,
@@ -72,7 +71,6 @@ __all__ = [
     "require_org_membership",
     "require_resource_ownership",
     "can_manage_member",
-    "require_feature",
     "require_can_manage_member",
     # Permissions
     "can_view_resource",

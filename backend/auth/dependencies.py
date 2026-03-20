@@ -20,6 +20,7 @@ from backend.auth.exceptions import (
 )
 from backend.auth.schemas import AuthContext, TokenPayload
 from backend.database import get_db
+from backend.repositories.organization import OrganizationRepository
 from backend.repositories.user import UserRepository
 from backend.repositories.user_session import UserSessionRepository
 
@@ -147,7 +148,7 @@ async def get_current_user(
 
     # Handle M2M (client-credentials) tokens differently
     if payload.is_m2m_token:
-        return await _handle_m2m_token(payload, request)
+        return await _handle_m2m_token(payload, request, db)
 
     # Regular user token flow
     auth_context = await _handle_user_token(payload, request, db)
@@ -184,7 +185,9 @@ async def _upsert_session_bg(
         )
 
 
-async def _handle_m2m_token(payload: TokenPayload, request: Request) -> AuthContext:
+async def _handle_m2m_token(
+    payload: TokenPayload, request: Request, db: AsyncSession
+) -> AuthContext:
     """
     Handle M2M (client-credentials) token authentication.
 
@@ -206,13 +209,17 @@ async def _handle_m2m_token(payload: TokenPayload, request: Request) -> AuthCont
     role = payload.role or "member"
     email = payload.email or f"m2m-{payload.sub}@service.cogent.ai"
 
+    org_repo = OrganizationRepository(db)
+    organization = await org_repo.get(org_id)
+    org_plan = organization.pricing_tier if organization else payload.plan
+
     auth_context = AuthContext(
         user_id=user_id,
         auth0_id=payload.sub,  # For M2M, this is the client ID
         email=email,
         org_id=org_id,
         role=role,
-        plan=payload.plan,
+        plan=org_plan,
         is_super_admin=payload.is_super_admin,
         token_expires_at=datetime.fromtimestamp(payload.exp, tz=timezone.utc),
         request_id=auth_utils.get_request_id(request),
@@ -281,10 +288,18 @@ async def _handle_user_token(
     user_id = UUID(str(user.id))
 
     # Get org membership
-    from backend.repositories.organization import OrganizationRepository
-
     org_repo = OrganizationRepository(db)
     org_user = await org_repo.get_user_membership(org_id, user_id)
+
+    organization = await org_repo.get(org_id)
+    if not organization:
+        logger.error(
+            f"Organization {org_id} referenced in token for user {user_id} was not found"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
 
     if not org_user:
         logger.error(
@@ -304,7 +319,7 @@ async def _handle_user_token(
         email=user.email,
         org_id=org_id,
         role=org_user.role,
-        plan=payload.plan,
+        plan=organization.pricing_tier,
         is_super_admin=payload.is_super_admin,
         token_expires_at=datetime.fromtimestamp(payload.exp, tz=timezone.utc),
         request_id=auth_utils.get_request_id(request),
@@ -504,30 +519,3 @@ async def get_current_user_or_api_key(
     )
 
     return auth_context
-
-
-def get_feature_flags_service():
-    """
-    Dependency to inject FeatureFlagService into route handlers.
-
-    Usage:
-        from backend.services.feature_flags import FeatureFlagService
-
-        @router.get("/features")
-        async def list_features(
-            auth: AuthContext = Depends(get_current_user),
-            flags: FeatureFlagService = Depends(get_feature_flags_service)
-        ):
-            enabled = flags.get_enabled_features(
-                user_id=str(auth.user_id),
-                org_id=str(auth.org_id),
-                plan=auth.plan
-            )
-            return {"enabled_features": enabled}
-
-    Returns:
-        FeatureFlagService singleton instance
-    """
-    from backend.services.feature_flags import get_feature_flags_service as get_service
-
-    return get_service()

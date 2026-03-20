@@ -76,9 +76,15 @@ def require_feature(feature_key: str) -> Callable:
 
         gate = await gating_service.feature_gate_repo.get_by_feature_key(feature_key)
 
-        # If no gate defined, allow access
         if not gate:
-            return True
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": "feature_gate_misconfigured",
+                    "message": f"Feature gate '{feature_key}' is not configured",
+                    "feature": feature_key,
+                },
+            )
 
         # Check tier requirement
         if gate.required_tier:

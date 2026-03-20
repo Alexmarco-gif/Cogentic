@@ -75,8 +75,7 @@ async def get_feature_access(
     Get tier-based feature access map with gating enforcement.
 
     Returns which features the user can access based on their pricing tier
-    and role, using the GatingService. Different from /features which returns
-    simple boolean feature flags from FeatureFlagService.
+    and role, using the same DB-backed GatingService that protected routes use.
     """
     gating_service = GatingService(db)
     feature_map = await gating_service.get_feature_map(organization, auth.role)
@@ -97,7 +96,9 @@ async def upgrade_tier(
     Upgrade organization to a higher tier.
 
     Requires owner or admin role.
-    TODO: Integrate with payment processor (Stripe).
+    Payment processor integration is intentionally deferred. This endpoint
+    performs the tier change directly so the rest of the entitlement system can
+    be exercised in environments that do not yet have billing integration.
     """
     # Validate tier
     valid_tiers = ["explorer", "growth", "mid_market", "enterprise"]

@@ -56,12 +56,14 @@ function TemplateCard({
   onUnsubscribe,
   loading,
   canSubscribe,
+  subscriptionAccessResolved,
 }: {
   template: SignalTemplateResponse
   onSubscribe: (id: string) => void | Promise<void>
   onUnsubscribe: (id: string) => void | Promise<void>
   loading: boolean
   canSubscribe: boolean
+  subscriptionAccessResolved: boolean
 }) {
   const flag    = template.primary_country ? (COUNTRY_FLAGS[template.primary_country] ?? '🌍') : '🌍'
   const country = template.primary_country ? (COUNTRY_NAMES[template.primary_country] ?? template.primary_country) : 'Pan-Africa'
@@ -161,11 +163,11 @@ function TemplateCard({
         ) : (
           <button
             onClick={() => onSubscribe(template.id)}
-            disabled={loading || !canSubscribe}
+            disabled={loading || (subscriptionAccessResolved && !canSubscribe)}
             className={cn(
               'flex w-full items-center justify-center gap-2 rounded-lg border border-border',
               'bg-surface-3 px-4 py-2 text-xs font-medium text-heading',
-              canSubscribe && 'hover:border-accent hover:bg-accent/10 hover:text-accent',
+              (!subscriptionAccessResolved || canSubscribe) && 'hover:border-accent hover:bg-accent/10 hover:text-accent',
               'transition-colors disabled:opacity-50',
             )}
           >
@@ -173,8 +175,8 @@ function TemplateCard({
               <RefreshCw size={12} className="animate-spin" />
             ) : (
               <>
-                {canSubscribe ? <Plus size={12} /> : <Lock size={12} />}
-                {canSubscribe ? 'Subscribe' : 'Plan required'}
+                {!subscriptionAccessResolved || canSubscribe ? <Plus size={12} /> : <Lock size={12} />}
+                {!subscriptionAccessResolved || canSubscribe ? 'Subscribe' : 'Available on paid plans'}
               </>
             )}
           </button>
@@ -265,7 +267,7 @@ function FilterBar({
 
 export default function MarketplacePage() {
   const pageSize = 24
-  const { hasAccess: canSubscribe, loading: gateLoading } = useFeatureGate('marketplace_subscribe')
+  const { hasAccess: canSubscribe, loading: gateLoading, resolved: gateResolved } = useFeatureGate('marketplace_subscribe')
   const [templates, setTemplates]       = useState<SignalTemplateResponse[]>([])
   const [total, setTotal]               = useState(0)
   const [subscriptionTotal, setSubscriptionTotal] = useState(0)
@@ -361,8 +363,8 @@ export default function MarketplacePage() {
   }, [])
 
   const handleSubscribe = useCallback(async (templateId: string) => {
-    if (!canSubscribe) {
-      setError('Marketplace subscriptions are not available on your current plan.')
+    if (gateResolved && !canSubscribe) {
+      setError('Subscriptions are available on paid plans. You can still browse sources and manage any existing subscriptions here.')
       return
     }
     setActionLoading(templateId)
@@ -377,7 +379,7 @@ export default function MarketplacePage() {
     } finally {
       setActionLoading(null)
     }
-  }, [canSubscribe])
+  }, [canSubscribe, gateResolved])
 
   const handleUnsubscribe = useCallback(async (templateId: string) => {
     setActionLoading(templateId)
@@ -431,17 +433,17 @@ export default function MarketplacePage() {
           )}
         </div>
 
-        {!gateLoading && !canSubscribe && (
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+        {!gateLoading && gateResolved && !canSubscribe && (
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-body sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2">
-              <Lock size={16} className="mt-0.5 shrink-0 text-amber-300" />
+              <Lock size={16} className="mt-0.5 shrink-0 text-subtle" />
               <span>
-                You can browse the marketplace and manage existing subscriptions, but new subscriptions require a higher plan.
+                Marketplace browsing stays open on free plans. New subscriptions are available on paid plans.
               </span>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-subtle">
               <Star size={11} />
-              Browse-only access
+              Browse and review access
             </span>
           </div>
         )}
@@ -545,6 +547,7 @@ export default function MarketplacePage() {
                   onUnsubscribe={handleUnsubscribe}
                   loading={actionLoading === template.id}
                   canSubscribe={canSubscribe}
+                  subscriptionAccessResolved={gateResolved}
                 />
               ))}
             </div>

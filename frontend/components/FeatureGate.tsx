@@ -14,7 +14,7 @@ interface FeatureGateProps {
 /**
  * Feature Gate Component
  * Conditionally renders children based on feature access
- * 
+ *
  * @param feature - Feature key to check
  * @param children - Content to show if access granted
  * @param fallback - Content to show if access denied (optional)
@@ -26,7 +26,7 @@ export function FeatureGate({
   fallback,
   showUpgradePrompt = true,
 }: FeatureGateProps) {
-  const { hasAccess, loading } = useFeatureGate(feature);
+  const { hasAccess, loading, resolved } = useFeatureGate(feature);
 
   if (loading) {
     return (
@@ -34,6 +34,10 @@ export function FeatureGate({
         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
       </div>
     );
+  }
+
+  if (!resolved) {
+    return <>{children}</>;
   }
 
   if (!hasAccess) {

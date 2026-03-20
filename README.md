@@ -30,7 +30,7 @@ Routes (api/v1/) → Services (services/) → Repositories (repositories/) → M
 - **Causal Knowledge Graph**: Entity resolution → Relationship mapping → Causal inference (Neo4j + pgvector)
 - **Intelligence Moat**: Feedback loops → Prediction backtesting → Replicability testing → Moat metrics
 - **Chat Agent**: OpenAI-powered chat with tool calling, RAG over signals/briefs
-- **Pricing & Feature Gating**: Tier-based access (Free → Starter → Professional → Enterprise)
+- **Pricing & Feature Gating**: Tier-based access (Explorer → Growth → Mid-Market → Enterprise)
 
 ---
 
@@ -96,8 +96,6 @@ API v1 Router (146+ endpoints)
    ```
 
 2. **Configure Auth0**
-
-   Follow the complete setup guide: [`docs/auth/auth0-setup.md`](docs/auth/auth0-setup.md)
 
    Quick summary:
    - Create Auth0 tenant
@@ -173,14 +171,6 @@ API v1 Router (146+ endpoints)
 
 ```
 Cogent/
-├── docs/                       # Documentation
-│   ├── auth/                   # Auth0 setup guides
-│   │   ├── auth0-setup.md      # Complete Auth0 configuration
-│   │   ├── webhooks-setup.md   # Webhook configuration with ngrok
-│   │   ├── stage-1-validation.md # QA checklist for Stage 1
-│   │   └── auth0-action-custom-claims.js # Custom claims action
-│   └── auth-implementation-plan.md # Full auth roadmap
-│
 ├── frontend/                   # Next.js 14 frontend
 │   ├── app/                    # App router
 │   │   ├── api/                # API routes
@@ -260,12 +250,6 @@ Cogent/
    - Monitor event delivery
    - Test webhook endpoint
 
-### Run Validation Checklist
-
-Complete QA checklist: [`docs/auth/stage-1-validation.md`](docs/auth/stage-1-validation.md)
-
----
-
 ## 🔧 Development Workflow
 
 ### Frontend Development
@@ -301,22 +285,16 @@ ruff check backend/                # Lint Python code
 
 3. Monitor events at http://localhost:3000/webhook-test
 
-Full guide: [`docs/auth/webhooks-setup.md`](docs/auth/webhooks-setup.md)
+This checkout does not bundle the older `docs/` tree referenced in some past
+materials. Treat the codebase itself and the route surface as the current source
+of truth for setup and implementation details.
 
 ---
 
 ## 📚 Documentation
 
-### Authentication Setup
-
-- [Auth0 Setup Guide](docs/auth/auth0-setup.md) - Complete tenant configuration
-- [Webhooks Setup](docs/auth/webhooks-setup.md) - Webhook configuration with ngrok
-- [Stage 1 Validation](docs/auth/stage-1-validation.md) - QA checklist
-- [Auth Implementation Plan](docs/auth-implementation-plan.md) - Full roadmap
-
 ### Code Documentation
 
-- Custom claims action: [`docs/auth/auth0-action-custom-claims.js`](docs/auth/auth0-action-custom-claims.js)
 - Auth utilities: [`frontend/lib/auth0.ts`](frontend/lib/auth0.ts)
 - Webhook utilities: [`frontend/lib/webhook-utils.ts`](frontend/lib/webhook-utils.ts)
 
@@ -336,7 +314,7 @@ User → Auth0 Universal Login → Authorization Code Flow →
 
 1. **Org-Level Roles**: Owner > Admin > Member > Viewer
 2. **Resource-Level Ownership**: User owns their resources
-3. **Feature Flags**: Plan-based access (Free/Pro/Enterprise)
+3. **Feature Gates**: Plan-based access (Explorer/Growth/Mid-Market/Enterprise)
 
 ### Multi-Tenancy
 
@@ -454,7 +432,7 @@ git push origin feature/your-feature-name
 
 ## 🆘 Support
 
-- **Documentation**: See [`docs/`](docs/) folder
+- **Documentation**: See the in-repo code and API surface for the current implementation
 - **Issues**: [GitHub Issues](your-repo-url/issues)
 - **Discussions**: [GitHub Discussions](your-repo-url/discussions)
 

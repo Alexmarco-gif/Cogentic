@@ -24,6 +24,7 @@ from backend.config import get_settings
 from backend.database import get_db_context
 from backend.models.search_query import SearchQuery
 from backend.redis_client import get_redis
+from backend.services.web_search.localization import resolve_search_locale
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -68,6 +69,8 @@ class DeepSearchService:
         user_id: UUID,
         org_id: UUID,
         industry_id: UUID | None = None,
+        country: str | None = None,
+        language: str | None = None,
         synthesize: bool = True,
         max_results: int = SEARCH_MAX_RESULTS,
     ) -> dict[str, Any]:
@@ -125,6 +128,8 @@ class DeepSearchService:
         web_task = self._search_web(
             clean_query,
             max_results=max_results,
+            country=country,
+            language=language,
         )
 
         signals, entities, web_results = await asyncio.gather(
@@ -323,6 +328,8 @@ class DeepSearchService:
         query: str,
         *,
         max_results: int = 10,
+        country: str | None = None,
+        language: str | None = None,
     ) -> list[Any]:
         """Execute live web search via SerpApi (Google + Google News in parallel).
 
@@ -336,18 +343,23 @@ class DeepSearchService:
                 logger.debug("Web search provider not available, skipping")
                 return []
 
+            search_country, search_language = resolve_search_locale(
+                country=country,
+                language=language,
+            )
+
             # Parallel: Google organic + Google News for maximum coverage
             google_task = self._web_search.search(
                 query,
                 num_results=max_results,
-                country=settings.web_search_default_country or None,
-                language=settings.web_search_default_language or "en",
+                country=search_country,
+                language=search_language,
             )
             news_task = self._web_search.news_search(
                 query,
                 num_results=max(5, max_results // 2),
-                country=settings.web_search_default_country or None,
-                language=settings.web_search_default_language or "en",
+                country=search_country,
+                language=search_language,
             )
 
             google_results, news_results = await asyncio.gather(

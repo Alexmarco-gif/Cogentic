@@ -31,10 +31,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
     PUBLIC_PATHS = {
         "/",
         "/health",
-        "/docs",      # disabled in production via FastAPI app config
-        "/redoc",     # disabled in production via FastAPI app config
+        "/docs",  # disabled in production via FastAPI app config
+        "/redoc",  # disabled in production via FastAPI app config
         "/openapi.json",  # disabled in production via FastAPI app config
         "/metrics",  # IP-restricted at the endpoint level (see main.py)
+        "/api/v1/pricing/tiers",
+        "/api/v1/knowledge/domains",
     }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

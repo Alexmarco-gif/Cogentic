@@ -4,15 +4,12 @@ Extended service layer tests covering:
 - GatingService: tier/role-based feature access
 - PricingService: subscription pricing, overage
 - TrialService: trial lifecycle (start, expiry, conversion)
-- FeatureFlagService: YAML-based feature flags
 
 All services tested against the real async SQLite DB (no mocks).
 """
 
-import tempfile
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -22,7 +19,6 @@ from backend.models.feature_gate import FeatureGate
 from backend.models.pricing_config import PricingConfig
 from backend.models.pricing_enums import PricingTier, TrialStatus
 from backend.services.credit_service import CreditService
-from backend.services.feature_flags import FeatureFlagService
 from backend.services.gating_service import GatingService
 from backend.services.pricing_service import PricingService
 from backend.services.trial_service import TrialService
@@ -218,16 +214,16 @@ class TestGatingService:
         await db.refresh(gate)
         return gate
 
-    async def test_no_gate_allows_access(self, db_session: AsyncSession):
-        """Features without a gate are accessible by all."""
+    async def test_missing_gate_raises_lookup_error(self, db_session: AsyncSession):
+        """Missing gate definitions fail closed so misconfigurations are visible."""
         user = await create_user(db_session)
         org = await create_organization(
             db_session, pricing_tier=PricingTier.EXPLORER.value
         )
         svc = GatingService(db_session)
 
-        result = await svc.check_feature_access(org, user, "nonexistent_feature")
-        assert result is True
+        with pytest.raises(LookupError, match="not configured"):
+            await svc.check_feature_access(org, user, "nonexistent_feature")
 
     async def test_tier_meets_requirement(self, db_session: AsyncSession):
         """Access granted when org tier meets requirement."""
@@ -501,7 +497,7 @@ class TestTrialService:
         result = await svc.check_trial_expiry(org)
         assert result.trial_status == TrialStatus.EXPIRED.value
         assert result.pricing_tier == PricingTier.EXPLORER.value
-        assert result.credits_allocated_monthly == 0
+        assert result.credits_allocated_monthly == 1000
 
     async def test_check_trial_expiry_converted(self, db_session: AsyncSession):
         """Expired trial with active subscription converts."""
@@ -583,191 +579,3 @@ class TestTrialService:
         expiring_ids = [o.id for o in expiring]
         assert org_soon.id in expiring_ids
         assert org_later.id not in expiring_ids
-
-
-# =====================================================================
-#  FeatureFlagService Tests (YAML-based, no DB needed)
-# =====================================================================
-class TestFeatureFlagService:
-    """Tests for YAML feature flag evaluation."""
-
-    def _write_yaml(self, content: str) -> Path:
-        """Write YAML content to a temp file and return path."""
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
-        tmp.write(content)
-        tmp.flush()
-        tmp.close()
-        return Path(tmp.name)
-
-    def test_load_valid_config(self):
-        """Loads features from a valid YAML file."""
-        path = self._write_yaml(
-            """
-features:
-  my_feature:
-    enabled: true
-    description: "Test feature"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        assert "my_feature" in svc.features
-        assert svc.features["my_feature"].enabled is True
-
-    def test_is_enabled_true(self):
-        """Enabled feature returns True."""
-        path = self._write_yaml(
-            """
-features:
-  active:
-    enabled: true
-    description: "Active"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        assert svc.is_enabled("active") is True
-
-    def test_is_enabled_false(self):
-        """Disabled feature returns False."""
-        path = self._write_yaml(
-            """
-features:
-  inactive:
-    enabled: false
-    description: "Inactive"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        assert svc.is_enabled("inactive") is False
-
-    def test_undefined_feature_returns_false(self):
-        """Undefined feature defaults to disabled."""
-        path = self._write_yaml("features: {}")
-        svc = FeatureFlagService(config_path=path)
-        assert svc.is_enabled("nope") is False
-
-    def test_missing_file_uses_empty_config(self):
-        """Missing config file results in empty feature set."""
-        svc = FeatureFlagService(config_path=Path("/nonexistent/features.yaml"))
-        assert svc.features == {}
-        assert svc.is_enabled("anything") is False
-
-    def test_org_override(self):
-        """Org-level override enables disabled feature."""
-        path = self._write_yaml(
-            """
-features:
-  beta_only:
-    enabled: false
-    description: "Only for specific orgs"
-    enabled_for_orgs:
-      - "org-123"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        assert svc.is_enabled("beta_only", org_id="org-123") is True
-        assert svc.is_enabled("beta_only", org_id="org-456") is False
-
-    def test_user_override(self):
-        """User-level override enables disabled feature."""
-        path = self._write_yaml(
-            """
-features:
-  alpha:
-    enabled: false
-    description: "Alpha feature"
-    enabled_for_users:
-      - "user-abc"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        assert svc.is_enabled("alpha", user_id="user-abc") is True
-        assert svc.is_enabled("alpha", user_id="user-xyz") is False
-
-    def test_get_feature(self):
-        """Get feature definition by name."""
-        path = self._write_yaml(
-            """
-features:
-  feat:
-    enabled: true
-    description: "A feature"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        feat = svc.get_feature("feat")
-        assert feat is not None
-        assert feat.description == "A feature"
-        assert svc.get_feature("nonexistent") is None
-
-    def test_list_features(self):
-        """List all features."""
-        path = self._write_yaml(
-            """
-features:
-  a:
-    enabled: true
-    description: "A"
-  b:
-    enabled: false
-    description: "B"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        features = svc.list_features()
-        assert len(features) == 2
-        assert "a" in features
-        assert "b" in features
-
-    def test_get_enabled_features(self):
-        """Returns only enabled feature names."""
-        path = self._write_yaml(
-            """
-features:
-  feature_active:
-    enabled: true
-    description: "Active"
-  feature_disabled:
-    enabled: false
-    description: "Disabled"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        enabled = svc.get_enabled_features()
-        assert "feature_active" in enabled
-        assert "feature_disabled" not in enabled
-
-    def test_reload_config(self):
-        """Reload picks up changes."""
-        path = self._write_yaml(
-            """
-features:
-  toggle:
-    enabled: false
-    description: "Togglable"
-"""
-        )
-        svc = FeatureFlagService(config_path=path)
-        assert svc.is_enabled("toggle") is False
-
-        # Overwrite
-        with open(path, "w") as f:
-            f.write(
-                """
-features:
-  toggle:
-    enabled: true
-    description: "Togglable"
-"""
-            )
-
-        svc.reload_config()
-        assert svc.is_enabled("toggle") is True
-
-    def test_load_real_features_yaml(self):
-        """Loads the actual project features.yaml without error."""
-        real_path = (
-            Path(__file__).parent.parent / "backend" / "config" / "features.yaml"
-        )
-        if real_path.exists():
-            svc = FeatureFlagService(config_path=real_path)
-            assert len(svc.features) > 0

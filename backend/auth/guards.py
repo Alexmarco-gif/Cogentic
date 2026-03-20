@@ -329,13 +329,13 @@ def require_feature(
     feature_name: str,
 ) -> None:
     """
-    Require a feature to be enabled for the user's context.
+    Deprecated synchronous feature guard.
 
-    Checks if feature is enabled based on:
-    - Global feature flag (Stage 1)
-    - User's plan (Stage 2+, prepared but not enforced yet)
-    - User-specific overrides (Stage 3+)
-    - Org-specific overrides (Stage 4+)
+    Runtime feature enforcement is handled by
+    ``backend.middleware.feature_gating.require_feature`` so all access checks use
+    the database-backed feature gate configuration. This helper is retained only
+    to fail loudly if stale code paths still try to use the old synchronous
+    auth-context-only contract.
 
     Args:
         auth: Authenticated user context
@@ -345,36 +345,26 @@ def require_feature(
         FeatureDisabledError: If feature is not available
 
     Example:
-        # Check if user can access AI summarization
+        # Deprecated. Use backend.middleware.feature_gating.require_feature instead.
         require_feature(auth, "ai_document_summarization")
     """
-    from backend.services.feature_flags import get_feature_flags_service
-
-    service = get_feature_flags_service()
-
-    is_enabled = service.is_enabled(
+    logger.error(
+        "Deprecated auth.guards.require_feature invoked for %s",
         feature_name,
-        user_id=str(auth.user_id),
-        org_id=str(auth.org_id),
-        plan=auth.plan,
+        extra={
+            "feature": feature_name,
+            "user_id": str(auth.user_id),
+            "org_id": str(auth.org_id),
+            "request_id": auth.request_id,
+        },
     )
-
-    if not is_enabled:
-        logger.warning(
-            f"Feature access denied: '{feature_name}'",
-            extra={
-                "feature": feature_name,
-                "user_id": str(auth.user_id),
-                "org_id": str(auth.org_id),
-                "plan": auth.plan,
-                "request_id": auth.request_id,
-            },
-        )
-
-        raise FeatureDisabledError(
-            feature_name=feature_name,
-            reason="Feature is not enabled or not available for your plan",
-        )
+    raise FeatureDisabledError(
+        feature_name=feature_name,
+        reason=(
+            "Feature checks must use backend.middleware.feature_gating.require_feature "
+            "so route access is enforced from the database-backed gate registry."
+        ),
+    )
 
 
 # ── Security Alerting Helpers ─────────────────────────────────────────────────

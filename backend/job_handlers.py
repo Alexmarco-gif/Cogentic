@@ -1,366 +1,914 @@
-"""
-Background job handlers for AI processing and other async tasks.
+"""Background job handlers used by RQ workers and scheduler hooks.
 
-Phase 1 handlers — most contain placeholder logic.
-TODO: Replace with real implementations in Phase 3 sprints:
-  - process_document_analysis → Sprint 4 (AI Synthesis Engine)
-  - batch_document_import → Sprint 2 (Signal Acquisition Pipeline)
-  - generate_analytics_report → Sprint 6 (Intelligence Briefs)
-  - send_email_notification → Sprint 8 (Notifications)
+This module contains the synchronous entry points enqueued by ``backend.job_queue``.
+Each public function wraps an async implementation so worker processes can execute
+real document analysis, batch import, analytics reporting, webhook delivery, and
+notification delivery without returning placeholder success payloads.
 """
 
+from __future__ import annotations
+
+import asyncio
+import csv
+import hashlib
+import hmac
+import io
+import json
 import logging
-from datetime import datetime, timezone
+import mimetypes
+import re
+import socket
+import zipfile
+from collections import Counter
+from datetime import UTC, datetime, timedelta
+from html import unescape
+from ipaddress import ip_address
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
+from xml.etree import ElementTree
+
+import httpx
+from selectolax.parser import HTMLParser
+from sqlalchemy import delete, func, select
+
+from backend.config import get_settings
+from backend.database import AsyncSessionLocal
+from backend.models.ai_job import AIJob
+from backend.models.credit_transaction import CreditTransaction
+from backend.models.document import Document
+from backend.models.intelligence_brief import IntelligenceBrief
+from backend.models.org_user import OrgUser
+from backend.models.organization import Organization
+from backend.models.signal import Signal
+from backend.services.email_service import (
+    send_data_export_request_email,
+    send_deletion_request_email,
+    send_email,
+)
+from backend.services.feedback_retraining import run_feedback_retraining_job
 
 logger = logging.getLogger(__name__)
 
-
-# === TEST JOB FOR DEVELOPMENT ===
-
-
-def simple_test_job(name: str, message: str) -> dict[str, Any]:
-    """
-    A simple test job for verifying the queue works.
-
-    Args:
-        name: Name to display
-        message: Message to process
-
-    Returns:
-        Job result dictionary
-    """
-    logger.info(f"Processing job for {name}: {message}")
-    return {
-        "name": name,
-        "message": message,
-        "status": "completed",
-        "result": f"Successfully processed: {message}",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-# === AI JOB HANDLERS ===
-
-
-def process_document_analysis(
-    org_id: str, document_id: str, job_id: str, analysis_type: str = "summary"
-) -> dict[str, Any]:
-    """
-    Process AI document analysis in background.
-
-    Args:
-        org_id: Organization ID
-        document_id: Document ID to analyze
-        job_id: AI job ID from database
-        analysis_type: Type of analysis (summary, extraction, classification)
-
-    Returns:
-        Analysis results
-    """
-    from sqlalchemy import select
-
-    from backend.database import get_db_context
-    from backend.models.ai_job import AIJob
-
-    logger.info(f"Starting document analysis: {document_id} (type: {analysis_type})")
-
-    # ── NOT YET IMPLEMENTED ──────────────────────────────────────────────────
-    # TODO [Sprint 4]: Replace with real AI analysis pipeline
-    #   1. Fetch document from Azure Blob
-    #   2. Send to OpenAI GPT-4o via backend.ai.synthesis
-    #   3. Process response + compute confidence
-    #   4. Update job status
-    logger.warning(
-        "Document analysis is a placeholder — returning stub result",
-        extra={
-            "document_id": document_id,
-            "analysis_type": analysis_type,
-            "job_id": job_id,
-        },
-    )
-
-    result = {
-        "analysis_type": analysis_type,
-        "document_id": document_id,
-        "processed_at": datetime.now(timezone.utc).isoformat(),
-        "summary": "[NOT IMPLEMENTED] Document analysis will be available in a future release.",
-        "confidence": 0.0,
-        "_placeholder": True,
-        "_status": "not_implemented",
-    }
-
-    # Update job status in database
-    import asyncio
-
-    async def update_job():
-        async with get_db_context() as db:
-            job = await db.execute(select(AIJob).where(AIJob.id == UUID(job_id)))
-            job = job.scalar_one_or_none()
-
-            if job:
-                job.status = "completed"
-                job.result = result
-                await db.commit()
-                logger.info(f"Updated AI job {job_id} status to completed")
-
-    asyncio.run(update_job())
-
-    return result
+_BLOCKED_WEBHOOK_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "::1",
+    "[::1]",
+    "metadata.google.internal",
+}
+_TEXT_EXTENSIONS = {
+    ".txt",
+    ".md",
+    ".csv",
+    ".json",
+    ".html",
+    ".htm",
+    ".xml",
+    ".yaml",
+    ".yml",
+    ".log",
+    ".rtf",
+}
+_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "has",
+    "in",
+    "is",
+    "it",
+    "its",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "their",
+    "this",
+    "to",
+    "was",
+    "were",
+    "with",
+}
+_DATE_PATTERNS = (
+    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
+    re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b"),
+)
+_EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+_URL_RE = re.compile(r"https?://[^\s<>\"]+", re.IGNORECASE)
+_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{2,}")
+_MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+_MAX_EXTRACTED_TEXT = 200_000
+_MAX_REMOTE_DOWNLOAD_BYTES = 10 * 1024 * 1024
 
 
-def batch_document_import(
-    org_id: str, user_id: str, file_paths: list[str]
-) -> dict[str, Any]:
-    """
-    Import multiple documents in bulk.
+def _safe_uuid(value: str | UUID) -> UUID:
+    return value if isinstance(value, UUID) else UUID(str(value))
 
-    Args:
-        org_id: Organization ID
-        user_id: User ID who initiated import
-        file_paths: List of file paths to import
 
-    Returns:
-        Import results
-    """
-    logger.info(
-        f"Starting batch import of {len(file_paths)} documents for org {org_id}"
-    )
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
 
-    imported = []
-    failed = []
 
-    for file_path in file_paths:
+def _coerce_text(raw: bytes) -> str:
+    for encoding in ("utf-8", "utf-16", "latin-1"):
         try:
-            # ── NOT YET IMPLEMENTED ──────────────────────────────────────────
-            # TODO [Sprint 2]: Replace with real import pipeline
-            #   1. Upload to Azure Blob
-            #   2. Create document record in DB
-            #   3. Trigger analysis job if needed
-            logger.warning(
-                "Batch import is a placeholder — skipping real import",
-                extra={"file_path": file_path, "org_id": org_id},
-            )
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
 
-            imported.append(
-                {
-                    "file_path": file_path,
-                    "status": "success",
-                    "document_id": "placeholder-not-imported",
-                    "_placeholder": True,
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to import {file_path}: {e}")
-            failed.append({"file_path": file_path, "error": str(e)})
 
+def _truncate_text(text: str, limit: int = _MAX_EXTRACTED_TEXT) -> str:
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 3].rstrip() + "..."
+
+
+def _html_to_text(text: str) -> str:
+    parser = HTMLParser(text)
+    if parser.body is not None:
+        extracted = parser.body.text(separator=" ", strip=True)
+    else:
+        extracted = parser.text(separator=" ", strip=True)
+    return unescape(extracted)
+
+
+def _xml_to_text(text: str) -> str:
+    try:
+        root = ElementTree.fromstring(text)
+        return " ".join(part.strip() for part in root.itertext() if part.strip())
+    except ElementTree.ParseError:
+        return text
+
+
+def _extract_docx_text(raw: bytes) -> str:
+    try:
+        from docx import Document as DocxDocument  # type: ignore[import]
+    except ImportError as exc:  # pragma: no cover - dependency should exist
+        raise RuntimeError("DOCX extraction requires python-docx") from exc
+
+    doc = DocxDocument(io.BytesIO(raw))
+    parts = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+            if cells:
+                parts.append(" | ".join(cells))
+    return "\n".join(parts)
+
+
+def _extract_pptx_text(raw: bytes) -> str:
+    try:
+        from pptx import Presentation  # type: ignore[import]
+    except ImportError as exc:  # pragma: no cover - dependency should exist
+        raise RuntimeError("PPTX extraction requires python-pptx") from exc
+
+    presentation = Presentation(io.BytesIO(raw))
+    slides: list[str] = []
+    for slide in presentation.slides:
+        texts: list[str] = []
+        for shape in slide.shapes:
+            text = getattr(shape, "text", None)
+            if text and text.strip():
+                texts.append(text.strip())
+        if texts:
+            slides.append("\n".join(texts))
+    return "\n\n".join(slides)
+
+
+def _extract_pdf_text(raw: bytes) -> str:
+    try:
+        from pypdf import PdfReader  # type: ignore[import]
+    except ImportError as exc:
+        raise RuntimeError(
+            "PDF extraction requires the optional pypdf dependency"
+        ) from exc
+
+    reader = PdfReader(io.BytesIO(raw))
+    pages = []
+    for page in reader.pages:
+        pages.append(page.extract_text() or "")
+    return "\n".join(page.strip() for page in pages if page.strip())
+
+
+def _extract_text_from_bytes(
+    raw: bytes,
+    *,
+    filename: str,
+    content_type: str | None,
+) -> str:
+    extension = Path(filename).suffix.lower()
+    detected = (content_type or "").split(";")[0].strip().lower()
+
+    if len(raw) > _MAX_DOCUMENT_BYTES:
+        raise RuntimeError(
+            f"Document exceeds maximum supported size of {_MAX_DOCUMENT_BYTES} bytes"
+        )
+
+    if extension == ".docx" or detected.endswith(
+        "vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
+        return _extract_docx_text(raw)
+
+    if extension == ".pptx" or detected.endswith(
+        "vnd.openxmlformats-officedocument.presentationml.presentation"
+    ):
+        return _extract_pptx_text(raw)
+
+    if extension == ".pdf" or detected == "application/pdf":
+        return _extract_pdf_text(raw)
+
+    text = _coerce_text(raw)
+
+    if extension in {".html", ".htm"} or detected in {
+        "text/html",
+        "application/xhtml+xml",
+    }:
+        return _html_to_text(text)
+
+    if extension == ".xml" or detected in {"text/xml", "application/xml"}:
+        return _xml_to_text(text)
+
+    if extension == ".json" or detected == "application/json":
+        try:
+            parsed = json.loads(text)
+            return json.dumps(parsed, indent=2, ensure_ascii=True)
+        except json.JSONDecodeError:
+            return text
+
+    if extension == ".csv" or detected == "text/csv":
+        reader = csv.reader(io.StringIO(text))
+        rows = [" | ".join(cell.strip() for cell in row) for row in reader]
+        return "\n".join(row for row in rows if row.strip())
+
+    if extension in _TEXT_EXTENSIONS or detected.startswith("text/"):
+        return text
+
+    if extension == ".zip":
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            names = archive.namelist()
+        return "ZIP archive containing:\n" + "\n".join(names)
+
+    raise RuntimeError(
+        f"Unsupported document format for analysis: {extension or detected or 'unknown'}"
+    )
+
+
+def _extract_keywords(text: str, limit: int = 10) -> list[str]:
+    counts = Counter(
+        token.lower()
+        for token in _TOKEN_RE.findall(text)
+        if token.lower() not in _STOPWORDS and len(token) > 2
+    )
+    return [word for word, _count in counts.most_common(limit)]
+
+
+def _build_summary(text: str) -> str:
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    summary = " ".join(part.strip() for part in sentences[:3] if part.strip())
+    if not summary:
+        summary = text[:320]
+    return _truncate_text(summary, limit=500)
+
+
+def _classify_document(filename: str, content_type: str | None, text: str) -> dict[str, Any]:
+    extension = Path(filename).suffix.lower().lstrip(".") or "unknown"
+    lowered = text.lower()
+    tags: list[str] = []
+    if "invoice" in lowered:
+        tags.append("invoice")
+    if "contract" in lowered or "agreement" in lowered:
+        tags.append("contract")
+    if "market" in lowered or "competitor" in lowered:
+        tags.append("market_intelligence")
+    if "financial" in lowered or "revenue" in lowered:
+        tags.append("finance")
     return {
-        "total": len(file_paths),
-        "imported": len(imported),
-        "failed": len(failed),
-        "results": {
-            "imported": imported,
-            "failed": failed,
-        },
+        "file_extension": extension,
+        "content_type": content_type
+        or mimetypes.guess_type(filename)[0]
+        or "application/octet-stream",
+        "tags": tags,
+        "contains_pii": bool(_EMAIL_RE.search(text)),
     }
 
 
-def cleanup_expired_documents(days: int = 30) -> dict[str, Any]:
-    """
-    Clean up soft-deleted documents older than specified days.
-
-    Args:
-        days: Number of days after soft-delete to hard-delete
-
-    Returns:
-        Cleanup results
-    """
-    from datetime import timedelta
-
-    from sqlalchemy import select
-
-    from backend.database import get_db_context
-    from backend.models.document import Document
-
-    logger.info(f"Starting cleanup of documents deleted > {days} days ago")
-
-    async def cleanup():
-        async with get_db_context() as db:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-
-            result = await db.execute(
-                select(Document).where(Document.deleted_at < cutoff_date)
-            )
-            documents = result.scalars().all()
-
-            count = len(documents)
-
-            for doc in documents:
-                # TODO [Sprint 8]: Add Azure Blob deletion before DB delete
-                # 1. Delete from Azure Blob (not yet implemented)
-                # 2. Delete from database
-                logger.info(
-                    f"Deleting expired document {doc.id} (blob cleanup not yet implemented)"
-                )
-                await db.delete(doc)
-
-            await db.commit()
-            logger.info(f"Cleaned up {count} expired documents")
-
-            return {"deleted_count": count}
-
-    import asyncio
-
-    return asyncio.run(cleanup())
-
-
-def generate_analytics_report(
-    org_id: str, report_type: str, start_date: str, end_date: str
+def _build_document_analysis(
+    *,
+    document: Document,
+    extracted_text: str,
+    content_type: str | None,
+    source: str,
 ) -> dict[str, Any]:
-    """
-    Generate analytics reports in background.
-
-    Args:
-        org_id: Organization ID
-        report_type: Type of report (usage, documents, ai_jobs)
-        start_date: Report start date (ISO format)
-        end_date: Report end date (ISO format)
-
-    Returns:
-        Report data
-    """
-    logger.info(f"Generating {report_type} report for org {org_id}")
-
-    # TODO [Sprint 6]: Replace with real analytics pipeline
-    # 1. Query database for metrics
-    # 2. Generate charts/visualizations
-    # 3. Export to PDF/Excel
-    # 4. Store in Azure Blob
-    # 5. Send notification to user
-    logger.warning(f"PLACEHOLDER: Report generation returns stub for {report_type}")
+    dates = []
+    for pattern in _DATE_PATTERNS:
+        dates.extend(match.group(0) for match in pattern.finditer(extracted_text))
 
     return {
-        "report_type": report_type,
-        "org_id": org_id,
-        "period": {
-            "start": start_date,
-            "end": end_date,
-        },
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "status": "completed",
+        "summary": _build_summary(extracted_text),
+        "word_count": len(re.findall(r"\b\w+\b", extracted_text)),
+        "character_count": len(extracted_text),
+        "keywords": _extract_keywords(extracted_text),
+        "emails": sorted(set(_EMAIL_RE.findall(extracted_text)))[:10],
+        "urls": sorted(set(_URL_RE.findall(extracted_text)))[:10],
+        "dates": sorted(set(dates))[:10],
+        "classification": _classify_document(
+            document.filename, content_type, extracted_text
+        ),
+        "source": source,
+        "analyzed_at": _utcnow().isoformat(),
     }
 
 
-# === NOTIFICATION HANDLERS ===
+def _is_private_host(hostname: str) -> bool:
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise ValueError(f"Unable to resolve webhook hostname: {hostname}")
 
-
-def send_email_notification(
-    to_email: str, subject: str, body: str, template: str | None = None
-) -> dict[str, Any]:
-    """
-    Send email notification via Resend.
-
-    Args:
-        to_email: Recipient email
-        subject: Email subject
-        body: Email body (HTML)
-        template: Optional template name (reserved for future use)
-
-    Returns:
-        Send result
-    """
-    from backend.services.email_service import send_email
-
-    logger.info(f"Sending email to {to_email}: {subject}")
-
-    result = send_email(to=to_email, subject=subject, html=body)
-
-    return {
-        "to": to_email,
-        "subject": subject,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
-        "status": "sent",
-        "resend_id": result.get("id") if isinstance(result, dict) else None,
-    }
-
-
-def send_deletion_request_email_job(to_email: str, request_id: str) -> dict[str, Any]:
-    """
-    RQ job: Send GDPR deletion request confirmation email.
-
-    Args:
-        to_email: Recipient email
-        request_id: Deletion request ID
-    """
-    from backend.services.email_service import send_deletion_request_email
-
-    logger.info(f"Sending deletion request confirmation email: {to_email}")
-    result = send_deletion_request_email(to=to_email, request_id=request_id)
-    return {
-        "to": to_email,
-        "type": "deletion_request",
-        "request_id": request_id,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
-        "resend_id": result.get("id") if isinstance(result, dict) else None,
-    }
-
-
-def send_data_export_email_job(to_email: str, request_id: str) -> dict[str, Any]:
-    """
-    RQ job: Send data export request confirmation email.
-
-    Args:
-        to_email: Recipient email
-        request_id: Export request ID
-    """
-    from backend.services.email_service import send_data_export_request_email
-
-    logger.info(f"Sending data export request confirmation email: {to_email}")
-    result = send_data_export_request_email(to=to_email, request_id=request_id)
-    return {
-        "to": to_email,
-        "type": "data_export",
-        "request_id": request_id,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
-        "resend_id": result.get("id") if isinstance(result, dict) else None,
-    }
+    for info in infos:
+        candidate = info[4][0]
+        addr = ip_address(candidate)
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_reserved
+            or addr.is_unspecified
+        ):
+            return True
+    return False
 
 
 def _validate_webhook_url(url: str) -> bool:
-    """Validate webhook URL to prevent SSRF attacks."""
-    import ipaddress
-    import socket
-    from urllib.parse import urlparse
-
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        return False
-    hostname = parsed.hostname
-    if not hostname:
+    try:
+        parsed = urlparse(url)
+    except Exception:
         return False
 
-    # Block private/internal ranges
-    BLOCKED_HOSTNAMES = {
-        "localhost",
-        "127.0.0.1",
-        "0.0.0.0",
-        "[::1]",
-        "metadata.google.internal",
-    }
-    if hostname.lower() in BLOCKED_HOSTNAMES:
+    if parsed.scheme not in {"http", "https"}:
+        return False
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname or hostname in _BLOCKED_WEBHOOK_HOSTS:
         return False
 
     try:
-        resolved = socket.getaddrinfo(hostname, None)
-        for _, _, _, _, addr in resolved:
-            ip = ipaddress.ip_address(addr[0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-                return False
-    except (socket.gaierror, ValueError):
+        return not _is_private_host(hostname)
+    except ValueError:
         return False
 
-    return True
+
+async def _read_remote_document(storage_path: str) -> bytes:
+    parsed = urlparse(storage_path)
+    if parsed.scheme not in {"http", "https"}:
+        raise RuntimeError("Only http and https remote document sources are supported")
+    if not _validate_webhook_url(storage_path):
+        raise RuntimeError("Remote document source is blocked for safety reasons")
+
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        response = await client.get(storage_path)
+        response.raise_for_status()
+        content_length = int(response.headers.get("content-length", "0") or 0)
+        if content_length and content_length > _MAX_REMOTE_DOWNLOAD_BYTES:
+            raise RuntimeError("Remote document exceeds supported download limit")
+        if len(response.content) > _MAX_REMOTE_DOWNLOAD_BYTES:
+            raise RuntimeError("Remote document exceeds supported download limit")
+        return response.content
+
+
+async def _read_document_source(storage_path: str) -> tuple[bytes, str]:
+    parsed = urlparse(storage_path)
+
+    if parsed.scheme in {"http", "https"}:
+        return await _read_remote_document(storage_path), "remote"
+
+    path = Path(parsed.path) if parsed.scheme == "file" else Path(storage_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Document source not found: {path}")
+
+    return path.read_bytes(), "local"
+
+
+def _azure_blob_parts(storage_path: str) -> tuple[str, str] | None:
+    parsed = urlparse(storage_path)
+    if parsed.scheme == "azure":
+        container, _, blob = parsed.path.lstrip("/").partition("/")
+        if container and blob:
+            return container, blob
+        return None
+
+    if parsed.scheme in {"http", "https"} and ".blob.core." in (parsed.netloc or ""):
+        path = parsed.path.lstrip("/")
+        container, _, blob = path.partition("/")
+        if container and blob:
+            return container, blob
+    return None
+
+
+def _delete_storage_path(storage_path: str | None) -> bool:
+    if not storage_path:
+        return False
+
+    blob_parts = _azure_blob_parts(storage_path)
+    if blob_parts:
+        settings = get_settings()
+        if not settings.azure_blob_connection_string:
+            logger.warning(
+                "Skipping Azure blob deletion for %s because no connection string is configured",
+                storage_path,
+            )
+            return False
+
+        try:
+            from azure.storage.blob import BlobServiceClient  # type: ignore[import]
+        except ImportError:  # pragma: no cover - dependency should exist in prod env
+            logger.warning("azure-storage-blob is not installed; blob cleanup skipped")
+            return False
+
+        container, blob = blob_parts
+        client = BlobServiceClient.from_connection_string(
+            settings.azure_blob_connection_string
+        )
+        client.get_blob_client(container=container, blob=blob).delete_blob(
+            delete_snapshots="include"
+        )
+        return True
+
+    parsed = urlparse(storage_path)
+    path = Path(parsed.path) if parsed.scheme == "file" else Path(storage_path)
+    if path.exists():
+        path.unlink()
+        return True
+    return False
+
+
+async def _set_job_failed(
+    db: Any,
+    job: AIJob | None,
+    document: Document | None,
+    *,
+    error_message: str,
+    started_at: datetime | None = None,
+) -> dict[str, Any]:
+    if document is not None:
+        document.processing_status = "failed"
+    if job is not None:
+        started = started_at or job.started_at or _utcnow()
+        completed = _utcnow()
+        job.status = "failed"
+        job.error_message = error_message
+        job.result = {"status": "failed", "error": error_message}
+        job.completed_at = completed
+        job.duration_ms = int((completed - started).total_seconds() * 1000)
+    await db.commit()
+    return {"status": "failed", "error": error_message}
+
+
+async def _process_document_analysis_async(job_id: str | UUID) -> dict[str, Any]:
+    job_uuid = _safe_uuid(job_id)
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(AIJob).where(AIJob.id == job_uuid))
+        job = result.scalar_one_or_none()
+        if not job:
+            raise ValueError(f"AI job not found: {job_uuid}")
+
+        if not job.document_id:
+            return await _set_job_failed(
+                db, job, None, error_message="AI job is not linked to a document"
+            )
+
+        document = await db.get(Document, job.document_id)
+        if not document:
+            return await _set_job_failed(
+                db, job, None, error_message=f"Document not found: {job.document_id}"
+            )
+        if not document.storage_path:
+            return await _set_job_failed(
+                db, job, document, error_message="Document storage_path is missing"
+            )
+
+        started_at = _utcnow()
+        job.status = "running"
+        job.started_at = started_at
+        job.attempts = (job.attempts or 0) + 1
+        document.processing_status = "processing"
+        await db.commit()
+
+        try:
+            raw, source = await _read_document_source(document.storage_path)
+            extracted_text = _truncate_text(
+                _extract_text_from_bytes(
+                    raw,
+                    filename=document.filename,
+                    content_type=document.content_type,
+                )
+            )
+            if not extracted_text:
+                raise RuntimeError(
+                    "No textual content could be extracted from the document"
+                )
+
+            analysis = _build_document_analysis(
+                document=document,
+                extracted_text=extracted_text,
+                content_type=document.content_type,
+                source=source,
+            )
+
+            document.extracted_text = extracted_text
+            document.processing_status = "completed"
+            completed_at = _utcnow()
+            job.status = "completed"
+            job.error_message = None
+            job.result = {
+                "status": "completed",
+                "document_id": str(document.id),
+                "analysis": analysis,
+            }
+            job.completed_at = completed_at
+            job.duration_ms = int((completed_at - started_at).total_seconds() * 1000)
+            await db.commit()
+            return job.result
+        except Exception as exc:
+            logger.exception("Document analysis failed for job %s", job_uuid)
+            return await _set_job_failed(
+                db,
+                job,
+                document,
+                error_message=str(exc),
+                started_at=started_at,
+            )
+
+
+async def _batch_document_import_async(
+    org_id: str | UUID,
+    user_id: str | UUID,
+    documents: list[dict[str, Any] | str],
+) -> dict[str, Any]:
+    org_uuid = _safe_uuid(org_id)
+    user_uuid = _safe_uuid(user_id)
+
+    async with AsyncSessionLocal() as db:
+        organization = await db.get(Organization, org_uuid)
+        if not organization:
+            raise ValueError(f"Organization not found: {org_uuid}")
+
+        membership = await db.execute(
+            select(OrgUser).where(
+                OrgUser.org_id == org_uuid, OrgUser.user_id == user_uuid
+            )
+        )
+        if membership.scalar_one_or_none() is None:
+            raise ValueError("User is not a member of the target organization")
+
+        imported: list[dict[str, Any]] = []
+        failed: list[dict[str, Any]] = []
+
+        for entry in documents:
+            payload = {"storage_path": entry} if isinstance(entry, str) else dict(entry)
+            storage_path = str(payload.get("storage_path") or "").strip()
+            filename = str(payload.get("filename") or "").strip()
+
+            if not storage_path:
+                failed.append({"status": "failed", "error": "storage_path is required"})
+                continue
+
+            try:
+                raw, _source = await _read_document_source(storage_path)
+                if not filename:
+                    parsed = urlparse(storage_path)
+                    filename = Path(parsed.path or storage_path).name or (
+                        f"document-{len(imported) + len(failed) + 1}"
+                    )
+                content_type = (
+                    payload.get("content_type")
+                    or mimetypes.guess_type(filename)[0]
+                    or "application/octet-stream"
+                )
+                size_bytes = int(payload.get("size_bytes") or len(raw))
+
+                document = Document(
+                    org_id=org_uuid,
+                    owner_id=user_uuid,
+                    filename=filename,
+                    content_type=content_type,
+                    size_bytes=size_bytes,
+                    storage_path=storage_path,
+                    processing_status="pending",
+                )
+                db.add(document)
+                await db.flush()
+
+                job = AIJob(
+                    org_id=org_uuid,
+                    user_id=user_uuid,
+                    document_id=document.id,
+                    job_type="analyze_document",
+                    input_params={"storage_path": storage_path, "filename": filename},
+                    status="queued",
+                )
+                db.add(job)
+                await db.commit()
+                await db.refresh(document)
+                await db.refresh(job)
+
+                analysis_result = await _process_document_analysis_async(job.id)
+                if analysis_result["status"] == "completed":
+                    imported.append(
+                        {
+                            "status": "success",
+                            "document_id": str(document.id),
+                            "job_id": str(job.id),
+                            "filename": filename,
+                        }
+                    )
+                else:
+                    failed.append(
+                        {
+                            "status": "failed",
+                            "document_id": str(document.id),
+                            "job_id": str(job.id),
+                            "filename": filename,
+                            "error": analysis_result.get("error"),
+                        }
+                    )
+            except Exception as exc:
+                logger.exception("Batch document import failed for %s", storage_path)
+                failed.append(
+                    {
+                        "status": "failed",
+                        "filename": filename or storage_path,
+                        "error": str(exc),
+                    }
+                )
+
+        return {
+            "status": "completed",
+            "org_id": str(org_uuid),
+            "user_id": str(user_uuid),
+            "imported_count": len(imported),
+            "failed_count": len(failed),
+            "imported": imported,
+            "failed": failed,
+        }
+
+
+async def _generate_analytics_report_async(
+    org_id: str | UUID,
+    *,
+    report_type: str = "usage",
+    days: int = 30,
+) -> dict[str, Any]:
+    org_uuid = _safe_uuid(org_id)
+    window_end = _utcnow()
+    window_start = window_end - timedelta(days=max(days, 1))
+
+    async with AsyncSessionLocal() as db:
+        organization = await db.get(Organization, org_uuid)
+        if not organization:
+            raise ValueError(f"Organization not found: {org_uuid}")
+
+        total_documents = await db.scalar(
+            select(func.count())
+            .select_from(Document)
+            .where(Document.org_id == org_uuid, Document.deleted_at.is_(None))
+        )
+        completed_documents = await db.scalar(
+            select(func.count())
+            .select_from(Document)
+            .where(
+                Document.org_id == org_uuid,
+                Document.deleted_at.is_(None),
+                Document.processing_status == "completed",
+            )
+        )
+        failed_documents = await db.scalar(
+            select(func.count())
+            .select_from(Document)
+            .where(
+                Document.org_id == org_uuid,
+                Document.deleted_at.is_(None),
+                Document.processing_status == "failed",
+            )
+        )
+        total_jobs = await db.scalar(
+            select(func.count()).select_from(AIJob).where(AIJob.org_id == org_uuid)
+        )
+        running_jobs = await db.scalar(
+            select(func.count())
+            .select_from(AIJob)
+            .where(AIJob.org_id == org_uuid, AIJob.status == "running")
+        )
+        failed_jobs = await db.scalar(
+            select(func.count())
+            .select_from(AIJob)
+            .where(AIJob.org_id == org_uuid, AIJob.status == "failed")
+        )
+        total_briefs = await db.scalar(
+            select(func.count())
+            .select_from(IntelligenceBrief)
+            .where(
+                IntelligenceBrief.org_id == org_uuid,
+                IntelligenceBrief.deleted_at.is_(None),
+            )
+        )
+        published_briefs = await db.scalar(
+            select(func.count())
+            .select_from(IntelligenceBrief)
+            .where(
+                IntelligenceBrief.org_id == org_uuid,
+                IntelligenceBrief.deleted_at.is_(None),
+                IntelligenceBrief.status == "published",
+            )
+        )
+        org_signals = await db.scalar(
+            select(func.count()).select_from(Signal).where(Signal.org_id == org_uuid)
+        )
+        recent_signals = await db.scalar(
+            select(func.count())
+            .select_from(Signal)
+            .where(Signal.org_id == org_uuid, Signal.created_at >= window_start)
+        )
+        credit_rows = await db.execute(
+            select(
+                CreditTransaction.action_type,
+                func.sum(CreditTransaction.credits_consumed),
+            )
+            .where(
+                CreditTransaction.org_id == org_uuid,
+                CreditTransaction.created_at >= window_start,
+            )
+            .group_by(CreditTransaction.action_type)
+            .order_by(func.sum(CreditTransaction.credits_consumed).desc())
+        )
+        credits_by_action = {
+            action: int(total or 0) for action, total in credit_rows.all()
+        }
+
+        total_credits_used = sum(credits_by_action.values())
+        return {
+            "status": "completed",
+            "report_type": report_type,
+            "generated_at": window_end.isoformat(),
+            "window": {
+                "days": days,
+                "start": window_start.isoformat(),
+                "end": window_end.isoformat(),
+            },
+            "organization": {
+                "id": str(organization.id),
+                "name": organization.name,
+                "slug": organization.slug,
+                "pricing_tier": organization.pricing_tier,
+                "trial_status": organization.trial_status,
+            },
+            "summary": {
+                "documents_total": int(total_documents or 0),
+                "documents_completed": int(completed_documents or 0),
+                "documents_failed": int(failed_documents or 0),
+                "ai_jobs_total": int(total_jobs or 0),
+                "ai_jobs_running": int(running_jobs or 0),
+                "ai_jobs_failed": int(failed_jobs or 0),
+                "briefs_total": int(total_briefs or 0),
+                "briefs_published": int(published_briefs or 0),
+                "signals_total": int(org_signals or 0),
+                "signals_recent": int(recent_signals or 0),
+                "credits_used_in_window": int(total_credits_used),
+                "credits_allocated_monthly": int(
+                    organization.credits_allocated_monthly
+                ),
+                "credits_consumed": int(organization.credits_consumed),
+            },
+            "breakdowns": {
+                "credits_by_action": credits_by_action,
+            },
+        }
+
+
+async def _cleanup_expired_documents_async() -> dict[str, Any]:
+    now = _utcnow()
+    soft_delete_cutoff = now - timedelta(days=30)
+
+    async with AsyncSessionLocal() as db:
+        rows = await db.execute(
+            select(Document).where(
+                (
+                    Document.retention_date.is_not(None)
+                    & (Document.retention_date <= now)
+                )
+                | (
+                    Document.deleted_at.is_not(None)
+                    & (Document.deleted_at <= soft_delete_cutoff)
+                )
+            )
+        )
+        documents = list(rows.scalars().all())
+
+        deleted_files = 0
+        deleted_rows = 0
+        for document in documents:
+            try:
+                if _delete_storage_path(document.storage_path):
+                    deleted_files += 1
+            except Exception:
+                logger.exception(
+                    "Failed to delete storage for expired document %s", document.id
+                )
+
+            await db.execute(delete(AIJob).where(AIJob.document_id == document.id))
+            await db.delete(document)
+            deleted_rows += 1
+
+        await db.commit()
+        return {
+            "status": "completed",
+            "deleted_documents": deleted_rows,
+            "deleted_files": deleted_files,
+            "ran_at": now.isoformat(),
+        }
+
+
+def process_document_analysis(job_id: str | UUID) -> dict[str, Any]:
+    """RQ entry point for document analysis."""
+    logger.info("Starting document analysis job %s", job_id)
+    return asyncio.run(_process_document_analysis_async(job_id))
+
+
+def batch_document_import(
+    org_id: str | UUID,
+    user_id: str | UUID,
+    documents: list[dict[str, Any] | str],
+) -> dict[str, Any]:
+    """RQ entry point for batch document import plus immediate analysis."""
+    logger.info(
+        "Starting batch document import for org=%s user=%s count=%d",
+        org_id,
+        user_id,
+        len(documents),
+    )
+    return asyncio.run(_batch_document_import_async(org_id, user_id, documents))
+
+
+def generate_analytics_report(
+    org_id: str | UUID,
+    report_type: str = "usage",
+    days: int = 30,
+) -> dict[str, Any]:
+    """RQ entry point for organization analytics reports."""
+    logger.info(
+        "Generating analytics report for org=%s type=%s days=%d",
+        org_id,
+        report_type,
+        days,
+    )
+    return asyncio.run(
+        _generate_analytics_report_async(org_id, report_type=report_type, days=days)
+    )
+
+
+def cleanup_expired_documents() -> dict[str, Any]:
+    """Delete expired documents and their backing storage artifacts."""
+    logger.info("Running expired document cleanup job")
+    return asyncio.run(_cleanup_expired_documents_async())
+
+
+def send_email_notification(
+    to: str | list[str],
+    subject: str,
+    html: str,
+    *,
+    reply_to: str | None = None,
+    tags: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    """Worker-safe email wrapper."""
+    return send_email(
+        to=to, subject=subject, html=html, reply_to=reply_to, tags=tags
+    )
+
+
+def send_deletion_request_email_job(to: str, request_id: str) -> dict[str, Any]:
+    """Worker entry point for GDPR deletion confirmation email."""
+    return send_deletion_request_email(to=to, request_id=request_id)
+
+
+def send_data_export_email_job(to: str, request_id: str) -> dict[str, Any]:
+    """Worker entry point for GDPR export confirmation email."""
+    return send_data_export_request_email(to=to, request_id=request_id)
 
 
 def send_webhook_notification(
@@ -369,108 +917,47 @@ def send_webhook_notification(
     payload: dict[str, Any],
     signing_secret: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Send webhook notification to external service.
-
-    Args:
-        webhook_url: Webhook endpoint URL
-        event_type: Type of event
-        payload: Event data
-        signing_secret: Optional HMAC-SHA256 signing secret.  When provided,
-            a ``X-Cogent-Signature: sha256=<hex>`` header is added so that
-            recipients can verify the payload origin.
-
-    Returns:
-        Webhook result
-    """
-    import hashlib
-    import hmac as _hmac
-
-    import httpx
-
+    """Deliver a signed webhook to an external endpoint with SSRF protection."""
     if not _validate_webhook_url(webhook_url):
-        logger.warning(f"Webhook URL blocked by SSRF filter: {webhook_url}")
         return {
             "status": "failed",
-            "error": "Invalid or blocked webhook URL",
-            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "error": "Webhook delivery blocked: target URL is not allowed",
         }
 
-    logger.info(f"Sending webhook {event_type} to {webhook_url}")
-
     body = {
-        "event": event_type,
-        "data": payload,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event_type": event_type,
+        "sent_at": _utcnow().isoformat(),
+        "payload": payload,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Cogent-Webhook/1.0",
     }
 
-    headers: dict[str, str] = {"Content-Type": "application/json"}
     if signing_secret:
-        import json as _json
-
-        body_bytes = _json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
-        sig_hex = _hmac.new(
-            signing_secret.encode(),
-            body_bytes,
-            hashlib.sha256,
+        serialized = json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
+        signature = hmac.new(
+            signing_secret.encode(), serialized, hashlib.sha256
         ).hexdigest()
-        headers["X-Cogent-Signature"] = f"sha256={sig_hex}"
+        headers["X-Cogent-Signature"] = f"sha256={signature}"
 
     try:
-        response = httpx.post(
-            webhook_url,
-            json=body,
-            headers=headers,
-            timeout=10,
-        )
-
+        response = httpx.post(webhook_url, json=body, headers=headers, timeout=10.0)
         return {
             "status": "success",
             "status_code": response.status_code,
-            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "event_type": event_type,
         }
-    except Exception as e:
-        logger.error(f"Webhook failed: {e}")
-        return {
-            "status": "failed",
-            "error": str(e),
-            "sent_at": datetime.now(timezone.utc).isoformat(),
-        }
+    except Exception as exc:
+        logger.exception("Webhook delivery failed to %s", webhook_url)
+        return {"status": "failed", "error": str(exc), "event_type": event_type}
 
 
-# === FEEDBACK RETRAINING JOB ===
-
-
-def run_feedback_retraining_scheduled() -> dict[str, Any]:
-    """Periodic feedback → retraining cycle.
-
-    Called by the RQ scheduler every 6 hours (low-priority queue).
-    Applies entity feedback, writes ML training snapshots, and refreshes
-    the NER calibration cache in Redis.
-    """
-    from backend.services.feedback_retraining import run_feedback_retraining_job
-
-    return run_feedback_retraining_job(lookback_days=30, write_snapshot=True)
-
-
-def schedule_feedback_retraining() -> None:
-    """Enqueue a one-off feedback retraining job on the low-priority queue.
-
-    Call this at worker startup or via a cron trigger (e.g. APScheduler,
-    Celery beat, or a simple cron container that calls this function).
-
-    Example from a cron container:
-        from backend.job_handlers import schedule_feedback_retraining
-        schedule_feedback_retraining()
-    """
-    from backend.job_queue import get_low_priority_queue
-
-    q = get_low_priority_queue()
-    job = q.enqueue(
-        run_feedback_retraining_scheduled,
-        job_timeout=600,
-        job_id="feedback_retraining_periodic",
-        description="Feedback → NER calibration + ML training snapshot",
+def run_feedback_retraining(
+    *, lookback_days: int = 30, write_snapshot: bool = True
+) -> dict[str, Any]:
+    """Compatibility wrapper for the feedback retraining service."""
+    return run_feedback_retraining_job(
+        lookback_days=lookback_days,
+        write_snapshot=write_snapshot,
     )
-    logger.info("Enqueued feedback retraining job: %s", job.id)
-

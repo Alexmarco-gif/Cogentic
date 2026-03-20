@@ -359,13 +359,17 @@ async def execute_deep_search(
     max_results: int = 10,
 ) -> dict[str, Any]:
     """Execute deep live search via DeepSearchService."""
+    from backend.models.organization import Organization
     from backend.services.deep_search import DeepSearchService
 
     service = DeepSearchService(db)
+    org = await db.get(Organization, org_id)
     result = await service.search(
         query=query,
         user_id=user_id,
         org_id=org_id,
+        country=org.default_country if org else None,
+        language=org.default_language if org else None,
         synthesize=include_synthesis,
         max_results=max_results,
     )
@@ -420,18 +424,33 @@ async def execute_synthesize_signal(
 ) -> dict[str, Any]:
     """Synthesize an on-demand signal from live data."""
     from backend.ai.synthesis import SynthesisService
+    from backend.models.organization import Organization
 
     service = SynthesisService(db)
+    org = await db.get(Organization, org_id)
 
     # Optionally enrich with live web search results
     web_context = None
     try:
-        from backend.services.web_search import get_web_search_provider
+        from backend.services.web_search import (
+            WebSearchError,
+            get_web_search_provider,
+        )
+        from backend.services.web_search.localization import resolve_search_locale
 
         provider = get_web_search_provider()
-        if provider.is_available():
-            web_results = await provider.search(question, num_results=5)
-            if web_results:
+        search_country, search_language = resolve_search_locale(
+            country=org.default_country if org else None,
+            language=org.default_language if org else None,
+        )
+        if await provider.is_available():
+            web_results = await provider.search(
+                question,
+                num_results=5,
+                country=search_country,
+                language=search_language,
+            )
+            if web_results and not isinstance(web_results, WebSearchError):
                 web_context = web_results
     except Exception as e:
         logger.warning(f"Web search for synthesize_signal failed: {e}")

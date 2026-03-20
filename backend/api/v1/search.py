@@ -16,7 +16,6 @@ from backend.middleware.feature_gating import get_current_organization
 from backend.models.organization import Organization
 from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.search_query import SearchQueryRepository
-from backend.services.credit_service import CreditService
 from backend.schemas.search import (
     SearchHistoryItem,
     SearchHistoryResponse,
@@ -25,6 +24,7 @@ from backend.schemas.search import (
     SearchResultItem,
     WebSearchResultItem,
 )
+from backend.services.credit_service import CreditService
 from backend.services.deep_search import DeepSearchService
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,8 @@ async def execute_search(
             query=body.query,
             user_id=auth.user_id,
             org_id=auth.org_id,
+            country=organization.default_country,
+            language=organization.default_language,
             max_results=body.max_results,
             synthesize=body.include_synthesis,
         )

@@ -98,12 +98,15 @@ class BriefRefreshResponse(BaseModel):
 
     brief_id: UUID
     refreshed: bool
+    status: str | None = None
     reason: str | None = None
 
 
 class BriefRefreshBatchResponse(BaseModel):
     """Batch refresh result."""
 
+    queued: bool = True
+    message: str | None = None
     checked: int
     refreshed: int
     skipped: int

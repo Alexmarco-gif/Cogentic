@@ -29,26 +29,18 @@ import type {
 
 function AccessNotice({ access }: { access: StudioAccessState }) {
   if (access.loading) {
-    return (
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        <div>
-          <p className="text-sm font-medium text-heading">Checking Studio access</p>
-          <p className="text-xs text-subtle">Loading your role and plan entitlements...</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
-  if (!access.hasFeatureAccess) {
+  if (access.featureResolved && !access.hasFeatureAccess) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4">
+        <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-subtle" />
         <div>
-          <p className="text-sm font-medium text-amber-700">Studio requires custom contracts access</p>
-          <p className="mt-1 text-xs text-amber-600">
-            Your current plan is <span className="font-semibold">{access.currentTier}</span>. Upgrade to a tier that includes
-            custom contracts before activating Studio-created workflows.
+          <p className="text-sm font-medium text-heading">Studio stays open for planning and validation</p>
+          <p className="mt-1 text-xs text-subtle">
+            Your current plan is <span className="font-semibold">{access.currentTier}</span>. Live contract activation
+            becomes available on plans that include custom contracts.
           </p>
         </div>
       </div>
@@ -57,11 +49,11 @@ function AccessNotice({ access }: { access: StudioAccessState }) {
 
   if (!access.canManageContracts) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4">
+        <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-subtle" />
         <div>
-          <p className="text-sm font-medium text-amber-700">Admin or owner role required</p>
-          <p className="mt-1 text-xs text-amber-600">
+          <p className="text-sm font-medium text-heading">Activation is limited to admin or owner roles</p>
+          <p className="mt-1 text-xs text-subtle">
             Your current role is <span className="font-semibold">{access.userRole ?? 'unknown'}</span>. You can review the Studio flow,
             but only admin or owner accounts can activate, pause, fetch, or delete contracts.
           </p>
@@ -70,15 +62,7 @@ function AccessNotice({ access }: { access: StudioAccessState }) {
     )
   }
 
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-      <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600" />
-      <div>
-        <p className="text-sm font-medium text-emerald-700">Studio ready for contract activation</p>
-        <p className="text-xs text-emerald-600">Your role and plan allow full contract lifecycle actions.</p>
-      </div>
-    </div>
-  )
+  return null
 }
 
 function EmptyState() {

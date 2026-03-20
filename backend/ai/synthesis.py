@@ -266,7 +266,9 @@ class SynthesisService:
             signal_blocks.append(block)
         signal_context = "\n---\n".join(signal_blocks)
 
-        avg_confidence = round(sum(s["confidence"] for s in signals) / len(signals) * 100)
+        avg_confidence = round(
+            sum(s["confidence"] for s in signals) / len(signals) * 100
+        )
 
         system_prompt = (
             "You are a senior intelligence analyst. "
@@ -334,25 +336,16 @@ Rules:
             # Ensure required keys exist
             result.setdefault("findings", [])
             result.setdefault("indicators", [])
-            result.setdefault("citations", [s.get("source_url", "") for s in signals if s.get("source_url")])
+            result.setdefault(
+                "citations",
+                [s.get("source_url", "") for s in signals if s.get("source_url")],
+            )
             result.setdefault("confidence", avg_confidence)
             result.setdefault("read_time", max(3, len(result["findings"]) * 2))
             return result
         except Exception as exc:
-            logger.warning(f"synthesize_brief LLM call failed for {topic!r}: {exc}")
-            return {
-                "title": topic,
-                "bluf": f"AI synthesis pending for: {topic}",
-                "findings": [],
-                "indicators": [],
-                "outlook": "",
-                "decision_lens": "",
-                "domain": "",
-                "tags": [],
-                "confidence": avg_confidence,
-                "read_time": 3,
-                "citations": [],
-            }
+            logger.error("synthesize_brief LLM call failed for %r: %s", topic, exc)
+            raise RuntimeError("AI synthesis failed for this brief request") from exc
 
     # ── Signal Retrieval ─────────────────────────────────────────────
 

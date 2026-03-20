@@ -130,6 +130,9 @@ async def generate_brief(
             status=brief.status,
             signal_count=len(brief.signal_links) if brief.signal_links else 0,
         )
+    except RuntimeError as e:
+        logger.error(f"Brief generation unavailable: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Brief generation failed: {e}")
         raise HTTPException(status_code=500, detail="Brief generation failed")
@@ -176,6 +179,9 @@ async def regenerate_brief(
             status=brief.status,
             signal_count=len(brief.signal_links) if brief.signal_links else 0,
         )
+    except RuntimeError as e:
+        logger.error(f"Brief regeneration unavailable: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Brief regeneration failed: {e}")
         raise HTTPException(status_code=500, detail="Brief regeneration failed")
@@ -221,12 +227,24 @@ async def refresh_brief(
 
     service = BriefRefreshService(db)
     try:
-        refreshed = await service.refresh_single(brief_id)
+        result = await service.refresh_single(brief_id, auth.org_id)
+        if result["status"] == "error":
+            raise HTTPException(status_code=500, detail="Brief refresh failed")
+
         return BriefRefreshResponse(
             brief_id=brief_id,
-            refreshed=refreshed,
-            reason="Refreshed" if refreshed else "Rate-limited or no new signals",
+            refreshed=result["status"] == "refreshed",
+            status=result["status"],
+            reason=result.get("message")
+            or result.get("error")
+            or (
+                "Refreshed"
+                if result["status"] == "refreshed"
+                else "Rate-limited or no new signals"
+            ),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Brief refresh failed: {e}")
         raise HTTPException(status_code=500, detail="Brief refresh failed")
@@ -250,4 +268,11 @@ async def refresh_all_briefs(
         queue_name="low",
         job_timeout="15m",
     )
-    return BriefRefreshBatchResponse(checked=0, refreshed=0, skipped=0, errors=0)
+    return BriefRefreshBatchResponse(
+        queued=True,
+        message="Brief refresh job queued",
+        checked=0,
+        refreshed=0,
+        skipped=0,
+        errors=0,
+    )

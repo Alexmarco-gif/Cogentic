@@ -32,8 +32,8 @@ class BriefGenerator:
       - Outlook paragraph
       - Decision lens ("What this means for you")
 
-    Falls back to a structured placeholder when OpenAI is unavailable,
-    enabling the endpoint to remain functional in degraded mode.
+    Raises clearly when AI synthesis is unavailable so callers do not mistake
+    placeholder content for production intelligence.
     """
 
     def __init__(self, db: AsyncSession):
@@ -151,8 +151,7 @@ class BriefGenerator:
     ) -> dict[str, Any]:
         """Run AI synthesis and return structured brief fields.
 
-        Attempts to use SynthesisService; falls back to a structured
-        placeholder when AI services are unavailable (e.g. missing API key).
+        Attempts to use SynthesisService and raises if AI synthesis fails.
         """
         try:
             from backend.ai.synthesis import SynthesisService
@@ -164,11 +163,14 @@ class BriefGenerator:
             )
             return self._map_synthesis_result(topic, result)
         except Exception as exc:
-            logger.warning(
-                f"AI synthesis unavailable for topic {topic!r}: {exc}. "
-                "Falling back to structured placeholder."
+            logger.error(
+                "AI synthesis unavailable for topic %r: %s",
+                topic,
+                exc,
             )
-            return self._placeholder_result(topic)
+            raise RuntimeError(
+                "AI synthesis is unavailable; brief generation cannot continue"
+            ) from exc
 
     def _map_synthesis_result(
         self, topic: str, result: dict[str, Any]
@@ -190,24 +192,6 @@ class BriefGenerator:
             "decision_lens": result.get("decision_lens")
             or result.get("recommendation")
             or "",
-        }
-
-    def _placeholder_result(self, topic: str) -> dict[str, Any]:
-        """Structured placeholder for degraded-mode brief generation."""
-        return {
-            "title": topic,
-            "bluf": f"AI synthesis pending for: {topic}",
-            "body_json": {
-                "findings": [],
-                "indicators": [],
-                "citations": [],
-                "domain": "",
-                "tags": [],
-                "confidence": 75,
-                "read_time": 5,
-            },
-            "outlook": "",
-            "decision_lens": "",
         }
 
     async def _resolve_default_industry(self) -> UUID:

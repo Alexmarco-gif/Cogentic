@@ -332,9 +332,12 @@ function buildStarterStatuses(
 ): StrategicStatus[] {
   const criticalSignals = signals.filter((signal) => signal.severity === 'critical' || signal.severity === 'high').length
   const opportunitySignals = signals.filter((signal) => signal.severity === 'medium').length
+  const creditsKnown = credits.allocated > 0 || credits.remaining > 0
   const creditsUsed = Math.max(0, credits.allocated - credits.remaining)
   const creditUtilization = credits.allocated > 0 ? creditsUsed / credits.allocated : 0
-  const creditLevel: StatusLevel = credits.remaining <= 0
+  const creditLevel: StatusLevel = !creditsKnown
+    ? 'stable'
+    : credits.remaining <= 0
     ? 'critical'
     : creditUtilization >= 0.8
     ? 'elevated'
@@ -373,17 +376,21 @@ function buildStarterStatuses(
     },
     {
       id: 'credits-left',
-      label: 'Credits Left',
+      label: creditsKnown ? 'Credits Left' : 'Starter Access',
       count: Math.max(0, credits.remaining),
       level: creditLevel,
-      contextLine: credits.remaining > 0
+      contextLine: !creditsKnown
+        ? 'Signals, updates, and source discovery remain available from Home'
+        : credits.remaining > 0
         ? `${credits.remaining} free credit${credits.remaining === 1 ? '' : 's'} are still available`
         : 'Free credits are exhausted, but Home remains available in read-only mode',
-      changeDetector: credits.remaining > 0
+      changeDetector: !creditsKnown
+        ? 'Premium actions unlock as your plan or credits allow them'
+        : credits.remaining > 0
         ? `${creditsUsed} of ${credits.allocated} credits have been used`
         : 'Upgrade or top up to resume premium actions',
-      suggestedAction: credits.remaining > 0 ? 'Create a new contract' : 'Browse marketplace sources',
-      trend: credits.remaining > 0 ? 'flat' : 'down',
+      suggestedAction: creditsKnown && credits.remaining > 0 ? 'Create a new contract' : 'Browse marketplace sources',
+      trend: !creditsKnown || credits.remaining > 0 ? 'flat' : 'down',
     },
   ]
 }
@@ -661,9 +668,9 @@ function useSituationRoomDashboard(industrySlug: string, enabled: boolean): Situ
 
 export default function HomePage() {
   const router = useRouter()
-  const { hasAccess, loading: gateLoading } = useFeatureGate('situation_room')
-  const { credits } = useCredits()
-  const premiumHomeEnabled = !gateLoading && hasAccess
+  const { hasAccess, loading: gateLoading, resolved: gateResolved } = useFeatureGate('situation_room')
+  const { credits, resolved: creditsResolved } = useCredits()
+  const premiumHomeEnabled = gateResolved && hasAccess
   const { industries, loading: industriesLoading, error: industriesError } = useIndustryOptions(premiumHomeEnabled)
   const [industrySlug, setIndustrySlug] = useState(FALLBACK_INDUSTRIES[0].slug)
 
@@ -827,10 +834,10 @@ export default function HomePage() {
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
               <button
-                onClick={() => router.push(!premiumHomeEnabled && credits.remaining <= 0 ? '/dashboard/marketplace' : '/dashboard/studio')}
+                onClick={() => router.push(!premiumHomeEnabled && creditsResolved && credits.remaining <= 0 ? '/dashboard/marketplace' : '/dashboard/studio')}
                 className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
               >
-                {!premiumHomeEnabled && credits.remaining <= 0 ? 'Browse Signal Marketplace' : 'Create a Contract'}
+                {!premiumHomeEnabled && creditsResolved && credits.remaining <= 0 ? 'Browse Signal Marketplace' : 'Create a Contract'}
               </button>
               <button
                 onClick={() => router.push('/dashboard/marketplace')}
@@ -856,35 +863,6 @@ export default function HomePage() {
           lastUpdated={effectiveLastUpdated}
           liveConnected={premiumHomeEnabled && liveConnected}
         />
-
-        {!premiumHomeEnabled && (
-          <div className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-heading">Starter access is active</p>
-                <p className="text-sm text-subtle max-w-2xl">
-                  {credits.remaining > 0
-                    ? `You still have ${credits.remaining} of ${credits.allocated} free credits available. You can view signals, monitor updates, create contracts, and browse the marketplace from Home.`
-                    : 'Your free credits are exhausted, but you can still use Home in read-only mode to view signals and updates. Premium Situation Room features stay locked until you upgrade or top up.'}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => router.push(credits.remaining > 0 ? '/dashboard/studio' : '/dashboard/marketplace')}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-                >
-                  {credits.remaining > 0 ? 'Use Free Credits' : 'Browse Sources'}
-                </button>
-                <button
-                  onClick={() => router.push('/dashboard/signals')}
-                  className="rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-body hover:bg-muted transition-colors"
-                >
-                  Open Signals Workspace
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {surfaceError && (
           <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
@@ -999,14 +977,16 @@ export default function HomePage() {
         <section>
           {premiumHomeEnabled ? (
             <IntelHeatmap quadrants={heatmapQuadrants} loading={roomLoading} />
+          ) : !gateResolved ? (
+            <IntelHeatmap quadrants={[]} loading />
           ) : (
             <div className="bg-surface border border-border rounded-card shadow-card p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h2 className="text-[14px] font-medium text-heading">Unlock Situation Room</h2>
+                  <h2 className="text-[14px] font-medium text-heading">Situation Room is available on paid plans</h2>
                   <p className="mt-1 text-[11px] text-subtle max-w-2xl">
-                    Paid plans add industry heatmaps, strategic status by sector, and live premium intelligence updates.
-                    Your starter Home still shows signals and activity, but the advanced strategic dashboard stays premium.
+                    Home remains usable for signals, updates, and source exploration. Paid plans add live industry heatmaps,
+                    sector-level strategic status, and premium real-time intelligence overlays.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -1020,7 +1000,7 @@ export default function HomePage() {
                     onClick={() => router.push('/dashboard/signals')}
                     className="rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-body hover:bg-muted transition-colors"
                   >
-                    Keep Exploring Signals
+                    Open Signals Workspace
                   </button>
                 </div>
               </div>

@@ -9,9 +9,9 @@ import { AlertCircle, DollarSign } from 'lucide-react';
  * Shows credit balance with visual indicators
  */
 export function CreditDisplay() {
-  const { credits, isLow, hasOverage, percentage, loading } = useCredits();
+  const { credits, isLow, hasOverage, percentage, loading, resolved } = useCredits();
 
-  if (loading || !credits) {
+  if (loading || !resolved || !credits) {
     return null;
   }
 

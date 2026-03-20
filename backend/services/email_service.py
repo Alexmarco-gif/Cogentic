@@ -1,8 +1,8 @@
-"""
-Email service using Resend.
+"""Email service using Resend.
 
-Provides both sync (for RQ workers) and async (for API processes) interfaces.
-All emails are sent through Resend's API — no SMTP required.
+Provides synchronous interfaces for API and worker processes. Delivery must
+either succeed or fail clearly; missing provider configuration is treated as an
+operational error instead of a silent skip.
 """
 
 import logging
@@ -25,17 +25,12 @@ def _ensure_initialized() -> bool:
 
     settings = get_settings()
     if not settings.resend_api_key:
-        logger.warning(
-            "RESEND_API_KEY is not set — emails will be logged but not sent."
-        )
+        logger.error("RESEND_API_KEY is not set; email delivery is unavailable.")
         return False
 
     resend.api_key = settings.resend_api_key
     _initialized = True
     return True
-
-
-# ── Low-level send (sync — used in RQ workers) ──────────────────────────────
 
 
 def send_email(
@@ -46,25 +41,13 @@ def send_email(
     reply_to: str | None = None,
     tags: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    """
-    Send an email via Resend (synchronous).
-
-    Args:
-        to: Recipient email(s).
-        subject: Email subject line.
-        html: HTML body content.
-        reply_to: Optional reply-to address.
-        tags: Optional Resend tags for tracking, e.g. [{"name": "category", "value": "beta"}].
-
-    Returns:
-        Resend API response dict with ``id`` on success, or error info.
-    """
+    """Send an email via Resend (synchronous)."""
     settings = get_settings()
 
     if not _ensure_initialized():
-        # Graceful fallback: log only
-        logger.warning("Email NOT sent (no API key): to=%s subject=%s", to, subject)
-        return {"id": None, "status": "skipped", "reason": "no_api_key"}
+        raise RuntimeError(
+            "Email delivery is not configured: RESEND_API_KEY is missing"
+        )
 
     recipients = [to] if isinstance(to, str) else to
 
@@ -93,8 +76,9 @@ def send_email(
             subject,
         )
         if isinstance(response, dict):
+            response.setdefault("status", "sent")
             return response  # type: ignore[return-value]
-        return {"id": getattr(response, "id", None)}
+        return {"id": getattr(response, "id", None), "status": "sent"}
     except Exception:
         logger.exception(
             "Failed to send email via Resend: to=%s subject=%s", recipients, subject
@@ -102,15 +86,12 @@ def send_email(
         raise
 
 
-# ── Pre-built email templates ────────────────────────────────────────────────
-
-
 def send_deletion_request_email(
     to: str,
     request_id: str,
 ) -> dict[str, Any]:
     """Send confirmation email for GDPR data deletion request."""
-    subject = "Data deletion request received — Cogent"
+    subject = "Data deletion request received - Cogent"
     html = f"""
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Data Deletion Request Received</h2>
@@ -123,7 +104,7 @@ def send_deletion_request_email(
         <p>Your account data will be permanently removed after the 30-day grace
         period. If you change your mind, you can cancel this request by
         contacting our support team before the grace period ends.</p>
-        <p>— The Cogent Team</p>
+        <p>- The Cogent Team</p>
     </div>
     """
     return send_email(
@@ -139,7 +120,7 @@ def send_data_export_request_email(
     request_id: str,
 ) -> dict[str, Any]:
     """Send confirmation email for data export request."""
-    subject = "Data export request received — Cogent"
+    subject = "Data export request received - Cogent"
     html = f"""
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Data Export Request Received</h2>
@@ -150,7 +131,7 @@ def send_data_export_request_email(
         </ul>
         <p>We'll prepare a full archive of your contracts, briefs, and history
         and email it to this address within 24 hours.</p>
-        <p>— The Cogent Team</p>
+        <p>- The Cogent Team</p>
     </div>
     """
     return send_email(

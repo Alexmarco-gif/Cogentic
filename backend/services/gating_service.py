@@ -50,9 +50,10 @@ class GatingService:
         # Get feature gate configuration
         feature_gate = await self.feature_gate_repo.get_by_feature_key(feature_key)
 
-        # If no gate defined, allow access
+        # Missing gate configuration is a deployment/configuration error.
+        # Route-level feature checks must never silently fail open.
         if not feature_gate:
-            return True
+            raise LookupError(f"Feature gate '{feature_key}' is not configured")
 
         # Check tier requirement
         if feature_gate.required_tier:

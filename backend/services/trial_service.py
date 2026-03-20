@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models.organization import Organization
 from backend.models.pricing_enums import PricingTier, TrialStatus
 from backend.repositories.pricing_repository import PricingRepository
+from backend.services.pricing_service import PricingService
 
 
 class TrialService:
@@ -16,6 +17,7 @@ class TrialService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.pricing_repo = PricingRepository(db)
+        self.pricing_service = PricingService(db)
 
     async def start_trial(self, organization: Organization) -> Organization:
         """
@@ -79,7 +81,9 @@ class TrialService:
             # No subscription - downgrade to Explorer
             organization.trial_status = TrialStatus.EXPIRED.value
             organization.pricing_tier = PricingTier.EXPLORER.value
-            organization.credits_allocated_monthly = 0
+            organization.credits_allocated_monthly = (
+                await self.pricing_service.get_tier_credits(PricingTier.EXPLORER.value)
+            )
             organization.credits_consumed = 0
 
         await self.db.commit()
@@ -110,14 +114,9 @@ class TrialService:
         organization.billing_cycle_start = datetime.now(timezone.utc).date()
 
         # Allocate credits based on tier
-        tier_credits = {
-            PricingTier.EXPLORER.value: 0,
-            PricingTier.GROWTH.value: 5000,
-            PricingTier.MID_MARKET.value: 25000,
-            PricingTier.ENTERPRISE.value: 100000,
-        }
-
-        organization.credits_allocated_monthly = tier_credits.get(selected_tier, 0)
+        organization.credits_allocated_monthly = (
+            await self.pricing_service.get_tier_credits(selected_tier)
+        )
         organization.credits_consumed = 0  # Reset for new billing cycle
 
         await self.db.commit()

@@ -14,7 +14,7 @@ const DAYS_OPTIONS = [7, 14, 30, 60, 90] as const
 export default function MarketDataPage() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
   const [days, setDays] = useState<number>(30)
-  const { hasAccess, loading: featureLoading, currentTier } = useFeatureGate('market_data')
+  const { hasAccess, loading: featureLoading, resolved: featureResolved, currentTier } = useFeatureGate('market_data')
 
   const {
     stats,
@@ -65,7 +65,7 @@ export default function MarketDataPage() {
     )
   }
 
-  if (!hasAccess) {
+  if (featureResolved && !hasAccess) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
@@ -87,10 +87,10 @@ export default function MarketDataPage() {
                 <Lock className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-amber-950">Market Data is on a paid plan</h2>
+                <h2 className="text-lg font-semibold text-amber-950">Market Data is a premium workspace</h2>
                 <p className="mt-1 text-sm text-amber-900">
-                  Your current tier is <span className="font-semibold capitalize">{currentTier}</span>. You can
-                  still use Signals, Discovery, and the Library while this premium dashboard stays gated.
+                  Your current tier is <span className="font-semibold capitalize">{currentTier}</span>. You can still
+                  use the rest of the product freely here, while advanced indicator tracking stays on paid plans.
                 </p>
               </div>
             </div>
