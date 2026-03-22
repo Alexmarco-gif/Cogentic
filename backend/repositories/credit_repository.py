@@ -50,7 +50,7 @@ class CreditRepository(BaseRepository[CreditTransaction]):
             action_type=action_type,
             credits_consumed=credits,
             credits_remaining=credits_remaining,
-            metadata=metadata or {},
+            transaction_metadata=metadata or {},
         )
 
         self.db.add(txn)

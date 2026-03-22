@@ -70,7 +70,7 @@ const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  globalThis.fetch = fetchMock;
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
 
 afterEach(() => {
@@ -107,7 +107,6 @@ describe('Type contract: SendMessageRequest', () => {
 
   it('does NOT have a "content" field', () => {
     const req: SendMessageRequest = { message: 'test' };
-    // @ts-expect-error — "content" must not exist on SendMessageRequest
     expect((req as unknown as Record<string, unknown>).content).toBeUndefined();
   });
 });
@@ -121,7 +120,6 @@ describe('Type contract: CreateSessionRequest', () => {
 
   it('does NOT have an "industry_id" field', () => {
     const req: CreateSessionRequest = { industry_slug: 'energy' };
-    // @ts-expect-error — "industry_id" must not exist on CreateSessionRequest
     expect((req as unknown as Record<string, unknown>).industry_id).toBeUndefined();
   });
 });
@@ -138,8 +136,8 @@ describe('createChatSession', () => {
     industry_id: null,
     title: 'Fintech Risk Analysis',
     status: 'active',
-    created_at: new Date().toISOString() as unknown as Date,
-    updated_at: new Date().toISOString() as unknown as Date,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   it('POST /api/v1/chat/sessions with correct URL and method', async () => {

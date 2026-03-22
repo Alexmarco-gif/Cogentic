@@ -25,7 +25,7 @@ function escapeCsvCell(value: string | number | boolean | null | undefined): str
   return `"${stringValue.replace(/"/g, '""')}"`
 }
 
-export function buildSignalsCsv(signals: Signal[]): string {
+function buildSignalsCsv(signals: Signal[]): string {
   const header = ['Entity', 'Domain', 'Severity', 'Confidence', 'Headline', 'Summary', 'Published At', 'Saved']
   const rows = signals.map((signal) => ([
     signal.entityName,
@@ -41,7 +41,7 @@ export function buildSignalsCsv(signals: Signal[]): string {
   return [header.map(escapeCsvCell).join(','), ...rows].join('\n')
 }
 
-export function mergeSignalsQuery(
+function mergeSignalsQuery(
   searchParams: URLSearchParams,
   updates: Record<string, string | null | undefined>,
 ): string {

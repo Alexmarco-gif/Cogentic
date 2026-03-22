@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { AlertTriangle, BarChart3, Lock, RefreshCw } from 'lucide-react'
+import { AlertTriangle, BarChart3, Compass, LineChart, RefreshCw, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { MetricStatsBar } from '@/components/market-data/MetricStatsBar'
 import { MetricSelector } from '@/components/market-data/MetricSelector'
@@ -14,23 +15,23 @@ const DAYS_OPTIONS = [7, 14, 30, 60, 90] as const
 export default function MarketDataPage() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
   const [days, setDays] = useState<number>(30)
-  const { hasAccess, loading: featureLoading, resolved: featureResolved, currentTier } = useFeatureGate('market_data')
+  const { hasAccess, loading: featureLoading, resolved: featureResolved } = useFeatureGate('market_data')
+  const canUsePremiumMetrics = !featureResolved || hasAccess
 
   const {
     stats,
     loading: statsLoading,
     error: statsError,
     refresh: refreshStats,
-  } = useMarketDataStats()
+  } = useMarketDataStats(undefined, { enabled: canUsePremiumMetrics })
   const {
     points,
     loading: trendLoading,
     error: trendError,
     refresh: refreshTrend,
-  } = useMetricTrend(selectedMetric, { days })
+  } = useMetricTrend(selectedMetric, { days, enabled: canUsePremiumMetrics })
 
-  // Derive unit/currency from stats for the chart
-  const metricMeta = stats?.metrics.find((m) => m.metric === selectedMetric)
+  const metricMeta = stats?.metrics.find((metric) => metric.metric === selectedMetric)
   const combinedError = statsError ?? trendError
 
   useEffect(() => {
@@ -48,6 +49,9 @@ export default function MarketDataPage() {
   }, [selectedMetric, stats])
 
   const handleRefresh = () => {
+    if (!canUsePremiumMetrics) {
+      return
+    }
     void refreshStats()
     void refreshTrend()
   }
@@ -65,9 +69,9 @@ export default function MarketDataPage() {
     )
   }
 
-  if (featureResolved && !hasAccess) {
-    return (
-      <div className="space-y-6">
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary-light p-2">
             <BarChart3 className="h-5 w-5 text-primary" />
@@ -75,57 +79,66 @@ export default function MarketDataPage() {
           <div>
             <h1 className="text-xl font-semibold text-heading">Market Data</h1>
             <p className="text-sm text-subtle">
-              Track prices, rates, and indicator trends once Market Data access is enabled.
+              Monitor tracked indicators, follow trend changes, and jump into adjacent workspaces when you need deeper context.
             </p>
           </div>
         </div>
-
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-amber-100 p-2 text-amber-700">
-                <Lock className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-amber-950">Market Data is a premium workspace</h2>
-                <p className="mt-1 text-sm text-amber-900">
-                  Your current tier is <span className="font-semibold capitalize">{currentTier}</span>. You can still
-                  use the rest of the product freely here, while advanced indicator tracking stays on paid plans.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => { window.location.href = '/dashboard/signals' }}>
-                Open Signals
-              </Button>
-              <Button size="sm" onClick={() => { window.location.href = '/dashboard/marketplace' }}>
-                Browse Marketplace
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary-light p-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-heading">Market Data</h1>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh}>
-          <RefreshCw className="h-4 w-4 mr-1.5" />
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={!canUsePremiumMetrics}>
+          <RefreshCw className="mr-1.5 h-4 w-4" />
           Refresh
         </Button>
       </div>
+
+      {featureResolved && !hasAccess && (
+        <>
+          <div className="rounded-2xl border border-border bg-surface p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Starter access is active
+                </div>
+                <h2 className="mt-3 text-lg font-semibold text-heading">Keep using the workspace while premium metrics stay optional</h2>
+                <p className="mt-2 text-sm text-subtle">
+                  Signals, discovery, briefs, and source research stay available. Historical indicator charts and tracked market metrics unlock when Market Data access is enabled.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:w-[420px]">
+                <Link href="/dashboard/signals" className="rounded-xl border border-border bg-muted/40 p-4 transition-colors hover:bg-muted">
+                  <div className="flex items-center gap-2 text-sm font-medium text-heading">
+                    <Compass className="h-4 w-4 text-primary" />
+                    Open Signals
+                  </div>
+                  <p className="mt-2 text-xs text-subtle">Follow active signal cards and intelligence updates from the main feed.</p>
+                </Link>
+                <Link href="/dashboard/marketplace" className="rounded-xl border border-border bg-muted/40 p-4 transition-colors hover:bg-muted">
+                  <div className="flex items-center gap-2 text-sm font-medium text-heading">
+                    <LineChart className="h-4 w-4 text-primary" />
+                    Browse Sources
+                  </div>
+                  <p className="mt-2 text-xs text-subtle">Explore data and source packs before deciding which indicators deserve tracked coverage.</p>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <p className="text-sm font-medium text-heading">What unlocks here</p>
+              <p className="mt-2 text-sm text-subtle">Indicator history, trend charts, and workspace-level metric tracking for operational decisions.</p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <p className="text-sm font-medium text-heading">What you can do now</p>
+              <p className="mt-2 text-sm text-subtle">Keep using Signals, Discovery, Library, and Marketplace without any interruption.</p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <p className="text-sm font-medium text-heading">Best next step</p>
+              <p className="mt-2 text-sm text-subtle">Investigate live signals first, then expand into Market Data once you know which indicators matter most.</p>
+            </div>
+          </div>
+        </>
+      )}
 
       {combinedError && (
         <div className="flex flex-col gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 md:flex-row md:items-center md:justify-between">
@@ -133,96 +146,93 @@ export default function MarketDataPage() {
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
             <span>{combinedError}</span>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={!canUsePremiumMetrics}>
             Try again
           </Button>
         </div>
       )}
 
-      {/* Stats bar */}
-      <MetricStatsBar stats={stats} loading={statsLoading} />
+      {canUsePremiumMetrics ? (
+        <>
+          <MetricStatsBar stats={stats} loading={statsLoading} />
 
-      {!statsLoading && (!stats || stats.metrics.length === 0) && !combinedError && (
-        <div className="rounded-lg border border-border bg-surface p-6 text-center">
-          <h2 className="text-base font-semibold text-heading">No market metrics yet</h2>
-          <p className="mt-2 text-sm text-subtle">
-            Market data will appear here after tracked indicators are ingested for your workspace.
-          </p>
-        </div>
-      )}
-
-      {/* Main content — Metric selector + Trend chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sidebar: metric selector */}
-        <div className="lg:col-span-1">
-          <MetricSelector
-            metrics={stats?.metrics ?? []}
-            selectedMetric={selectedMetric}
-            onSelect={setSelectedMetric}
-            loading={statsLoading}
-          />
-        </div>
-
-        {/* Main: trend chart + controls */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Days toggle */}
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-subtle mr-2">Period:</span>
-            {DAYS_OPTIONS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                  days === d
-                    ? 'bg-primary-light text-primary'
-                    : 'bg-muted text-body hover:bg-border'
-                }`}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-
-          {/* Chart */}
-          <MetricTrendChart
-            points={points}
-            loading={trendLoading}
-            metric={selectedMetric}
-            unit={metricMeta?.unit}
-            currency={metricMeta?.currency}
-          />
-
-          {/* Latest values panel */}
-          {metricMeta && (
-            <div className="rounded-lg border border-border bg-surface p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-subtle">Latest</span>
-                <p className="font-semibold text-heading">
-                  {metricMeta.currency ?? ''} {metricMeta.latest_value?.toLocaleString() ?? '—'}
-                </p>
-              </div>
-              <div>
-                <span className="text-subtle">Average</span>
-                <p className="font-semibold text-heading">
-                  {metricMeta.avg_value?.toLocaleString() ?? '—'}
-                </p>
-              </div>
-              <div>
-                <span className="text-subtle">Min</span>
-                <p className="font-semibold text-heading">
-                  {metricMeta.min_value?.toLocaleString() ?? '—'}
-                </p>
-              </div>
-              <div>
-                <span className="text-subtle">Max</span>
-                <p className="font-semibold text-heading">
-                  {metricMeta.max_value?.toLocaleString() ?? '—'}
-                </p>
-              </div>
+          {!statsLoading && (!stats || stats.metrics.length === 0) && !combinedError && (
+            <div className="rounded-lg border border-border bg-surface p-6 text-center">
+              <h2 className="text-base font-semibold text-heading">No market metrics yet</h2>
+              <p className="mt-2 text-sm text-subtle">
+                Market data will appear here after tracked indicators are ingested for your workspace.
+              </p>
             </div>
           )}
-        </div>
-      </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-1">
+              <MetricSelector
+                metrics={stats?.metrics ?? []}
+                selectedMetric={selectedMetric}
+                onSelect={setSelectedMetric}
+                loading={statsLoading}
+              />
+            </div>
+
+            <div className="space-y-4 lg:col-span-2">
+              <div className="flex items-center gap-1">
+                <span className="mr-2 text-sm text-subtle">Period:</span>
+                {DAYS_OPTIONS.map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setDays(value)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      days === value
+                        ? 'bg-primary-light text-primary'
+                        : 'bg-muted text-body hover:bg-border'
+                    }`}
+                  >
+                    {value}d
+                  </button>
+                ))}
+              </div>
+
+              <MetricTrendChart
+                points={points}
+                loading={trendLoading}
+                metric={selectedMetric}
+                unit={metricMeta?.unit}
+                currency={metricMeta?.currency}
+              />
+
+              {metricMeta && (
+                <div className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-4">
+                  <div>
+                    <span className="text-subtle">Latest</span>
+                    <p className="font-semibold text-heading">
+                      {metricMeta.currency ?? ''} {metricMeta.latest_value?.toLocaleString() ?? '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-subtle">Average</span>
+                    <p className="font-semibold text-heading">
+                      {metricMeta.avg_value?.toLocaleString() ?? '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-subtle">Min</span>
+                    <p className="font-semibold text-heading">
+                      {metricMeta.min_value?.toLocaleString() ?? '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-subtle">Max</span>
+                    <p className="font-semibold text-heading">
+                      {metricMeta.max_value?.toLocaleString() ?? '-'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

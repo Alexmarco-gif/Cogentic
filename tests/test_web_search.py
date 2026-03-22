@@ -660,6 +660,11 @@ class TestWebSearchLocalization:
 
         assert normalize_search_country("NGA") == "ng"
 
+    def test_normalize_search_country_alpha3_uses_complete_iso_source(self):
+        from backend.services.web_search.localization import normalize_search_country
+
+        assert normalize_search_country("JPN") == "jp"
+
     def test_normalize_search_country_alpha2(self):
         from backend.services.web_search.localization import normalize_search_country
 

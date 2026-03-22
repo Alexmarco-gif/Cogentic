@@ -317,6 +317,19 @@ async def metrics_endpoint(request: Request):
     on every scrape so that values are always fresh.
     """
     allowed = settings.metrics_allowed_ips_list
+    if _is_production and not allowed:
+        logger.error(
+            "metrics_access_unconfigured",
+            environment=settings.environment,
+        )
+        return JSONResponse(
+            status_code=403,
+            content={
+                "error": "Forbidden",
+                "message": "Metrics access is disabled until METRICS_ALLOWED_IPS is configured",
+            },
+        )
+
     if allowed:
         client_ip = request.client.host if request.client else None
         if client_ip not in allowed:

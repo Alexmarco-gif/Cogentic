@@ -129,7 +129,7 @@ export function SignalCard({ signal, onClick, onSave, onDismiss }: SignalCardPro
                          bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
             >
               <Sparkles size={10} />
-              Synthesize
+              Open Brief
             </button>
             <button
               onClick={e => {

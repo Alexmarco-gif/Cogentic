@@ -255,6 +255,5 @@ class TestNullOptionalFields:
 
     async def test_organization_null_dates(self, db_session):
         org = await create_organization(db_session)
-        assert org.beta_start_date is None
-        assert org.beta_end_date is None
         assert org.trial_start_date is None
+        assert org.trial_end_date is None

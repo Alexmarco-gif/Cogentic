@@ -8,6 +8,7 @@ Uses httpx AsyncClient with dependency overrides for auth/DB.
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 
 from tests.conftest import (
     create_feature_gate,
@@ -80,8 +81,8 @@ class TestGetCurrentOrganization:
 class TestRequireFeature:
     """Tests for the require_feature dependency factory."""
 
-    async def test_no_gate_allows_access(self, app, client, db_session):
-        """When no FeatureGate exists for the key, access is allowed."""
+    async def test_no_gate_returns_server_error(self, app, client, db_session):
+        """When no FeatureGate exists for the key, access fails closed."""
         from backend.auth.dependencies import get_current_user
         from backend.middleware.feature_gating import require_feature
 
@@ -93,12 +94,15 @@ class TestRequireFeature:
         app.dependency_overrides[get_current_user] = lambda: auth
 
         checker = require_feature("nonexistent_feature")
-        result = await checker(
-            auth=auth,
-            organization=org,
-            db=db_session,
-        )
-        assert result is True
+        with pytest.raises(HTTPException) as exc:
+            await checker(
+                auth=auth,
+                organization=org,
+                db=db_session,
+            )
+
+        assert exc.value.status_code == 500
+        assert exc.value.detail["error"] == "feature_gate_misconfigured"
 
         app.dependency_overrides.pop(get_current_user, None)
 

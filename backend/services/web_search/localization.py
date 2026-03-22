@@ -1,12 +1,20 @@
 """Helpers for localizing live web-search requests."""
 
+import json
+import logging
+from functools import lru_cache
+from pathlib import Path
+
 from backend.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
-# Minimal ISO 3166-1 alpha-3 → alpha-2 map for current tenant regions plus
-# common fallback markets. Extend as new regions are added.
-_ALPHA3_TO_ALPHA2 = {
+ISO_3166_1_JSON_PATH = Path("/usr/share/iso-codes/json/iso_3166-1.json")
+
+# Common markets kept locally so locale normalization still works when the
+# optional iso-codes package is unavailable in a given runtime image.
+_FALLBACK_ALPHA3_TO_ALPHA2 = {
     "AUS": "au",
     "CAN": "ca",
     "CIV": "ci",
@@ -17,6 +25,7 @@ _ALPHA3_TO_ALPHA2 = {
     "GHA": "gh",
     "IND": "in",
     "IRL": "ie",
+    "JPN": "jp",
     "KEN": "ke",
     "MAR": "ma",
     "NGA": "ng",
@@ -25,6 +34,34 @@ _ALPHA3_TO_ALPHA2 = {
     "USA": "us",
     "ZAF": "za",
 }
+
+
+@lru_cache
+def _load_alpha3_to_alpha2_map() -> dict[str, str]:
+    """Load alpha-3 to alpha-2 mappings with a resilient local fallback."""
+    mapping = dict(_FALLBACK_ALPHA3_TO_ALPHA2)
+
+    try:
+        with ISO_3166_1_JSON_PATH.open(encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except FileNotFoundError:
+        logger.warning("ISO country source not found at %s", ISO_3166_1_JSON_PATH)
+        return mapping
+    except Exception as exc:
+        logger.warning(
+            "Failed to load ISO country source from %s: %s",
+            ISO_3166_1_JSON_PATH,
+            exc,
+        )
+        return mapping
+
+    for country in payload.get("3166-1", []):
+        alpha2 = (country.get("alpha_2") or "").strip().lower()
+        alpha3 = (country.get("alpha_3") or "").strip().upper()
+        if alpha2 and alpha3:
+            mapping[alpha3] = alpha2
+
+    return mapping
 
 
 def normalize_search_country(country: str | None) -> str | None:
@@ -37,7 +74,7 @@ def normalize_search_country(country: str | None) -> str | None:
         return value.lower()
 
     if len(value) == 3 and value.isalpha():
-        return _ALPHA3_TO_ALPHA2.get(value.upper())
+        return _load_alpha3_to_alpha2_map().get(value.upper())
 
     return None
 

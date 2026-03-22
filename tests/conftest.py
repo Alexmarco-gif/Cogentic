@@ -155,6 +155,9 @@ from backend.models import (  # noqa: E402, F401
 )
 from backend.models.base import Base  # noqa: E402
 
+TEST_ORG_ID = _PyUUID("00000000-0000-0000-0000-000000000001")
+TEST_USER_ID = _PyUUID("00000000-0000-0000-0000-000000000002")
+
 # ── async event-loop fixture (session-scoped) ────────────────────────
 
 
@@ -231,8 +234,8 @@ async def app(db_session: AsyncSession):
     from backend.main import app as _app
 
     # Use stable IDs so we can seed matching org/user rows
-    _test_org_id = uuid4()
-    _test_user_id = uuid4()
+    _test_org_id = TEST_ORG_ID
+    _test_user_id = TEST_USER_ID
 
     # Seed org + user + membership so org-gated endpoints pass
     _org = Organization(
@@ -259,6 +262,15 @@ async def app(db_session: AsyncSession):
         role="member",
     )
     db_session.add(_ou)
+    db_session.add_all(
+        [
+            FeatureGate(feature_key="market_data", required_tier="explorer"),
+            FeatureGate(feature_key="on_demand_synthesis", required_tier="explorer"),
+            FeatureGate(feature_key="marketplace_subscribe", required_tier="explorer"),
+            FeatureGate(feature_key="custom_contracts", required_tier="growth"),
+            FeatureGate(feature_key="situation_room", required_tier="growth"),
+        ]
+    )
     await db_session.flush()
 
     _fake_token_payload = TokenPayload(
@@ -354,10 +366,10 @@ def make_auth_context(
 ) -> AuthContext:
     """Build a fake AuthContext for testing."""
     return AuthContext(
-        user_id=user_id or uuid4(),
+        user_id=user_id or TEST_USER_ID,
         auth0_id=auth0_id or f"auth0|{uuid4().hex[:24]}",
         email=email,
-        org_id=org_id or uuid4(),
+        org_id=org_id or TEST_ORG_ID,
         role=role,
         plan=plan,
         is_super_admin=is_super_admin,

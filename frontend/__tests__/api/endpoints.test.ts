@@ -35,7 +35,7 @@ const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  globalThis.fetch = fetchMock;
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
 
 afterEach(() => {
@@ -139,7 +139,7 @@ describe('Briefs service endpoint paths', () => {
     fetchMock.mockResolvedValueOnce(mockTokenResponse());
     fetchMock.mockResolvedValueOnce(mockResponse({ id: 'new' }));
 
-    await generateBrief({ signal_id: 's1' });
+    await generateBrief({ signal_ids: ['s1'] });
     const { url, method } = getApiCallDetails();
     expect(method).toBe('POST');
     expect(url).toBe('/api/v1/briefs/generate');
@@ -165,7 +165,12 @@ describe('Contracts service endpoint paths', () => {
     fetchMock.mockResolvedValueOnce(mockTokenResponse());
     fetchMock.mockResolvedValueOnce(mockResponse({ id: 'c1' }));
 
-    await createContract({ name: 'Test', schema_type: 'test' });
+    await createContract({
+      name: 'Test',
+      industry_id: '00000000-0000-0000-0000-000000000001',
+      source_url: 'https://example.com/feed',
+      source_type: 'webhook',
+    });
     const { url, method } = getApiCallDetails();
     expect(method).toBe('POST');
     expect(url).toBe('/api/v1/contracts');
@@ -197,7 +202,7 @@ describe('Search service endpoint paths', () => {
     fetchMock.mockResolvedValueOnce(mockTokenResponse());
     fetchMock.mockResolvedValueOnce(mockResponse({ results: [] }));
 
-    await executeSearch({ query: 'test', limit: 10 });
+    await executeSearch({ query: 'test', max_results: 10 });
     const { url, method } = getApiCallDetails();
     expect(method).toBe('POST');
     expect(url).toBe('/api/v1/search');
@@ -307,7 +312,7 @@ describe('Admin service endpoint paths', () => {
     fetchMock.mockResolvedValueOnce(mockTokenResponse());
     fetchMock.mockResolvedValueOnce(mockResponse({ mode: 'standard' }));
 
-    await setPricingMode('standard');
+    await setPricingMode({ mode: 'standard' });
     const { url, method } = getApiCallDetails();
     expect(method).toBe('POST');
     expect(url).toBe('/api/v1/admin/pricing/mode');
@@ -397,7 +402,7 @@ describe('API Keys service endpoint paths', () => {
     fetchMock.mockResolvedValueOnce(mockTokenResponse());
     fetchMock.mockResolvedValueOnce(mockResponse({ api_key: 'key', key_id: 'id', key_prefix: 'pre', expires_at: null }));
 
-    await createApiKey('org-1', { name: 'test', scopes: ['read:documents'], rate_limit: 100 });
+    await createApiKey('org-1', { name: 'test', scopes: ['read:documents'] });
     const { url, method } = getApiCallDetails();
     expect(method).toBe('POST');
     expect(url).toBe('/api/v1/orgs/org-1/api-keys');

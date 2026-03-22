@@ -78,7 +78,7 @@ async def get_credit_transactions(
             credits_consumed=txn.credits_consumed,
             credits_remaining=txn.credits_remaining,
             created_at=txn.created_at.isoformat(),
-            metadata=txn.metadata,
+            metadata=txn.transaction_metadata,
         )
         for txn in transactions
     ]

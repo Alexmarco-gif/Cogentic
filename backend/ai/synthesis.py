@@ -23,6 +23,12 @@ from openai import AsyncOpenAI
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.briefs.prompting import (
+    build_brief_system_prompt,
+    build_brief_user_prompt,
+    coerce_canonical_brief_result,
+)
+from backend.briefs.schema import normalize_brief_body
 from backend.ai.embeddings import EmbeddingService
 from backend.ai.guardrails import get_guardrails
 from backend.config import get_settings
@@ -210,9 +216,8 @@ class SynthesisService:
         """Generate a structured intelligence brief from retrieved signals.
 
         Unlike ``synthesize()``, this method returns a validated JSON dict
-        with the brief body schema (``findings[]``, ``indicators[]``) rather
-        than free-form markdown, making it suitable for persisting into
-        ``IntelligenceBrief.body_json``.
+        using the canonical signal-drawer schema, making it suitable for
+        persisting directly into ``IntelligenceBrief.body_json``.
 
         Args:
             topic: The brief topic / analytical question.
@@ -223,102 +228,53 @@ class SynthesisService:
             signal_ids: Optional explicit signal IDs to include.
 
         Returns:
-            Dict with keys: title, bluf, findings, indicators, outlook,
-            decision_lens, domain, tags, confidence, read_time, citations.
+            Dict with canonical brief keys plus ``title`` and internal
+            ``signal_ids`` for persistence/linking.
         """
-        # Embed topic
-        query_embedding = await self.embedding_service.generate_query_embedding(topic)
-
-        # Retrieve relevant signals
-        signals = await self._retrieve_signals(
-            query_embedding,
-            org_id=org_id,
-            industry_id=industry_id,
-            top_k=top_k,
-            min_confidence=min_confidence,
-        )
+        if signal_ids:
+            signals = await self._retrieve_signals_by_ids(
+                signal_ids,
+                org_id=org_id,
+                industry_id=industry_id,
+                min_confidence=min_confidence,
+            )
+        else:
+            query_embedding = await self.embedding_service.generate_query_embedding(
+                topic
+            )
+            signals = await self._retrieve_signals(
+                query_embedding,
+                org_id=org_id,
+                industry_id=industry_id,
+                top_k=top_k,
+                min_confidence=min_confidence,
+            )
 
         if not signals:
-            return {
-                "title": topic,
-                "bluf": f"Insufficient signal data to synthesise a brief on: {topic}",
-                "findings": [],
-                "indicators": [],
-                "outlook": "",
-                "decision_lens": "",
-                "domain": "",
-                "tags": [],
-                "confidence": 0,
-                "read_time": 3,
-                "citations": [],
-            }
-
-        # Build signal context for the prompt
-        signal_blocks = []
-        for i, sig in enumerate(signals, 1):
-            block = (
-                f"[Signal {i}] {sig['title']}\n"
-                f"Confidence: {sig['confidence']:.2f} | Similarity: {sig['similarity']:.2f}\n"
-                f"{sig['summary'][:400]}"
-            )
-            if sig.get("source_url"):
-                block += f"\nSource: {sig['source_url']}"
-            signal_blocks.append(block)
-        signal_context = "\n---\n".join(signal_blocks)
+            return normalize_brief_body(
+                {
+                    "title": topic,
+                    "bluf": f"Insufficient signal data to synthesize a brief on: {topic}",
+                    "findings": [],
+                    "indicators": [],
+                    "outlook": "",
+                    "decision_lens": "",
+                    "domain": "",
+                    "tags": [],
+                    "confidence": 0,
+                    "read_time": 3,
+                    "author": "AI Generated",
+                },
+                topic=topic,
+                summary=f"Insufficient signal data to synthesize a brief on: {topic}",
+                confidence=0,
+            ) | {"title": topic}
 
         avg_confidence = round(
             sum(s["confidence"] for s in signals) / len(signals) * 100
         )
-
-        system_prompt = (
-            "You are a senior intelligence analyst. "
-            "Return ONLY valid JSON — no prose, no markdown fences. "
-            "Your analysis must be grounded solely in the provided signals. "
-            "Never invent facts not supported by the evidence."
-        )
-
-        user_prompt = f"""Produce a structured intelligence brief on the following topic using the signals below.
-
-Topic: {topic}
-
-Signals ({len(signals)} retrieved):
-{signal_context}
-
-Return a JSON object with exactly these keys:
-
-{{
-  "title": "Analytical headline — a falsifiable claim, not a label (max 15 words)",
-  "bluf": "Bottom line up front — 4-6 sentences stating the contention and why it matters",
-  "findings": [
-    {{
-      "finding": "One analytic conclusion sentence",
-      "evidence": ["Named source: specific data point", "..."],
-      "objection": "Strongest counter-argument a sceptic would make",
-      "rebuttal": "Why the finding still holds despite that objection"
-    }}
-  ],
-  "indicators": [
-    {{
-      "watch": "Specific data source and metric to monitor",
-      "confirms_if": "Concrete threshold or event that confirms the finding",
-      "disconfirms_if": "Concrete threshold or event that overturns the finding"
-    }}
-  ],
-  "outlook": "2-3 sentence forward-looking assessment with timeline",
-  "decision_lens": "1-2 sentences on what this means for a decision-maker",
-  "domain": "one of: macro | sector | market | regulatory | geopolitical",
-  "tags": ["tag1", "tag2"],
-  "confidence": {avg_confidence},
-  "read_time": 5,
-  "citations": ["source name or URL for each signal used"]
-}}
-
-Rules:
-- 2-4 findings, each grounded in at least one signal
-- 2-3 indicators with specific thresholds (not vague phrases)
-- title must be a falsifiable assertion, not a topic label
-- bluf must name the contention in the first sentence
-"""
+        system_prompt = build_brief_system_prompt()
+        user_prompt = build_brief_user_prompt(topic, signals, avg_confidence)
 
         try:
             response = await self.client.chat.completions.create(
@@ -333,16 +289,13 @@ Rules:
             )
             raw = response.choices[0].message.content or "{}"
             result: dict[str, Any] = json.loads(raw)
-            # Ensure required keys exist
-            result.setdefault("findings", [])
-            result.setdefault("indicators", [])
-            result.setdefault(
-                "citations",
-                [s.get("source_url", "") for s in signals if s.get("source_url")],
+            normalized = coerce_canonical_brief_result(
+                topic=topic,
+                result=result,
+                signals=signals,
+                avg_confidence=avg_confidence,
             )
-            result.setdefault("confidence", avg_confidence)
-            result.setdefault("read_time", max(3, len(result["findings"]) * 2))
-            return result
+            return normalized
         except Exception as exc:
             logger.error("synthesize_brief LLM call failed for %r: %s", topic, exc)
             raise RuntimeError("AI synthesis failed for this brief request") from exc
@@ -434,6 +387,59 @@ Rules:
         logger.info(
             f"Retrieved {len(signals)} signals for synthesis query "
             f"(top_k={top_k}, min_conf={min_confidence})"
+        )
+        return signals
+
+    async def _retrieve_signals_by_ids(
+        self,
+        signal_ids: list[str],
+        *,
+        org_id: UUID | None = None,
+        industry_id: UUID | None = None,
+        min_confidence: float = 0.60,
+    ) -> list[dict[str, Any]]:
+        """Retrieve explicit signals for brief synthesis."""
+
+        query = select(Signal).where(Signal.confidence >= min_confidence)
+
+        if org_id:
+            query = query.where((Signal.org_id.is_(None)) | (Signal.org_id == org_id))
+
+        if industry_id:
+            from backend.models.signal_contract import SignalContract
+
+            query = query.where(
+                Signal.contract_id.in_(
+                    select(SignalContract.id).where(
+                        SignalContract.industry_id == industry_id
+                    )
+                )
+            )
+
+        query = query.where(Signal.id.in_([UUID(signal_id) for signal_id in signal_ids]))
+
+        result = await self.db.execute(query)
+        rows = list(result.scalars().all())
+        signals: list[dict[str, Any]] = []
+        for row in rows:
+            signals.append(
+                {
+                    "id": str(row.id),
+                    "title": row.title or "Untitled Signal",
+                    "summary": row.summary or "",
+                    "confidence": float(row.confidence),
+                    "signal_type": row.signal_type,
+                    "source_url": row.source_url,
+                    "published_at": (
+                        row.published_at.isoformat() if row.published_at else None
+                    ),
+                    "similarity": 1.0,
+                }
+            )
+
+        logger.info(
+            "Retrieved %s explicit signals for brief synthesis",
+            len(signals),
         )
         return signals
 

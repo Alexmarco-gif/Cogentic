@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { StemIcon } from '@/components/ui/StemIcon'
 
 // ── SVG brand icons ───────────────────────────────────────────────────────────
@@ -105,7 +105,6 @@ function RightPanel() {
 // ── Login page ────────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember]         = useState(false)
 
   return (
@@ -126,7 +125,7 @@ export default function LoginPage() {
                 <span className="text-indigo-600">Cogent</span>
               </h1>
               <p className="mt-1 text-[13px] text-slate-500 leading-relaxed max-w-[300px]">
-                Sign in with your email and password, or continue with a social account.
+                Continue with Auth0 using your work email, or choose a social account to sign in.
               </p>
             </div>
           </div>
@@ -165,7 +164,7 @@ export default function LoginPage() {
             <div className="flex-1 border-t border-slate-200" />
           </div>
 
-          {/* ── Email/password form ─────────────────────────── */}
+          {/* ── Email redirect form ─────────────────────────── */}
           <form
             action="/api/auth/login"
             method="GET"
@@ -186,28 +185,8 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password — visual only, Auth0 handles actual auth */}
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-[13px] font-medium text-slate-700">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-11 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/80 px-4 py-3 text-[12px] text-slate-600">
+              You will finish authentication on the secure Auth0 sign-in page after you continue.
             </div>
 
             {/* Remember me + forgot */}

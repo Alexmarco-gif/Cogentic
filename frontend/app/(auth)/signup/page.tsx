@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { StemIcon } from '@/components/ui/StemIcon'
 
 // ── SVG brand icons ───────────────────────────────────────────────────────────
@@ -114,8 +113,6 @@ function RightPanel() {
 // ── Signup page ───────────────────────────────────────────────────────────────
 
 export default function SignupPage() {
-  const [showPassword, setShowPassword] = useState(false)
-
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-white">
 
@@ -207,29 +204,8 @@ export default function SignupPage() {
               />
             </div>
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-[13px] font-medium text-slate-700">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Create a strong password"
-                  autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-11 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-400">Minimum 8 characters</p>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/80 px-4 py-3 text-[12px] text-slate-600">
+              You will create and confirm your password on the secure Auth0 signup page after you continue.
             </div>
 
             {/* Terms */}
