@@ -1,5 +1,6 @@
 import { Shell } from '@/components/ui/Shell'
 import { PageTransition } from '@/components/ui/PageTransition'
+import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 
 export default function DashboardLayout({
   children,
@@ -8,9 +9,11 @@ export default function DashboardLayout({
 }) {
   return (
     <Shell>
-      <PageTransition>
-        {children}
-      </PageTransition>
+      <OnboardingProvider>
+        <PageTransition>
+          {children}
+        </PageTransition>
+      </OnboardingProvider>
     </Shell>
   )
 }

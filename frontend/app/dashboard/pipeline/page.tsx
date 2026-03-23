@@ -139,7 +139,7 @@ export default function PipelinePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6 px-3 py-4 sm:px-4 lg:px-0 animate-pulse">
         <div className="h-10 w-48 bg-muted rounded" />
         <div className="grid grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -153,9 +153,9 @@ export default function PipelinePage() {
   const tiers = ['realtime', 'standard', 'slow', 'daily']
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1240px] space-y-6 px-3 py-4 sm:px-4 lg:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-success-bg p-2">
             <Activity className="h-5 w-5 text-success" />
@@ -174,8 +174,8 @@ export default function PipelinePage() {
       </div>
 
       {/* Scheduler controls */}
-      <div className="rounded-lg border border-border bg-surface p-5">
-        <div className="flex items-center justify-between mb-4">
+      <div className="surface-panel p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-heading">Scheduler</h2>
           <Button
             variant={status?.scheduler_running ? 'destructive' : 'primary'}
@@ -191,7 +191,7 @@ export default function PipelinePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
           <div>
             <span className="text-subtle">Status</span>
             <p className="font-medium">
@@ -213,9 +213,9 @@ export default function PipelinePage() {
         </div>
 
         {/* Manual tier fetch buttons */}
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-4 border-t border-border pt-4">
           <span className="text-sm text-subtle mb-2 block">Manual Fetch:</span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {tiers.map((tier) => (
               <Button
                 key={tier}
@@ -238,7 +238,7 @@ export default function PipelinePage() {
       {/* Source health summary */}
       {health && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
             {[
               { label: 'Total Active', value: health.total_active, color: 'text-heading' },
               { label: 'Healthy', value: health.healthy, color: 'text-emerald-600' },

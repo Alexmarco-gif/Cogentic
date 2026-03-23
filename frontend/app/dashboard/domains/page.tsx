@@ -115,14 +115,15 @@ export default function DomainsPage() {
 
   return (
     <div
-      className="flex flex-col overflow-hidden"
-      style={{ height: 'calc(100vh - var(--omnibar-height))' }}
+      className="flex min-h-[calc(100vh-var(--omnibar-height))] flex-col gap-4 px-3 py-4 sm:px-4 lg:px-0"
     >
       {/* Top strip */}
-      <PageHeader totalSignals={totalSignals} criticalCount={criticalCount} />
+      <div className="overflow-hidden rounded-[28px] border border-border bg-surface shadow-card">
+        <PageHeader totalSignals={totalSignals} criticalCount={criticalCount} />
+      </div>
 
       {(error || drawerError || pageMessage) && (
-        <div className="border-b border-border bg-rose-500/10 px-6 py-3">
+        <div className="rounded-[24px] border border-rose-500/30 bg-rose-500/10 px-5 py-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2 text-sm text-rose-100">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
@@ -142,7 +143,7 @@ export default function DomainsPage() {
       )}
 
       {/* ── Main split layout ────────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+      <div className="flex min-h-[36rem] flex-1 overflow-hidden rounded-[28px] border border-border bg-surface shadow-card lg:flex-row">
 
         {/* ── Left sidebar ─────────────────────────────────────────────────── */}
         <RegionSidebar
@@ -162,7 +163,7 @@ export default function DomainsPage() {
         />
 
         {/* ── Right: map card ───────────────────────────────────────────────── */}
-        <div className="relative z-0 flex flex-1 flex-col overflow-hidden bg-canvas/40 p-4">
+        <div className="relative z-0 flex flex-1 flex-col overflow-hidden bg-canvas/40 p-3 sm:p-4">
 
           {/* Contained map card — rounded, bordered, not full-screen */}
           {/* isolate keeps Leaflet's internal z-indices from escaping this stacking context */}

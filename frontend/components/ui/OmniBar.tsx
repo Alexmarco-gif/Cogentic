@@ -2,7 +2,16 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Search, Bell, CheckCheck, Zap, FileSignature, AlertCircle, X } from 'lucide-react'
+import {
+  AlertCircle,
+  Bell,
+  CheckCheck,
+  FileSignature,
+  Plus,
+  Search,
+  X,
+  Zap,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LiveIndicator } from './LiveIndicator'
 import { SpotlightSearch } from './SpotlightSearch'
@@ -10,41 +19,51 @@ import { listNotifications } from '@/lib/api/notifications'
 import type { NotificationItem as APINotifItem } from '@/lib/api/notifications'
 import { useAlerts } from '@/lib/hooks/useAlerts'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface NotifItem {
-  id:      string
-  icon:    React.ElementType
-  color:   string
-  title:   string
-  body:    string
-  time:    string
-  unread:  boolean
+  id: string
+  icon: React.ElementType
+  color: string
+  title: string
+  body: string
+  time: string
+  unread: boolean
 }
 
 function mapTypeToStyle(type: APINotifItem['type']): { icon: React.ElementType; color: string } {
   switch (type) {
-    case 'signal':   return { icon: Zap,           color: 'text-primary bg-primary/8'     }
-    case 'contract': return { icon: FileSignature,  color: 'text-emerald-600 bg-emerald-50' }
-    case 'system':   return { icon: AlertCircle,    color: 'text-amber-600 bg-amber-50'    }
-    default:         return { icon: Bell,            color: 'text-subtle bg-muted'          }
+    case 'signal':
+      return { icon: Zap, color: 'bg-primary/10 text-primary' }
+    case 'contract':
+      return { icon: FileSignature, color: 'bg-success/10 text-success' }
+    case 'system':
+      return { icon: AlertCircle, color: 'bg-warning/10 text-warning' }
+    default:
+      return { icon: Bell, color: 'bg-surface-2 text-subtle' }
   }
 }
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diffMs / 60_000)
-  if (mins < 1)   return 'Just now'
-  if (mins < 60)  return `${mins} min ago`
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24)   return `${hrs} hr ago`
+  if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
-  return days === 1 ? 'Yesterday' : `${days} days ago`
+  return days === 1 ? 'Yesterday' : `${days}d ago`
 }
 
-function toNotifItem(n: APINotifItem): NotifItem {
-  const { icon, color } = mapTypeToStyle(n.type)
-  return { id: n.id, icon, color, title: n.title, body: n.body, time: relativeTime(n.created_at), unread: n.unread }
+function toNotifItem(item: APINotifItem): NotifItem {
+  const { icon, color } = mapTypeToStyle(item.type)
+  return {
+    id: item.id,
+    icon,
+    color,
+    title: item.title,
+    body: item.body,
+    time: relativeTime(item.created_at),
+    unread: item.unread,
+  }
 }
 
 interface OmniBarProps {
@@ -52,154 +71,124 @@ interface OmniBarProps {
   className?: string
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function OmniBar({ notificationCount = 0, className }: OmniBarProps) {
-  const [query, setQuery]                 = React.useState('')
+  const [query, setQuery] = React.useState('')
   const [spotlightOpen, setSpotlightOpen] = React.useState(false)
-  const [notifOpen, setNotifOpen]         = React.useState(false)
-  const [notifs, setNotifs]               = React.useState<NotifItem[]>([])
-  const inputRef  = React.useRef<HTMLInputElement>(null)
-  const barRef    = React.useRef<HTMLDivElement>(null)
-  const notifRef  = React.useRef<HTMLDivElement>(null)
-
+  const [notifOpen, setNotifOpen] = React.useState(false)
+  const [notifs, setNotifs] = React.useState<NotifItem[]>([])
   const [activeTab, setActiveTab] = React.useState<'notifications' | 'alerts'>('notifications')
-  const { data: alertData, acknowledge: acknowledgeAlertItem } = useAlerts({ acknowledged: false, limit: 50 })
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const barRef = React.useRef<HTMLDivElement>(null)
+  const notifRef = React.useRef<HTMLDivElement>(null)
+  const { data: alertData, acknowledge: acknowledgeAlertItem } = useAlerts({
+    acknowledged: false,
+    limit: 50,
+  })
 
-  const unreadCount = notifs.filter(n => n.unread).length
+  const unreadCount = notifs.filter((notif) => notif.unread).length
   const alertUnread = alertData?.unacknowledged ?? 0
-  const totalUnread = unreadCount + alertUnread
+  const totalUnread = unreadCount + alertUnread + notificationCount
 
-  // Fetch notifications from backend on mount
   React.useEffect(() => {
     let cancelled = false
+
     async function load() {
       try {
         const data = await listNotifications(20)
-        if (!cancelled) setNotifs(data.items.map(toNotifItem))
+        if (!cancelled) {
+          setNotifs(data.items.map(toNotifItem))
+        }
       } catch {
-        // Backend unavailable — show empty state gracefully
+        // Keep the shell usable if the notification feed is unavailable.
       }
     }
+
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  // Close spotlight on outside click
   React.useEffect(() => {
     function handler(e: MouseEvent) {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
         setSpotlightOpen(false)
       }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  // Close notif dropdown on outside click
-  React.useEffect(() => {
-    function handler(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false)
       }
     }
+
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Open spotlight on any keystroke when input focused
-  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setQuery(e.target.value)
-    setSpotlightOpen(true)
-  }
-
-  function handleFocus() {
-    setSpotlightOpen(true)
-  }
-
-  function markAllRead() {
-    setNotifs(ns => ns.map(n => ({ ...n, unread: false })))
-  }
-
-  function dismissNotif(id: string) {
-    setNotifs(ns => ns.filter(n => n.id !== id))
-  }
-
-  // Global shortcuts: '/' or ⌘K / Ctrl+K focuses input
   React.useEffect(() => {
     function handler(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName
-      const isShortcutKey = (
+      const isShortcut = (
         (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') ||
-        (e.key === 'k' && (e.metaKey || e.ctrlKey))
+        (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey))
       )
-      if (isShortcutKey) {
+
+      if (isShortcut) {
         e.preventDefault()
         inputRef.current?.focus()
         setSpotlightOpen(true)
       }
     }
+
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [])
 
+  function markAllRead() {
+    setNotifs((items) => items.map((item) => ({ ...item, unread: false })))
+  }
+
+  function dismissNotif(id: string) {
+    setNotifs((items) => items.filter((item) => item.id !== id))
+  }
+
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 z-30 h-16',
-        // Mobile: full width. Desktop: offset from nav rail.
-        'left-0 md:left-[var(--nav-rail-collapsed)]',
-        'flex items-center gap-4 px-4 sm:px-6',
-        'bg-surface/80 backdrop-blur-sm border-b border-border',
-        'transition-all duration-200',
+        'fixed left-0 right-0 top-0 z-30 md:left-[var(--nav-rail-collapsed)]',
+        'px-3 pt-3 sm:px-5 md:px-6',
         className,
       )}
     >
-      {/* ── Command input (centered) ──────────────────────────── */}
-      <div
-        ref={barRef}
-        className="flex-1 flex justify-center"
-      >
-        <div
-          className="relative w-full max-w-[600px]"
-        >
-          {/* Search icon */}
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle pointer-events-none">
-            <Search size={15} strokeWidth={1.5} />
+      <div className="mx-auto flex h-[calc(var(--omnibar-height)-12px)] max-w-shell items-center gap-3 rounded-[28px] border border-border bg-[rgba(252,251,247,0.78)] px-4 shadow-card backdrop-blur-xl dark:bg-[rgba(23,32,29,0.82)] sm:px-5">
+        <div ref={barRef} className="relative flex-1">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-subtle">
+            <Search size={16} strokeWidth={1.8} />
           </span>
-
-          {/* Input */}
           <input
             ref={inputRef}
             type="text"
             value={query}
-            onChange={handleInput}
-            onFocus={handleFocus}
-            placeholder="Ask about market trends, entities, or press '/' for commands..."
-            aria-label="Intelligence search"
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSpotlightOpen(true)
+            }}
+            onFocus={() => setSpotlightOpen(true)}
+            placeholder="Search intelligence, open pages, or run a command"
+            aria-label="Search and command palette"
             aria-autocomplete="list"
             aria-controls={spotlightOpen ? 'spotlight-results' : undefined}
-            className={cn(
-              'w-full h-9 pl-9 pr-4 rounded-lg',
-              'bg-muted text-sm text-body',
-              'placeholder:text-subtle',
-              'border border-transparent',
-              'focus:outline-none focus:border-primary/40 focus:bg-surface',
-              'transition-colors duration-150',
-            )}
+            className="focus-ring h-12 w-full rounded-[20px] border border-transparent bg-surface-2 pl-11 pr-24 text-[0.92rem] text-heading placeholder:text-subtle transition-all duration-200 focus:border-primary/20 focus:bg-surface"
           />
+          <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+            <kbd className="hidden rounded-full border border-border bg-surface px-2.5 py-1 text-[0.66rem] font-semibold uppercase tracking-[0.18em] text-subtle sm:inline-flex">
+              Ctrl K
+            </kbd>
+            {!query && (
+              <span className="hidden text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-subtle md:inline">
+                /
+              </span>
+            )}
+          </div>
 
-          {/* Shortcut hint — visible when unfocused and empty */}
-          {!query && !spotlightOpen && (
-            <span
-              aria-hidden="true"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-subtle font-mono"
-            >
-              /
-            </span>
-          )}
-
-          {/* Spotlight dropdown */}
           {spotlightOpen && (
             <SpotlightSearch
               query={query}
@@ -208,194 +197,200 @@ export function OmniBar({ notificationCount = 0, className }: OmniBarProps) {
                 setQuery('')
               }}
               onNavigate={() => {
-                setQuery('')
                 setSpotlightOpen(false)
+                setQuery('')
               }}
             />
           )}
         </div>
-      </div>
 
-      {/* ── Right section ─────────────────────────────────────── */}
-      <div className="flex items-center gap-4 shrink-0">
-        <LiveIndicator label="Data Freshness: Live" />
-
-        {/* Notification bell */}
-        <div ref={notifRef} className="relative">
-          <button
-            onClick={() => setNotifOpen(o => !o)}
-            title="Notifications"
-            aria-label={`Notifications${totalUnread ? ` — ${totalUnread} unread` : ''}`}
-            className="relative p-1.5 rounded-lg hover:bg-muted transition-colors text-neutral hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        <div className="hidden items-center gap-2 lg:flex">
+          <div className="rounded-full border border-border bg-surface px-3 py-1.5">
+            <LiveIndicator label="Live intelligence" className="border-0 bg-transparent px-0 py-0 shadow-none" />
+          </div>
+          <Link
+            href="/dashboard/studio"
+            className="button-press inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-[0.8rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
           >
-            <Bell size={18} strokeWidth={1.5} />
+            <Plus size={14} />
+            Create contract
+          </Link>
+        </div>
+
+        <div ref={notifRef} className="relative shrink-0">
+          <button
+            onClick={() => setNotifOpen((open) => !open)}
+            title="Notifications"
+            aria-label={`Notifications${totalUnread ? ` - ${totalUnread} unread` : ''}`}
+            className="focus-ring button-press relative flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-surface text-neutral transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2 hover:text-heading"
+          >
+            <Bell size={18} strokeWidth={1.8} />
             {totalUnread > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-primary text-white text-[9px] font-medium flex items-center justify-center leading-none">
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[0.6rem] font-bold text-white">
                 {totalUnread > 9 ? '9+' : totalUnread}
               </span>
             )}
           </button>
 
-          {/* Notifications + Alerts dropdown panel */}
           {notifOpen && (
-            <div className="absolute right-0 top-full mt-2 w-96 rounded-2xl border border-border bg-surface shadow-modal z-50 overflow-hidden">
-
-              {/* Tab header */}
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setActiveTab('notifications')}
-                    className={cn(
-                      'text-sm font-medium transition-colors',
-                      activeTab === 'notifications' ? 'text-heading' : 'text-subtle hover:text-body',
-                    )}
-                  >
-                    Notifications
-                    {unreadCount > 0 && (
-                      <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('alerts')}
-                    className={cn(
-                      'text-sm font-medium transition-colors',
-                      activeTab === 'alerts' ? 'text-heading' : 'text-subtle hover:text-body',
-                    )}
-                  >
-                    Alerts
-                    {alertUnread > 0 && (
-                      <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
-                        {alertUnread}
-                      </span>
-                    )}
-                  </button>
+            <div className="surface-elevated absolute right-0 top-full z-50 mt-3 w-[min(92vw,30rem)] overflow-hidden p-2">
+              <div className="flex items-center justify-between rounded-[20px] bg-surface-2 px-4 py-3">
+                <div>
+                  <p className="text-title">Inbox</p>
+                  <p className="text-[0.78rem] text-subtle">Everything that changed since your last visit.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  {activeTab === 'notifications' && unreadCount > 0 && (
-                    <button
-                      onClick={markAllRead}
-                      className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-                    >
-                      <CheckCheck className="h-3 w-3" />
-                      Mark all read
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setNotifOpen(false)}
-                    className="text-subtle hover:text-body transition-colors"
-                  >
-                    <X className="h-4 w-4" strokeWidth={1.5} />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setNotifOpen(false)}
+                  className="focus-ring button-press rounded-full p-2 text-subtle transition-colors hover:bg-surface hover:text-heading"
+                >
+                  <X size={16} strokeWidth={1.8} />
+                </button>
               </div>
 
-              {/* Notifications tab */}
-              {activeTab === 'notifications' && (
-                <div className="max-h-80 overflow-y-auto divide-y divide-border">
-                  {notifs.length === 0 ? (
-                    <div className="py-10 text-center text-sm text-subtle">All caught up ✓</div>
-                  ) : notifs.map(n => (
-                    <div
-                      key={n.id}
-                      className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50 ${
-                        n.unread ? 'bg-primary/[0.02]' : ''
-                      }`}
-                    >
-                      <div className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${n.color}`}>
-                        <n.icon className="h-4 w-4" strokeWidth={1.5} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-medium text-heading truncate">{n.title}</p>
-                          <span className="flex-shrink-0 text-[10px] text-subtle">{n.time}</span>
-                        </div>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-subtle line-clamp-2">{n.body}</p>
-                      </div>
-                      <button
-                        onClick={() => dismissNotif(n.id)}
-                        className="mt-0.5 flex-shrink-0 text-subtle opacity-0 group-hover:opacity-100 hover:text-body transition-all"
-                      >
-                        <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                      {n.unread && (
-                        <span className="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-primary" />
+              <div className="mt-2 flex items-center gap-2 px-1">
+                {(['notifications', 'alerts'] as const).map((tab) => {
+                  const count = tab === 'notifications' ? unreadCount : alertUnread
+                  const active = activeTab === tab
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={cn(
+                        'button-press inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[0.78rem] font-semibold capitalize transition-all duration-200',
+                        active
+                          ? 'bg-primary text-white shadow-glow'
+                          : 'border border-border bg-surface text-body hover:bg-surface-2',
                       )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                    >
+                      {tab}
+                      {count > 0 && (
+                        <span className={cn(
+                          'rounded-full px-1.5 py-0.5 text-[0.64rem]',
+                          active ? 'bg-white/15 text-white' : 'bg-surface-2 text-subtle',
+                        )}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
 
-              {/* Alerts tab */}
-              {activeTab === 'alerts' && (
-                <div className="max-h-80 overflow-y-auto divide-y divide-border">
-                  {(alertData?.items ?? []).length === 0 ? (
-                    <div className="py-10 text-center text-sm text-subtle">No active alerts ✓</div>
-                  ) : (alertData?.items ?? []).map(alert => {
-                    const sevDot: Record<string, string> = {
-                      critical: 'bg-red-500',
-                      high:     'bg-orange-400',
-                      medium:   'bg-yellow-400',
-                      low:      'bg-blue-400',
-                    }
-                    const sevBadge: Record<string, string> = {
-                      critical: 'text-red-700 bg-red-50 border-red-200',
-                      high:     'text-orange-700 bg-orange-50 border-orange-200',
-                      medium:   'text-yellow-700 bg-yellow-50 border-yellow-200',
-                      low:      'text-blue-700 bg-blue-50 border-blue-200',
-                    }
-                    return (
-                      <div key={alert.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
-                        <span className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${sevDot[alert.severity] ?? 'bg-gray-400'}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-heading truncate">{alert.title}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${sevBadge[alert.severity] ?? 'text-gray-600 bg-gray-50 border-gray-200'}`}>
-                              {alert.severity}
-                            </span>
-                            {alert.metric && <span className="text-[10px] font-mono text-subtle">{alert.metric}</span>}
-                            {alert.country_code && <span className="text-[10px] text-subtle">{alert.country_code}</span>}
-                          </div>
-                          <p className="mt-0.5 text-[10px] text-subtle">{relativeTime(alert.created_at)}</p>
-                        </div>
-                        <button
-                          onClick={() => acknowledgeAlertItem(alert.id)}
-                          title="Acknowledge alert"
-                          className="mt-0.5 flex-shrink-0 p-1 rounded hover:bg-green-50 text-subtle hover:text-green-600 transition-colors"
-                        >
-                          <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="border-t border-border px-4 py-2.5">
-                {activeTab === 'notifications' ? (
-                  <Link
-                    href="/dashboard/settings?tab=notifications"
-                    onClick={() => setNotifOpen(false)}
-                    className="block text-center text-xs font-medium text-primary hover:underline"
+                {activeTab === 'notifications' && unreadCount > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    className="ml-auto inline-flex items-center gap-1.5 text-[0.76rem] font-semibold text-primary transition-colors hover:text-primary-hover"
                   >
-                    Manage notification settings
-                  </Link>
-                ) : (
-                  <Link
-                    href="/dashboard/alerts"
-                    onClick={() => setNotifOpen(false)}
-                    className="block text-center text-xs font-medium text-primary hover:underline"
-                  >
-                    View all alerts
-                  </Link>
+                    <CheckCheck size={14} />
+                    Mark all read
+                  </button>
                 )}
+              </div>
+
+              {activeTab === 'notifications' ? (
+                <div className="mt-3 max-h-[24rem] space-y-2 overflow-y-auto pr-1">
+                  {notifs.length === 0 ? (
+                    <EmptyInbox
+                      title="You're caught up"
+                      body="New contract updates, signal alerts, and system events will land here."
+                    />
+                  ) : (
+                    notifs.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={cn(
+                          'group rounded-[20px] border border-border bg-surface px-4 py-3 transition-all duration-200 hover:border-border-hover hover:bg-surface-2',
+                          notif.unread && 'bg-primary/[0.03]',
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', notif.color)}>
+                            <notif.icon size={16} strokeWidth={1.8} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-[0.86rem] font-semibold text-heading">{notif.title}</p>
+                                <p className="mt-1 line-clamp-2 text-[0.78rem] text-subtle">{notif.body}</p>
+                              </div>
+                              <span className="shrink-0 text-[0.72rem] text-subtle">{notif.time}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            {notif.unread && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
+                            <button
+                              onClick={() => dismissNotif(notif.id)}
+                              className="text-subtle opacity-0 transition-all group-hover:opacity-100 hover:text-heading"
+                            >
+                              <X size={14} strokeWidth={1.8} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="mt-3 max-h-[24rem] space-y-2 overflow-y-auto pr-1">
+                  {(alertData?.items ?? []).length === 0 ? (
+                    <EmptyInbox
+                      title="No active alerts"
+                      body="When premium alerts trigger, they'll show here with severity and source context."
+                    />
+                  ) : (
+                    (alertData?.items ?? []).map((alert) => {
+                      const tone = alert.severity === 'critical'
+                        ? 'bg-critical/10 text-critical'
+                        : alert.severity === 'high'
+                        ? 'bg-warning/10 text-warning'
+                        : 'bg-primary/10 text-primary'
+
+                      return (
+                        <button
+                          key={alert.id}
+                          onClick={() => acknowledgeAlertItem(alert.id)}
+                          className="button-press flex w-full items-start gap-3 rounded-[20px] border border-border bg-surface px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+                        >
+                          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', tone)}>
+                            <AlertCircle size={16} strokeWidth={1.8} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="truncate text-[0.86rem] font-semibold text-heading">{alert.title}</p>
+                              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-subtle">
+                                {alert.severity}
+                              </span>
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-[0.78rem] text-subtle">{alert.description}</p>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 flex items-center justify-between border-t border-border px-2 pt-3">
+                <p className="text-[0.74rem] text-subtle">Press Ctrl/Cmd + K to move faster.</p>
+                <Link
+                  href="/dashboard/settings?tab=notifications"
+                  className="text-[0.78rem] font-semibold text-primary transition-colors hover:text-primary-hover"
+                >
+                  Manage settings
+                </Link>
               </div>
             </div>
           )}
         </div>
       </div>
     </header>
+  )
+}
+
+function EmptyInbox({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-[20px] border border-dashed border-border bg-surface px-5 py-10 text-center">
+      <p className="text-[0.9rem] font-semibold text-heading">{title}</p>
+      <p className="mx-auto mt-2 max-w-sm text-[0.78rem] text-subtle">{body}</p>
+    </div>
   )
 }

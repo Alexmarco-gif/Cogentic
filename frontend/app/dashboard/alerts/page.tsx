@@ -108,9 +108,9 @@ export default function AlertsPage() {
   ];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="mx-auto max-w-[1100px] space-y-6 px-3 py-4 sm:px-4 lg:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <Bell className="w-6 h-6 text-subtle" />
           <div>
@@ -128,7 +128,7 @@ export default function AlertsPage() {
 
       {/* Summary cards */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(['critical', 'high', 'medium', 'low'] as Severity[]).map((sev) => {
             const cfg = SEVERITY_CONFIG[sev];
             const count = summary.by_severity[sev] ?? 0;
@@ -165,7 +165,7 @@ export default function AlertsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="surface-panel flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center">
         <select
           value={severityFilter}
           onChange={(e) => setSeverityFilter(e.target.value)}
@@ -185,7 +185,7 @@ export default function AlertsPage() {
           Show acknowledged
         </label>
         {data && (
-          <span className="text-sm text-subtle ml-auto">{data.total} total · {data.unacknowledged} unreviewed</span>
+          <span className="text-sm text-subtle sm:ml-auto">{data.total} total · {data.unacknowledged} unreviewed</span>
         )}
       </div>
 

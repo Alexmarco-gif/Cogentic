@@ -188,11 +188,12 @@ export default function LibraryPage() {
 
   return (
     <div
+      data-onboarding="library-page"
       className="flex flex-col overflow-hidden"
       style={{ height: 'calc(100vh - var(--omnibar-height))' }}
     >
       {/* ── Page header ────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-border bg-surface/80 px-6 py-4 backdrop-blur-sm">
+      <div data-onboarding="library-header" className="flex-shrink-0 border-b border-border bg-surface/80 px-6 py-4 backdrop-blur-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-base font-semibold text-heading">Intelligence Library</h1>
@@ -220,12 +221,13 @@ export default function LibraryPage() {
         </div>
 
         {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div data-onboarding="library-toolbar" className="mt-4 flex flex-wrap items-center gap-3">
 
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-[380px]">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle" />
             <input
+              data-onboarding="library-search"
               type="text"
               placeholder="Search briefs, tags, domains…"
               value={searchQuery}
@@ -318,7 +320,7 @@ export default function LibraryPage() {
       </div>
 
       {/* ── Grid scroll body ────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-x-hidden overflow-y-auto bg-canvas px-6 py-6">
+      <div data-onboarding="library-results" className="flex-1 overflow-x-hidden overflow-y-auto bg-canvas px-6 py-6">
         {loading && totalCount === 0 && (
           <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (

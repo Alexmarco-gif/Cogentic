@@ -228,34 +228,41 @@ function SignalsInner() {
   return (
     <>
       <div
+        data-onboarding="signals-page"
         className={cn(
           'flex min-h-full flex-col gap-5 px-6 py-6 transition-all duration-300',
           activeDrawerSignal ? 'xl:mr-[440px]' : '',
         )}
       >
-        <PageHeader newSinceLoad={newSinceLoad} />
+        <div data-onboarding="signals-header">
+          <PageHeader newSinceLoad={newSinceLoad} />
+        </div>
 
-        <SignalsStatsBar
-          total={totalCount}
-          critical={criticalCount}
-          unread={unreadCount}
-          saved={savedCount}
-        />
+        <div data-onboarding="signals-stats">
+          <SignalsStatsBar
+            total={totalCount}
+            critical={criticalCount}
+            unread={unreadCount}
+            saved={savedCount}
+          />
+        </div>
 
-        <SignalsToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          filterDomain={filterDomain}
-          onDomainChange={setFilterDomain}
-          filterSeverity={filterSeverity}
-          onSeverityChange={setFilterSeverity}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          resultCount={rows.length}
-          totalCount={totalCount}
-          availableDomains={availableDomains}
-          onExport={handleExport}
-        />
+        <div data-onboarding="signals-toolbar">
+          <SignalsToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filterDomain={filterDomain}
+            onDomainChange={setFilterDomain}
+            filterSeverity={filterSeverity}
+            onSeverityChange={setFilterSeverity}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            resultCount={rows.length}
+            totalCount={totalCount}
+            availableDomains={availableDomains}
+            onExport={handleExport}
+          />
+        </div>
 
         {error && !loading && signals.length === 0 ? (
           <ErrorState message={error} onRetry={refresh} />

@@ -174,8 +174,8 @@ export function EvidenceBoard({
   const cfg = STATE_CONFIG[state]
 
   return (
-    <div className="flex h-full flex-col bg-canvas">
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-border bg-surface px-5 py-3.5">
+    <div className="flex h-full min-h-0 flex-col bg-canvas">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-border/80 bg-surface px-5 py-4">
         <span
           className={cn(
             'flex h-6 w-6 items-center justify-center rounded-lg text-xs',
@@ -211,8 +211,8 @@ export function EvidenceBoard({
         )}
       </div>
 
-      <ScrollArea className="flex-1 overflow-y-auto">
-        <div className="p-5">
+      <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
+        <div className="p-5 sm:p-6">
           {state === 'idle' && (
             <div className="flex h-full flex-col items-center justify-center py-8">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/10 bg-primary/5">

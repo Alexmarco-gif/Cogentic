@@ -9,34 +9,41 @@ import { ServiceWorkerRegistration } from '@/components/ui/ServiceWorkerRegistra
 
 export const metadata: Metadata = {
   title: {
-    default:  'Cogent',
-    template: '%s — Cogent',
+    default: 'Cogent',
+    template: '%s - Cogent',
   },
   description: 'Strategic intelligence platform for enterprise analysts',
-  manifest:    '/manifest.json',
+  manifest: '/manifest.json',
   appleWebApp: {
-    capable:         true,
-    statusBarStyle:  'default',
-    title:           'Cogent',
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Cogent',
   },
   icons: {
-    icon:   '/stem-cogent.svg',
-    apple:  '/stem-cogent.svg',
+    icon: [
+      { url: '/stem-icon-180x180-corrected.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/stem-icon-180x180-corrected.png',
   },
   openGraph: {
-    title:       'Cogent',
+    title: 'Cogent',
     description: 'Strategic intelligence platform',
-    type:        'website',
+    type: 'website',
   },
 }
 
 export const viewport: Viewport = {
-  themeColor:          '#4F46E5',
-  width:               'device-width',
-  initialScale:        1,
-  maximumScale:        1,
-  userScalable:        false,
-  viewportFit:         'cover',  // enables safe-area-inset CSS vars
+  themeColor: '#2563EB',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -45,9 +52,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
-        {/* Apply stored theme BEFORE first paint to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -56,7 +66,7 @@ export default function RootLayout({
                 if (stored.state && stored.state.theme === 'dark') {
                   document.documentElement.classList.add('dark');
                 }
-              } catch(e) {}
+              } catch (e) {}
             `,
           }}
         />
@@ -64,9 +74,7 @@ export default function RootLayout({
       <body className="font-sans bg-canvas text-body transition-colors duration-200">
         <PricingProvider>
           <Auth0Provider>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
+            <ThemeProvider>{children}</ThemeProvider>
           </Auth0Provider>
         </PricingProvider>
         <ServiceWorkerRegistration />

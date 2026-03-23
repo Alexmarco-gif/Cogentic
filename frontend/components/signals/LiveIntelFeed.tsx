@@ -1,19 +1,19 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
-  ArrowRight,
-  ShieldAlert,
-  Lightbulb,
   AlertTriangle,
-  Search,
+  ArrowRight,
   FileText,
+  Lightbulb,
+  Search,
+  ShieldAlert,
 } from 'lucide-react'
 import { LiveIndicator } from '@/components/ui'
 import type { FeedEvent, FeedCategory, Signal } from '@/lib/hooks/useSignals'
+import { getDomainPillLight } from '@/lib/domain-colors'
 
-// ── Category config ──────────────────────────────────────────────────────────
 const CATEGORY_CONFIG: Record<FeedCategory, {
   icon: React.ReactNode
   label: string
@@ -23,43 +23,41 @@ const CATEGORY_CONFIG: Record<FeedCategory, {
   risk: {
     icon: <ShieldAlert size={12} />,
     label: 'Risk',
-    pillBg: 'bg-red-50',
-    pillText: 'text-red-700',
+    pillBg: 'bg-critical/10',
+    pillText: 'text-critical',
   },
   opportunity: {
     icon: <Lightbulb size={12} />,
     label: 'Opportunity',
-    pillBg: 'bg-emerald-50',
-    pillText: 'text-emerald-700',
+    pillBg: 'bg-success/10',
+    pillText: 'text-success',
   },
   alert: {
     icon: <AlertTriangle size={12} />,
     label: 'Alert',
-    pillBg: 'bg-amber-50',
-    pillText: 'text-amber-700',
+    pillBg: 'bg-warning/10',
+    pillText: 'text-warning',
   },
   investigation: {
     icon: <Search size={12} />,
-    label: 'Investigation',
-    pillBg: 'bg-blue-50',
-    pillText: 'text-blue-700',
+    label: 'Investigate',
+    pillBg: 'bg-primary/10',
+    pillText: 'text-primary',
   },
   brief: {
     icon: <FileText size={12} />,
     label: 'Brief',
-    pillBg: 'bg-violet-50',
-    pillText: 'text-violet-700',
+    pillBg: 'bg-surface-2',
+    pillText: 'text-heading',
   },
 }
 
 const SEVERITY_DOT: Record<string, string> = {
-  critical: 'bg-red-500',
-  high:     'bg-orange-400',
-  medium:   'bg-amber-400',
-  low:      'bg-slate-300',
+  critical: 'bg-critical',
+  high: 'bg-warning',
+  medium: 'bg-primary',
+  low: 'bg-neutral',
 }
-
-import { getDomainPillLight } from '@/lib/domain-colors'
 
 type FeedFilter = 'all' | 'critical' | 'opportunities' | 'risks'
 
@@ -98,175 +96,152 @@ export function LiveIntelFeed({
   const filteredEvents = useMemo(() => {
     switch (filter) {
       case 'critical':
-        return events.filter(e => e.severity === 'critical' || e.severity === 'high')
+        return events.filter((event) => event.severity === 'critical' || event.severity === 'high')
       case 'opportunities':
-        return events.filter(e => e.category === 'opportunity')
+        return events.filter((event) => event.category === 'opportunity')
       case 'risks':
-        return events.filter(e => e.category === 'risk' || e.category === 'alert')
+        return events.filter((event) => event.category === 'risk' || event.category === 'alert')
       default:
         return events
     }
   }, [events, filter])
 
-  const handleEventClick = (event: FeedEvent) => {
+  const filters: { key: FeedFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: events.length },
+    { key: 'critical', label: 'Critical', count: events.filter((event) => event.severity === 'critical' || event.severity === 'high').length },
+    { key: 'risks', label: 'Risks', count: events.filter((event) => event.category === 'risk' || event.category === 'alert').length },
+    { key: 'opportunities', label: 'Opportunities', count: events.filter((event) => event.category === 'opportunity').length },
+  ]
+
+  function handleEventClick(event: FeedEvent) {
     if (event.signalId && onOpenSignal) {
       onOpenSignal(event.signalId)
       return
     }
 
     if (event.signalId && onEventClick) {
-      const signal = signals.find(s => s.id === event.signalId)
+      const signal = signals.find((item) => item.id === event.signalId)
       if (signal) onEventClick(signal)
     }
   }
 
-  const filters: { key: FeedFilter; label: string; count?: number }[] = [
-    { key: 'all', label: 'All', count: events.length },
-    { key: 'critical', label: 'Critical', count: events.filter(e => e.severity === 'critical' || e.severity === 'high').length },
-    { key: 'risks', label: 'Risks', count: events.filter(e => e.category === 'risk' || e.category === 'alert').length },
-    { key: 'opportunities', label: 'Opportunities', count: events.filter(e => e.category === 'opportunity').length },
-  ]
-
   if (loading) {
     return (
-      <div className="bg-surface border border-border rounded-card shadow-card p-5">
-        <div className="h-4 bg-muted rounded w-1/3 mb-4 animate-pulse" />
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-16 bg-muted rounded mb-2 animate-pulse" />
-        ))}
+      <div className="surface-panel p-5">
+        <div className="skeleton mb-4 h-5 w-40" />
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="skeleton h-24 w-full" />
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-surface border border-border rounded-card shadow-card overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-[14px] font-medium text-heading">Real-Time Intelligence Feed</h2>
-              <p className="text-[11px] text-subtle mt-0.5">
-                Live signals, risks, and opportunities as they are detected
-              </p>
-            </div>
+    <div className="surface-panel overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="eyebrow">Activity timeline</p>
+            <h2 className="mt-2 text-title">What changed most recently</h2>
+            <p className="mt-2 max-w-2xl text-[0.82rem] text-subtle">
+              Instant feedback matters. This feed keeps the latest risks, opportunities, and briefs visible in one place.
+            </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {lastUpdated && (
-              <span className="text-[11px] text-subtle tabular-nums">
+              <span className="rounded-full border border-border bg-surface px-3 py-1.5 text-[0.74rem] font-semibold text-subtle">
                 Updated {timeAgo(lastUpdated)}
               </span>
             )}
-            <LiveIndicator label={liveConnected ? 'Live' : 'Auto-refresh'} />
+            <LiveIndicator label={liveConnected ? 'Live feed' : 'Auto refresh'} />
           </div>
         </div>
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1">
-          {filters.map((f) => (
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {filters.map((item) => (
             <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
+              key={item.key}
+              onClick={() => setFilter(item.key)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors',
-                filter === f.key
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-subtle hover:bg-muted hover:text-body',
+                'button-press rounded-full px-3 py-1.5 text-[0.76rem] font-semibold transition-all duration-200',
+                filter === item.key
+                  ? 'bg-primary text-white shadow-glow'
+                  : 'border border-border bg-surface text-body hover:bg-surface-2',
               )}
             >
-              {f.label}
-              {f.count !== undefined && (
-                <span className={cn(
-                  'ml-1 tabular-nums',
-                  filter === f.key ? 'text-primary/70' : 'text-subtle',
-                )}>
-                  {f.count}
-                </span>
-              )}
+              {item.label} <span className="opacity-75">{item.count}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Event list */}
-      <div className="divide-y divide-border/50">
+      <div className="divide-y divide-border/80">
         {filteredEvents.length === 0 && (
-          <div className="px-5 py-10 text-center">
-            <p className="text-sm font-medium text-heading">No live events yet</p>
-            <p className="mt-1 text-xs text-subtle">
-              New signals for this industry will appear here as they are ingested.
+          <div className="px-6 py-14 text-center">
+            <p className="text-[0.92rem] font-semibold text-heading">No live events yet</p>
+            <p className="mx-auto mt-2 max-w-md text-[0.8rem] text-subtle">
+              New signals will appear here as soon as your selected industry or starter workspace receives fresh intelligence.
             </p>
           </div>
         )}
-        {filteredEvents.map((event, idx) => {
-          const catConfig = CATEGORY_CONFIG[event.category]
-          const isClickable = !!event.signalId
+
+        {filteredEvents.map((event, index) => {
+          const category = CATEGORY_CONFIG[event.category]
+          const clickable = Boolean(event.signalId)
 
           return (
             <div
               key={event.id}
               onClick={() => handleEventClick(event)}
               className={cn(
-                'group px-5 py-4 transition-all',
-                isClickable && 'cursor-pointer hover:bg-muted/40',
-                // Animate in effect — stagger by index
+                'group px-5 py-4 transition-all duration-200',
+                clickable && 'cursor-pointer hover:bg-surface-2/70',
                 'animate-in fade-in slide-in-from-bottom-1',
               )}
-              style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'both' }}
+              style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
             >
-              <div className="flex items-start gap-3">
-                {/* Timestamp column */}
-                <div className="w-[52px] shrink-0 pt-0.5">
-                  <p className="text-[11px] text-subtle tabular-nums">{event.relativeTime}</p>
+              <div className="flex items-start gap-4">
+                <div className="w-16 shrink-0 pt-1 text-[0.74rem] font-semibold text-subtle">
+                  {event.relativeTime}
                 </div>
 
-                {/* Severity dot */}
-                <div className="pt-1.5 shrink-0">
-                  <span className={cn(
-                    'relative flex h-2 w-2',
-                  )}>
+                <div className="pt-2">
+                  <span className="relative flex h-2.5 w-2.5">
                     {event.severity === 'critical' && (
-                      <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', SEVERITY_DOT[event.severity])} />
+                      <span className={cn('absolute inline-flex h-full w-full animate-ping rounded-full opacity-75', SEVERITY_DOT[event.severity])} />
                     )}
-                    <span className={cn('relative inline-flex rounded-full h-2 w-2', SEVERITY_DOT[event.severity])} />
+                    <span className={cn('relative inline-flex h-2.5 w-2.5 rounded-full', SEVERITY_DOT[event.severity])} />
                   </span>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    {/* Category pill */}
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className={cn(
-                      'inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full',
-                      catConfig.pillBg, catConfig.pillText,
+                      'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]',
+                      category.pillBg,
+                      category.pillText,
                     )}>
-                      {catConfig.icon}
-                      {catConfig.label}
+                      {category.icon}
+                      {category.label}
                     </span>
 
-                    {/* Domain pill */}
                     <span className={cn(
-                      'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                      'rounded-full px-2.5 py-1 text-[0.68rem] font-semibold',
                       getDomainPillLight(event.domain),
                     )}>
                       {event.domain}
                     </span>
                   </div>
 
-                  {/* Headline */}
-                  <p className="text-[13px] font-medium text-heading leading-snug mb-1">
-                    {event.headline}
-                  </p>
-
-                  {/* Explanation — intelligence, not just a headline */}
-                  <p className="text-[12px] text-subtle leading-relaxed">
-                    {event.explanation}
-                  </p>
+                  <p className="text-[0.92rem] font-semibold text-heading">{event.headline}</p>
+                  <p className="mt-1 max-w-3xl text-[0.82rem] text-subtle">{event.explanation}</p>
                 </div>
 
-                {/* Action arrow */}
-                {isClickable && (
-                  <div className="pt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowRight size={14} className="text-primary" />
+                {clickable && (
+                  <div className="pt-1 opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100">
+                    <ArrowRight size={15} className="text-primary" />
                   </div>
                 )}
               </div>
@@ -275,19 +250,18 @@ export function LiveIntelFeed({
         })}
       </div>
 
-      {/* Footer */}
-      <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-between">
-        <p className="text-[11px] text-subtle">
+      <div className="flex items-center justify-between border-t border-border bg-surface-2/60 px-5 py-3">
+        <p className="text-[0.76rem] text-subtle">
           Showing {filteredEvents.length} of {events.length} events
         </p>
         <button
           type="button"
           onClick={onViewTimeline}
           disabled={!onViewTimeline}
-          className="text-[11px] font-medium text-primary flex items-center gap-1 hover:underline"
+          className="button-press inline-flex items-center gap-2 text-[0.8rem] font-semibold text-primary transition-colors hover:text-primary-hover disabled:opacity-40"
         >
-          View full timeline
-          <ArrowRight size={11} />
+          Open full timeline
+          <ArrowRight size={13} />
         </button>
       </div>
     </div>

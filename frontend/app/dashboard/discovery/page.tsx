@@ -185,7 +185,7 @@ export default function DiscoveryPage() {
   }, [canManageDiscovery, refresh, refreshEntities])
 
   return (
-    <div className="px-6 py-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="mx-auto max-w-[1400px] space-y-6 px-3 py-4 sm:px-4 lg:px-0">
 
       {/* ── Industry picker modal ──────────────────────── */}
       <Dialog
@@ -220,7 +220,7 @@ export default function DiscoveryPage() {
       </Dialog>
 
       {/* ── Header ──────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Radar size={20} className="text-primary" />
@@ -228,6 +228,9 @@ export default function DiscoveryPage() {
               Source Discovery
             </h1>
           </div>
+          <p className="mt-2 text-sm text-subtle">
+            Review recommended sources, activate the right ones, and keep entity intake organized without leaving the page.
+          </p>
         </div>
         <Button size="sm" variant="outline" onClick={handleRefresh}>
           <RefreshCw size={14} /> Refresh
@@ -294,10 +297,10 @@ export default function DiscoveryPage() {
       </div>
 
       {/* ── Main Content Grid ───────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(20rem,0.92fr)]">
 
         {/* Sources table — takes 2 cols on lg */}
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <SourcesTable
             sources={sources}
             loading={loading}
@@ -315,7 +318,7 @@ export default function DiscoveryPage() {
         </div>
 
         {/* Entity review sidebar — 1 col */}
-        <div>
+        <div className="min-w-0">
           <EntityReviewPanel
             entities={entities}
             loading={accessLoading || entitiesLoading}

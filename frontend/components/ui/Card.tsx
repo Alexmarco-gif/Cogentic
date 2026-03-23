@@ -1,10 +1,7 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-// ─── Card Root ────────────────────────────────────────────────────────────────
-
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Remove default padding */
   noPadding?: boolean
 }
 
@@ -12,8 +9,8 @@ export function Card({ noPadding = false, className, children, ...props }: CardP
   return (
     <div
       className={cn(
-        'bg-surface border border-border shadow-card rounded-lg',
-        !noPadding && 'p-4',
+        'surface-panel',
+        !noPadding && 'p-5',
         className,
       )}
       {...props}
@@ -23,31 +20,14 @@ export function Card({ noPadding = false, className, children, ...props }: CardP
   )
 }
 
-// ─── Card Sub-parts ───────────────────────────────────────────────────────────
-
-export function CardHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn('flex items-center justify-between gap-3', className)} {...props}>
-      {children}
-    </div>
-  )
+export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('mb-4 flex items-start justify-between gap-3', className)} {...props} />
 }
 
-export function CardBody({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn('mt-3', className)} {...props}>
-      {children}
-    </div>
-  )
+export function CardBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('space-y-4', className)} {...props} />
 }
 
-export function CardFooter({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn('mt-4 pt-3 border-t border-border flex items-center gap-2', className)}
-      {...props}
-    >
-      {children}
-    </div>
-  )
+export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('mt-5 flex items-center justify-between gap-3', className)} {...props} />
 }

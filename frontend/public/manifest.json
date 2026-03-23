@@ -7,16 +7,10 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#F8FAFC",
-  "theme_color": "#4F46E5",
+  "theme_color": "#2563EB",
   "categories": ["business", "productivity", "finance"],
   "lang": "en",
   "icons": [
-    {
-      "src": "/stem-cogent.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -28,6 +22,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -36,21 +36,21 @@
       "short_name": "Signals",
       "description": "View real-time intelligence signals",
       "url": "/dashboard/signals",
-      "icons": [{ "src": "/stem-cogent.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Investigate",
       "short_name": "Search",
       "description": "Start a new intelligence investigation",
       "url": "/dashboard/investigate",
-      "icons": [{ "src": "/stem-cogent.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "AI Library",
       "short_name": "Library",
       "description": "Browse AI-generated briefs and reports",
       "url": "/dashboard/library",
-      "icons": [{ "src": "/stem-cogent.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "screenshots": []

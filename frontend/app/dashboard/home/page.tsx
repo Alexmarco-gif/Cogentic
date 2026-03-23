@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
+  ArrowRight,
   BookOpen,
+  Command,
   Plus,
   RefreshCw,
   ShoppingBag,
+  Sparkles,
+  Target,
   Wifi,
   WifiOff,
   Zap,
@@ -76,10 +80,9 @@ const FALLBACK_INDUSTRIES: IndustryOption[] = [
 ]
 
 const QUICK_ACTIONS = [
-  { label: 'New Contract', icon: <Plus size={12} />, href: '/dashboard/studio' },
-  { label: 'Signals', icon: <Zap size={12} />, href: '/dashboard/signals' },
-  { label: 'Marketplace', icon: <ShoppingBag size={12} />, href: '/dashboard/marketplace' },
-  { label: 'Library', icon: <BookOpen size={12} />, href: '/dashboard/library' },
+  { label: 'Create Contract', icon: <Plus size={12} />, href: '/dashboard/studio' },
+  { label: 'Open Signals', icon: <Zap size={12} />, href: '/dashboard/signals' },
+  { label: 'Browse Sources', icon: <ShoppingBag size={12} />, href: '/dashboard/marketplace' },
 ] as const
 
 const STATUS_ROUTES: Record<string, string> = {
@@ -761,6 +764,41 @@ export default function HomePage() {
     ? lastUpdated
     : (signals[0]?.publishedAt ? new Date(signals[0].publishedAt) : null)
 
+  const primaryAction = !premiumHomeEnabled && creditsResolved && credits.remaining <= 0
+    ? {
+      label: 'Browse signal marketplace',
+      href: '/dashboard/marketplace',
+      description: 'Your free credits are used. Pick a source plan or activate a new feed to keep the workspace moving.',
+    }
+    : {
+      label: premiumHomeEnabled ? 'Create your next contract' : 'Create your first contract',
+      href: '/dashboard/studio',
+      description: premiumHomeEnabled
+        ? `Shape a new monitoring workflow for ${selectedIndustryName}, then let Cogent keep the feed current.`
+        : 'Start simple. Set up one contract, let signals arrive, and unlock the rest of the workflow with real data.',
+    }
+
+  const secondaryAction = {
+    label: premiumHomeEnabled ? 'Open signals workspace' : 'Review live signals',
+    href: '/dashboard/signals',
+  }
+
+  const onboardingSteps = premiumHomeEnabled
+    ? [
+      'Review the strategic status cards to see where pressure is rising.',
+      'Open the heatmap to confirm which domain needs leadership attention.',
+      'Push high-signal items into investigation or a new contract update.',
+    ]
+    : [
+      'Create one contract so the dashboard has a clear monitoring target.',
+      'Browse or activate a source instead of configuring everything at once.',
+      'Review the first signals, then expand into marketplace or library workflows.',
+    ]
+
+  const workspaceSummary = premiumHomeEnabled
+    ? `${selectedIndustryName} is active. Use the dashboard to decide what to review next and which signals deserve immediate action.`
+    : 'Starter mode keeps the next step obvious: create, connect, then review.'
+
   const criticalCount = strategicStatuses.find((status) => status.id === 'critical-alerts')?.count ?? 0
   const surfaceError = signalsError ?? (premiumHomeEnabled ? roomError ?? industriesError : null)
   const isEmpty = !feedLoading && signals.length === 0 && feedEvents.length === 0
@@ -774,7 +812,7 @@ export default function HomePage() {
 
   if (premiumHomeEnabled && !pageLoading && !dashboard && roomError) {
     return (
-      <div className="px-6 py-6 max-w-[1400px] mx-auto space-y-6">
+      <div className="space-y-6 py-6">
         <MorningBrief
           unreadCount={0}
           criticalCount={0}
@@ -783,29 +821,32 @@ export default function HomePage() {
           lastUpdated={effectiveLastUpdated}
           liveConnected={premiumHomeEnabled && liveConnected}
         />
-        <div className="rounded-3xl border border-border bg-surface p-8 shadow-card">
-          <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-red-500/10 p-3 text-red-600">
-              <AlertTriangle size={18} />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-heading">Home dashboard could not load</h2>
-              <p className="mt-2 max-w-2xl text-sm text-subtle">{roomError}</p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  onClick={handleRefresh}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-                >
-                  <RefreshCw size={14} />
-                  Retry
-                </button>
-                <button
-                  onClick={() => router.push('/dashboard/signals')}
-                  className="rounded-xl border border-border bg-surface px-5 py-2.5 text-sm font-medium text-body hover:bg-muted transition-colors"
-                >
-                  Open Signals Workspace
-                </button>
+        <div className="surface-elevated p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-critical/10 text-critical">
+                <AlertTriangle size={20} />
               </div>
+              <div>
+                <p className="eyebrow">Data feedback</p>
+                <h2 className="mt-2 text-title">The premium dashboard did not finish loading.</h2>
+                <p className="mt-2 max-w-2xl text-[0.84rem] text-subtle">{roomError}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleRefresh}
+                className="button-press inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[0.82rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+              >
+                <RefreshCw size={14} />
+                Retry sync
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/signals')}
+                className="button-press rounded-full border border-border bg-surface px-5 py-2.5 text-[0.82rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+              >
+                Open signals workspace
+              </button>
             </div>
           </div>
         </div>
@@ -815,7 +856,7 @@ export default function HomePage() {
 
   if (isEmpty) {
     return (
-      <div className="px-6 py-6 max-w-[1400px] mx-auto">
+      <div className="space-y-6 py-6">
         <MorningBrief
           unreadCount={0}
           criticalCount={0}
@@ -824,27 +865,45 @@ export default function HomePage() {
           lastUpdated={effectiveLastUpdated}
           liveConnected={premiumHomeEnabled && liveConnected}
         />
-        <div className="mt-10 flex flex-col items-center justify-center text-center py-20">
-          <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-10 max-w-lg">
-            <h2 className="text-lg font-semibold text-heading mb-2">Welcome to Cogent</h2>
-            <p className="text-sm text-subtle mb-6">
+        <div className="surface-elevated grid gap-6 p-8 lg:grid-cols-[1.35fr_0.85fr]">
+          <div>
+            <p className="eyebrow">Clear first action</p>
+            <h2 className="mt-2 text-[2rem] font-semibold leading-[1.04] tracking-[-0.04em] text-heading">
+              {primaryAction.label}
+            </h2>
+            <p className="mt-4 max-w-2xl text-[0.9rem] text-body">
               {premiumHomeEnabled
-                ? 'Your dashboard is ready, but there are no signals in this industry yet. Create a contract or subscribe to a marketplace source to start ingestion.'
-                : 'Your starter workspace is ready, but there are no signals yet. Use your free credits to activate a source or browse the marketplace to get started.'}
+                ? 'Your dashboard shell is ready. The next win is simple: define a contract or activate a source so the workspace has live signals to organize.'
+                : 'Blank dashboards feel amateur. This workspace now points you to the single next move that gets real value flowing in.'}
             </p>
-            <div className="flex flex-wrap gap-3 justify-center">
+            <div className="mt-6 flex flex-wrap gap-3">
               <button
-                onClick={() => router.push(!premiumHomeEnabled && creditsResolved && credits.remaining <= 0 ? '/dashboard/marketplace' : '/dashboard/studio')}
-                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+                onClick={() => router.push(primaryAction.href)}
+                className="button-press inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[0.84rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
               >
-                {!premiumHomeEnabled && creditsResolved && credits.remaining <= 0 ? 'Browse Signal Marketplace' : 'Create a Contract'}
+                {primaryAction.label}
+                <ArrowRight size={14} />
               </button>
               <button
                 onClick={() => router.push('/dashboard/marketplace')}
-                className="rounded-xl border border-border bg-surface px-5 py-2.5 text-sm font-medium text-body hover:bg-muted transition-colors"
+                className="button-press rounded-full border border-border bg-surface px-5 py-2.5 text-[0.84rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
               >
-                Browse Signal Marketplace
+                Browse sources
               </button>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-border bg-surface-2/70 p-5">
+            <p className="eyebrow">Get value quickly</p>
+            <div className="mt-4 space-y-3">
+              {onboardingSteps.map((step, index) => (
+                <div key={step} className="flex items-start gap-3 rounded-[22px] border border-border bg-surface px-4 py-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.74rem] font-semibold text-primary">
+                    {index + 1}
+                  </div>
+                  <p className="text-[0.82rem] text-body">{step}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -854,7 +913,7 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="px-6 py-6 max-w-[1400px] mx-auto space-y-6">
+      <div className="space-y-6 py-6">
         <MorningBrief
           unreadCount={unreadCount}
           criticalCount={criticalCount}
@@ -864,21 +923,113 @@ export default function HomePage() {
           liveConnected={premiumHomeEnabled && liveConnected}
         />
 
+        <section className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+          <div data-onboarding="home-primary-action" className="surface-elevated overflow-hidden p-6 sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="eyebrow">Next best action</p>
+                <h2 className="mt-2 text-[2rem] font-semibold leading-[1.04] tracking-[-0.04em] text-heading">
+                  {primaryAction.label}
+                </h2>
+                <p className="mt-4 max-w-2xl text-[0.9rem] text-body">{primaryAction.description}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => router.push(primaryAction.href)}
+                  className="button-press inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[0.84rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+                >
+                  {primaryAction.label}
+                  <ArrowRight size={14} />
+                </button>
+                <button
+                  onClick={() => router.push(secondaryAction.href)}
+                  className="button-press rounded-full border border-border bg-surface px-5 py-2.5 text-[0.84rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+                >
+                  {secondaryAction.label}
+                </button>
+              </div>
+            </div>
+
+            <div data-onboarding="home-steps" className="mt-6 grid gap-3 md:grid-cols-3">
+              {onboardingSteps.map((step, index) => (
+                <div key={step} className="rounded-[24px] border border-border bg-surface px-4 py-4">
+                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    {index === 0 ? <Target size={16} /> : index === 1 ? <Sparkles size={16} /> : <BookOpen size={16} />}
+                  </div>
+                  <p className="text-[0.84rem] font-semibold text-heading">Step {index + 1}</p>
+                  <p className="mt-2 text-[0.8rem] text-subtle">{step}</p>
+                </div>
+              ))}
+            </div>
+
+            <div data-onboarding="home-actions" className="mt-6 flex flex-wrap gap-2">
+              {QUICK_ACTIONS.map(({ label, icon, href }) => (
+                <button
+                  key={href}
+                  onClick={() => router.push(href)}
+                  className="interactive-chip"
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+              <button
+                onClick={handleRefresh}
+                className="interactive-chip"
+              >
+                <RefreshCw size={12} />
+                Refresh workspace
+              </button>
+            </div>
+          </div>
+
+          <aside className="surface-panel p-6">
+            <p className="eyebrow">Operator notes</p>
+            <h2 className="mt-2 text-title">This page should never leave the user guessing.</h2>
+            <p className="mt-3 text-[0.82rem] text-body">{workspaceSummary}</p>
+
+            <div data-onboarding="home-shortcuts" className="mt-5 rounded-[24px] border border-border bg-surface-2/70 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Command size={16} />
+                </div>
+                <div>
+                  <p className="text-[0.84rem] font-semibold text-heading">Keyboard shortcuts</p>
+                  <p className="text-[0.76rem] text-subtle">Use search without breaking context.</p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="interactive-chip"><kbd className="font-mono text-[0.68rem]">Ctrl K</kbd> command palette</span>
+                <span className="interactive-chip"><kbd className="font-mono text-[0.68rem]">/</kbd> investigate</span>
+                <span className="interactive-chip"><kbd className="font-mono text-[0.68rem]">C</kbd> create contract</span>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[24px] border border-border bg-surface px-4 py-4">
+              <p className="text-[0.8rem] font-semibold text-heading">Professional SaaS rhythm</p>
+              <p className="mt-2 text-[0.76rem] text-subtle">
+                Keep primary actions obvious, reveal advanced options later, and use the timeline below as the source of truth for what happened.
+              </p>
+            </div>
+          </aside>
+        </section>
+
         {surfaceError && (
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <div className="rounded-[24px] border border-warning/20 bg-warning/5 px-4 py-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-full bg-amber-500/10 p-1.5 text-amber-600">
+                <div className="mt-0.5 rounded-full bg-warning/10 p-1.5 text-warning">
                   <AlertTriangle size={14} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-heading">Some Home data is temporarily unavailable</p>
-                  <p className="text-xs text-subtle">{surfaceError}</p>
+                  <p className="text-[0.84rem] font-semibold text-heading">Some dashboard data is temporarily unavailable</p>
+                  <p className="text-[0.76rem] text-subtle">{surfaceError}</p>
                 </div>
               </div>
               <button
                 onClick={handleRefresh}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-[11px] font-medium text-body hover:bg-muted transition-colors"
+                className="button-press inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-[0.76rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
               >
                 <RefreshCw size={12} />
                 Retry sync
@@ -916,12 +1067,11 @@ export default function HomePage() {
         </div>
 
         <section>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-[13px] font-medium text-heading tracking-wide uppercase">
-                Strategic Status
-              </h2>
-              <p className="text-[11px] text-subtle mt-0.5">
+              <p className="eyebrow">Strategic status</p>
+              <h2 className="mt-2 text-title">What deserves attention now</h2>
+              <p className="mt-2 text-[0.8rem] text-subtle">
                 {premiumHomeEnabled
                   ? `${selectedIndustryName} · What changed · Why it matters · What to do next`
                   : 'Starter overview · Your signals, credits, and next best actions'}
@@ -931,7 +1081,7 @@ export default function HomePage() {
               <select
                 value={industrySlug}
                 onChange={(event) => setIndustrySlug(event.target.value)}
-                className="rounded-lg border border-white/10 bg-surface px-2.5 py-1 text-[11px] text-body focus:outline-none focus:ring-1 focus:ring-primary/50"
+                className="focus-ring rounded-full border border-border bg-surface px-4 py-2 text-[0.8rem] font-semibold text-heading"
                 aria-label="Select industry"
                 disabled={industriesLoading || industries.length === 0}
               >
@@ -980,27 +1130,27 @@ export default function HomePage() {
           ) : !gateResolved ? (
             <IntelHeatmap quadrants={[]} loading />
           ) : (
-            <div className="bg-surface border border-border rounded-card shadow-card p-5">
+            <div className="surface-panel p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h2 className="text-[14px] font-medium text-heading">Situation Room is available on paid plans</h2>
-                  <p className="mt-1 text-[11px] text-subtle max-w-2xl">
-                    Home remains usable for signals, updates, and source exploration. Paid plans add live industry heatmaps,
-                    sector-level strategic status, and premium real-time intelligence overlays.
+                  <p className="eyebrow">Progressive disclosure</p>
+                  <h2 className="mt-2 text-title">Situation room unlocks on paid plans</h2>
+                  <p className="mt-2 max-w-2xl text-[0.8rem] text-subtle">
+                    Starter mode stays focused on the essentials. Paid plans add live industry heatmaps, sector-level strategic status, and premium overlays when your team is ready for deeper coverage.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => router.push('/dashboard/marketplace')}
-                    className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+                    className="button-press rounded-full bg-primary px-5 py-2.5 text-[0.82rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
                   >
-                    Browse Sources
+                    Browse sources
                   </button>
                   <button
                     onClick={() => router.push('/dashboard/signals')}
-                    className="rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-body hover:bg-muted transition-colors"
+                    className="button-press rounded-full border border-border bg-surface px-5 py-2.5 text-[0.82rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
                   >
-                    Open Signals Workspace
+                    Open signals workspace
                   </button>
                 </div>
               </div>
@@ -1010,13 +1160,13 @@ export default function HomePage() {
 
         <section>
           {signals.length > 0 && !feedLoading && (
-            <div className="mb-3 flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-subtle whitespace-nowrap">Latest on radar:</span>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="whitespace-nowrap text-[0.76rem] font-semibold uppercase tracking-[0.16em] text-subtle">Latest on radar</span>
               {signals.slice(0, 4).map((signal) => (
                 <button
                   key={signal.id}
                   onClick={() => openDrawer(signal)}
-                  className="inline-flex items-center max-w-[220px] gap-1.5 px-2.5 py-1 rounded-full border border-border bg-surface text-[11px] text-body hover:bg-muted transition-colors"
+                  className="interactive-chip max-w-[240px]"
                 >
                   <span className="truncate">{signal.headline || signal.domain || 'Signal'}</span>
                 </button>

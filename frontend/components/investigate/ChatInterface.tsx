@@ -39,8 +39,8 @@ export function ChatInterface({
   }, [messages])
 
   return (
-    <div className="flex h-full flex-col bg-surface">
-      <div className="flex items-start justify-between gap-3 px-5 py-3.5 shrink-0">
+    <div className="flex h-full min-h-0 flex-col bg-surface">
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border/80 px-5 py-4">
         <div className="flex min-w-0 items-start gap-2.5">
           <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
             <Sparkles size={13} className="text-primary" />
@@ -77,8 +77,8 @@ export function ChatInterface({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 overflow-y-auto border-t border-border">
-        <div className="space-y-3 px-4 py-4">
+      <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-3 px-4 py-4 sm:px-5">
           {messages.length === 0 ? (
             <EmptyState onSuggestionClick={onSuggestionClick} />
           ) : (

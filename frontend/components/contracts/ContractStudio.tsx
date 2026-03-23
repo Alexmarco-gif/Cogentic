@@ -106,16 +106,19 @@ export function ContractStudio({
 }: ContractStudioProps) {
   return (
     <div
+      data-onboarding="studio-page"
       className="flex flex-col bg-canvas"
       style={{ minHeight: 'calc(100vh - var(--omnibar-height))' }}
     >
       {/* ── Step tracker ──────────────────────────────────────────────────── */}
-      <LifecycleTracker currentStep={step} isProcessing={isProcessing} />
+      <div data-onboarding="studio-tracker">
+        <LifecycleTracker currentStep={step} isProcessing={isProcessing} />
+      </div>
 
       {/* ── Split pane row ─────────────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-visible lg:flex-row lg:overflow-hidden">
         {/* Left: DefinitionPane */}
-        <div className="w-full overflow-hidden lg:w-[40%]">
+        <div data-onboarding="studio-definition" className="w-full overflow-hidden lg:w-[40%]">
           <DefinitionPane
             nlQuery={nlQuery}
             onNlQueryChange={onNlQueryChange}
@@ -138,7 +141,7 @@ export function ContractStudio({
         </div>
 
         {/* Right: IntelligencePane */}
-        <div className="flex-1 overflow-hidden">
+        <div data-onboarding="studio-intelligence" className="flex-1 overflow-hidden">
           <IntelligencePane
             step={step}
             isProcessing={isProcessing}

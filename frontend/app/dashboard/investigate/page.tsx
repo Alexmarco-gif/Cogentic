@@ -44,9 +44,15 @@ function InvestigateInner() {
   const selectedIndustry = industries.find((industry) => industry.slug === selectedIndustrySlug)
 
   return (
-    <div className="flex h-[calc(100vh-var(--omnibar-height))] min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border bg-surface/95 backdrop-blur">
-        <div className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+    <div
+      data-onboarding="investigate-page"
+      className="flex min-h-[calc(100vh-var(--omnibar-height))] flex-col gap-4 px-3 py-4 sm:px-4 lg:px-0"
+    >
+      <div
+        data-onboarding="investigate-header"
+        className="surface-panel shrink-0 overflow-hidden border border-border/80 bg-surface/95 backdrop-blur"
+      >
+        <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
             <p className="text-[13px] font-semibold text-heading">Investigate</p>
             <p className="text-[12px] text-subtle">
@@ -61,40 +67,46 @@ function InvestigateInner() {
             )}
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2 sm:max-w-[24rem] sm:min-w-[18rem]">
             <label className="text-[11px] font-medium text-subtle" htmlFor="investigate-industry">
               Industry scope
             </label>
-            <select
-              id="investigate-industry"
-              value={selectedIndustrySlug}
-              onChange={(event) => setSelectedIndustrySlug(event.target.value)}
-              disabled={industriesLoading || isProcessing}
-              className="min-w-[220px] rounded-lg border border-border bg-canvas px-3 py-2 text-[12px] text-body outline-none transition-colors focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <option value="">All monitored industries</option>
-              {industries.map((industry) => (
-                <option key={industry.id} value={industry.slug}>
-                  {industry.name}
-                </option>
-              ))}
-            </select>
-            {selectedIndustry && (
-              <span className="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-[10px] font-medium text-primary">
-                {selectedIndustry.name}
-              </span>
-            )}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <select
+                data-onboarding="investigate-scope"
+                id="investigate-industry"
+                value={selectedIndustrySlug}
+                onChange={(event) => setSelectedIndustrySlug(event.target.value)}
+                disabled={industriesLoading || isProcessing}
+                className="min-w-0 flex-1 rounded-xl border border-border bg-canvas px-3 py-2.5 text-[12px] text-body outline-none transition-colors focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">All monitored industries</option>
+                {industries.map((industry) => (
+                  <option key={industry.id} value={industry.slug}>
+                    {industry.name}
+                  </option>
+                ))}
+              </select>
+              {selectedIndustry && (
+                <span className="inline-flex rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-[10px] font-medium text-primary">
+                  {selectedIndustry.name}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         {industriesError && (
-          <div className="px-4 pb-3 text-[11px] text-amber-700">
+          <div className="px-5 pb-4 text-[11px] text-amber-700">
             {industriesError}
           </div>
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
-        <div className="min-h-[44vh] w-full border-b border-border xl:min-h-0 xl:w-[40%] xl:min-w-[320px] xl:max-w-[520px] xl:border-b-0 xl:border-r">
+      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(24rem,0.92fr)_minmax(0,1.18fr)]">
+        <div
+          data-onboarding="investigate-chat"
+          className="min-h-[34rem] overflow-hidden rounded-[28px] border border-border bg-surface shadow-card"
+        >
           <ChatInterface
             messages={messages}
             isProcessing={isProcessing}
@@ -106,7 +118,10 @@ function InvestigateInner() {
           />
         </div>
 
-        <div className="min-h-0 flex-1">
+        <div
+          data-onboarding="investigate-evidence"
+          className="min-h-[34rem] overflow-hidden rounded-[28px] border border-border bg-canvas shadow-card"
+        >
           <EvidenceBoard
             state={evidenceState}
             processSteps={processSteps}

@@ -75,18 +75,21 @@ function SettingsContent() {
 
   return (
     <div
+      data-onboarding="settings-page"
       className="flex flex-col overflow-hidden"
       style={{ height: 'calc(100vh - var(--omnibar-height))' }}
     >
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-border bg-surface px-8 pt-8 pb-0">
+      <div data-onboarding="settings-header" className="flex-shrink-0 border-b border-border bg-surface px-8 pt-8 pb-0">
         <h1 className="text-2xl font-medium text-heading">Settings</h1>
         <p className="mt-0.5 mb-5 text-sm text-subtle">Manage your account settings and preferences.</p>
-        <SettingsTabs activeTab={s.activeTab} onTabChange={s.setActiveTab} />
+        <div data-onboarding="settings-tabs">
+          <SettingsTabs activeTab={s.activeTab} onTabChange={s.setActiveTab} />
+        </div>
       </div>
 
       {/* ── Scrollable content ───────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-8 py-8">
+      <div data-onboarding="settings-content" className="flex-1 overflow-y-auto px-8 py-8">
         {renderContent()}
       </div>
     </div>

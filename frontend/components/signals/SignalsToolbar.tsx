@@ -180,11 +180,15 @@ export const SignalsToolbar = memo(function SignalsToolbar({
   }
 
   return (
-    <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-center', className)}>
+    <div
+      data-onboarding="signals-toolbar"
+      className={cn('flex flex-col gap-3 sm:flex-row sm:items-center', className)}
+    >
       {/* Left: search */}
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle" />
         <input
+          data-onboarding="signals-search"
           type="text"
           placeholder="Search signals, entities, keywords…"
           value={searchQuery}

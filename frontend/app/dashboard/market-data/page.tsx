@@ -58,7 +58,7 @@ export default function MarketDataPage() {
 
   if (featureLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 px-3 py-4 sm:px-4 lg:px-0">
         <div className="h-12 w-48 animate-pulse rounded-lg bg-muted" />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -70,8 +70,8 @@ export default function MarketDataPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto max-w-[1280px] space-y-6 px-3 py-4 sm:px-4 lg:px-0">
+      <div className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary-light p-2">
             <BarChart3 className="h-5 w-5 text-primary" />
@@ -165,8 +165,8 @@ export default function MarketDataPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-1">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
+            <div className="min-w-0">
               <MetricSelector
                 metrics={stats?.metrics ?? []}
                 selectedMetric={selectedMetric}
@@ -175,8 +175,8 @@ export default function MarketDataPage() {
               />
             </div>
 
-            <div className="space-y-4 lg:col-span-2">
-              <div className="flex items-center gap-1">
+            <div className="min-w-0 space-y-4">
+              <div className="surface-panel flex flex-wrap items-center gap-2 p-4">
                 <span className="mr-2 text-sm text-subtle">Period:</span>
                 {DAYS_OPTIONS.map((value) => (
                   <button
