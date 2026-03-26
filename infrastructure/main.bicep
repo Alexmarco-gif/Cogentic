@@ -87,6 +87,10 @@ module acr 'modules/container-registry.bicep' = {
   }
 }
 
+resource acrRegistry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
+  name: acr.outputs.name
+}
+
 // ── Key Vault ───────────────────────────────────────────────────────────────
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyvault'
@@ -164,6 +168,8 @@ module backend 'modules/container-app.bicep' = {
     cpu: json('1.0')
     memory: '2Gi'
     keyVaultName: keyVault.outputs.name
+    registryServer: acr.outputs.loginServer
+    registryName: acr.outputs.name
     envVars: [
       { name: 'APP_ENV',           value: environment }
       { name: 'ENVIRONMENT',       value: environment }
@@ -202,6 +208,8 @@ module worker 'modules/container-app.bicep' = {
     cpu: json('0.5')
     memory: '1Gi'
     keyVaultName: keyVault.outputs.name
+    registryServer: acr.outputs.loginServer
+    registryName: acr.outputs.name
     envVars: [
       { name: 'APP_ENV',           value: environment }
       { name: 'ENVIRONMENT',       value: environment }
@@ -233,6 +241,8 @@ module frontend 'modules/container-app.bicep' = {
     cpu: json('0.5')
     memory: '1Gi'
     keyVaultName: keyVault.outputs.name
+    registryServer: acr.outputs.loginServer
+    registryName: acr.outputs.name
     envVars: [
       { name: 'NODE_ENV',          value: 'production' }
       { name: 'AUTH0_SECRET',      secretRef: 'auth0-frontend-secret' }
@@ -259,6 +269,9 @@ module frontend 'modules/container-app.bicep' = {
 resource migrateJob 'Microsoft.App/jobs@2024-03-01' = {
   name: '${resourcePrefix}-migrate'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     environmentId: containerEnv.id
     configuration: {
@@ -288,6 +301,31 @@ resource migrateJob 'Microsoft.App/jobs@2024-03-01' = {
         }
       ]
     }
+  }
+}
+
+resource migrateJobKvAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-01' = {
+  name: '${keyVault.outputs.name}/add'
+  properties: {
+    accessPolicies: [
+      {
+        tenantId: subscription().tenantId
+        objectId: migrateJob.identity.principalId
+        permissions: {
+          secrets: ['get', 'list']
+        }
+      }
+    ]
+  }
+}
+
+resource migrateJobAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: acrRegistry
+  name: guid(acr.outputs.name, migrateJob.identity.principalId, 'AcrPull')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: migrateJob.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 

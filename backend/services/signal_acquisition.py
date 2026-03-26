@@ -107,6 +107,17 @@ class SignalAcquisitionService:
             f"(type={contract.source_type}, url={contract.source_url[:80]})"
         )
 
+        if contract.source_type == "webhook":
+            logger.info(
+                "Skipping acquisition fetch for delivery-only webhook contract %s",
+                contract.id,
+            )
+            await self.contract_repo.mark_fetched(
+                contract.id,  # type: ignore[arg-type]
+                reset_failures=False,
+            )
+            return {"fetched": 0, "deduped": 0, "stored": 0}
+
         # 1. Get the right fetcher
         fetcher = get_fetcher(contract.source_type)
 
@@ -137,6 +148,7 @@ class SignalAcquisitionService:
             unique_results,
             contract_id=contract.id,  # type: ignore[arg-type]
             source_type=contract.source_type,
+            org_id=contract.org_id,
         )
 
         # 5. Bulk insert signals
@@ -170,6 +182,7 @@ class SignalAcquisitionService:
 
                     payload = {
                         "contract_id": str(contract.id),
+                        "org_id": str(contract.org_id) if contract.org_id else None,
                         "contract_name": contract.name,
                         "signal_count": len(signals),
                         "signal_ids": [str(s.id) for s in signals],

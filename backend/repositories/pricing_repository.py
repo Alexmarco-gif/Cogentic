@@ -1,6 +1,6 @@
-"""Pricing repository for pricing configuration management"""
+"""Pricing repository for pricing configuration management."""
 
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -16,7 +16,7 @@ class PricingRepository(BaseRepository[PricingConfig]):
     def __init__(self, db: AsyncSession):
         super().__init__(PricingConfig, db)
 
-    async def get_config(self, key: str) -> Optional[dict]:
+    async def get_config(self, key: str) -> Optional[Any]:
         """Fetch pricing config value by key"""
         result = await self.db.execute(
             select(PricingConfig).where(PricingConfig.config_key == key)
@@ -24,9 +24,7 @@ class PricingRepository(BaseRepository[PricingConfig]):
         config = result.scalar_one_or_none()
         return config.config_value if config else None
 
-    async def update_config(
-        self, key: str, value: dict, user_id: UUID
-    ) -> PricingConfig:
+    async def update_config(self, key: str, value: Any, user_id: UUID) -> PricingConfig:
         """Update pricing config (admin only)"""
         result = await self.db.execute(
             select(PricingConfig).where(PricingConfig.config_key == key)
@@ -47,14 +45,14 @@ class PricingRepository(BaseRepository[PricingConfig]):
         return config
 
     async def get_global_pricing_mode(self) -> str:
-        """Returns 'beta' or 'standard'"""
+        """Return the only supported pricing mode."""
         mode = await self.get_config("global_pricing_mode")
-        return mode if mode in ["beta", "standard"] else "standard"
+        return "standard" if mode != "standard" else mode
 
     async def set_global_pricing_mode(self, mode: str, user_id: UUID) -> PricingConfig:
-        """Admin toggle for pricing mode"""
-        if mode not in ["beta", "standard"]:
-            raise ValueError("Invalid pricing mode. Must be 'beta' or 'standard'.")
+        """Persist the globally supported pricing mode."""
+        if mode != "standard":
+            raise ValueError("Invalid pricing mode. Must be 'standard'.")
         return await self.update_config("global_pricing_mode", mode, user_id)
 
     async def get_tier_price(self, tier: str) -> int:

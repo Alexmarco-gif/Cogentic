@@ -42,6 +42,7 @@ from backend.models.signal_alert import SignalAlert
 from backend.models.signal_contract import SignalContract
 from backend.models.signal_entity import SignalEntity
 from backend.models.signal_score import SignalScore
+from backend.models.signal_template import SignalTemplate, SignalTemplateSubscription
 from backend.models.subscription import Subscription
 from backend.models.user import User
 from backend.models.user_feedback import UserFeedback
@@ -73,6 +74,8 @@ __all__ = [
     "MLModelRun",
     "MLModelRegistry",
     "SignalScore",
+    "SignalTemplate",
+    "SignalTemplateSubscription",
     # Dynamic Intelligence — Change Detection
     "SignalAlert",
     # Intelligence Moat — Entity Resolution 2.0

@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import {
   verifyHmacSignature,
-  verifyDirectToken,
   verifyTimestamp,
-  isDuplicateEvent,
   parseAuth0Event,
   logWebhookEvent,
   type Auth0Event
@@ -114,16 +112,6 @@ async function forwardToBackend(
     };
   }
 }
-
-// ── In-memory security tracking ──────────────────────────────────────────────
-// Tracks failed login/signup attempts per IP for brute-force detection.
-// In a multi-replica deployment, replace with Redis counters.
-const failedLoginTracker = new Map<string, number>();
-
-// Purge stale entries every 15 minutes to prevent memory leaks
-setInterval(() => {
-  failedLoginTracker.clear();
-}, 15 * 60 * 1000).unref();
 
 /**
  * Handle user signup event
@@ -273,28 +261,12 @@ async function handleFailedLogin(event: any) {
 
   log('warn', 'webhook_failed_login', { ip, reason });
 
-  // Track failed login attempts for brute-force detection.
-  // Uses in-memory store; for production scale, consider Redis counters.
-  const key = `failed_login:${ip}`;
-  const count = failedLoginTracker.get(key) || 0;
-  failedLoginTracker.set(key, count + 1);
-
-  // Alert on potential brute-force (>10 failures from same IP)
-  if (count + 1 >= 10) {
-    log('error', 'webhook_brute_force_detected', {
-      ip,
-      attempts: count + 1,
-      email,
-    });
-  }
-
   return {
     action: 'failed_login',
     email,
     ip,
     reason,
     timestamp: event.date,
-    failedAttempts: count + 1,
   };
 }
 
@@ -308,26 +280,12 @@ async function handleFailedSignup(event: any) {
 
   log('warn', 'webhook_failed_signup', { ip, reason });
 
-  // Track failed signup attempts for abuse detection
-  const key = `failed_signup:${ip}`;
-  const count = failedLoginTracker.get(key) || 0;
-  failedLoginTracker.set(key, count + 1);
-
-  // Alert on suspicious signup patterns (>5 from same IP)
-  if (count + 1 >= 5) {
-    log('error', 'webhook_signup_abuse_detected', {
-      ip,
-      attempts: count + 1,
-    });
-  }
-
   return {
     action: 'failed_signup',
     email,
     ip,
     reason,
     timestamp: event.date,
-    failedAttempts: count + 1,
   };
 }
 
@@ -380,16 +338,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Auth0 Log Streams sends `Authorization: Bearer <token>` (static token
-      // mode) or `X-Auth0-Signature: sha256=<hex>` (HMAC mode).  Try HMAC
-      // first; fall back to constant-time bearer-token comparison.
-      const sigValue = signature.startsWith('sha256=')
-        ? signature.slice(7)
-        : signature;
+      if (!signature.startsWith('sha256=')) {
+        log('error', 'webhook_invalid_signature_format');
+        return NextResponse.json(
+          { error: 'Invalid signature format' },
+          { status: 401 }
+        );
+      }
 
-      const isValid =
-        verifyHmacSignature(rawBody, sigValue, webhookSecret) ||
-        verifyDirectToken(signature, webhookSecret);
+      const sigValue = signature.slice(7);
+      const isValid = verifyHmacSignature(rawBody, sigValue, webhookSecret);
 
       if (!isValid) {
         log('error', 'webhook_invalid_signature');
@@ -416,16 +374,6 @@ export async function POST(request: NextRequest) {
     if (event.type === 'test') {
       log('info', 'webhook_test_event');
       return NextResponse.json({ status: 'ok', message: 'Test received' });
-    }
-
-    // Check for duplicate events (idempotency)
-    const eventId = `${event.type}_${event.date}_${event.user_id || 'system'}`;
-    if (isDuplicateEvent(eventId)) {
-      log('info', 'webhook_duplicate', { eventId });
-      return NextResponse.json({
-        status: 'ok',
-        message: 'Duplicate event ignored'
-      });
     }
 
     // Verify event timestamp (prevent replay attacks)

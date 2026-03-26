@@ -352,7 +352,7 @@ async def get_signals_by_contract(
     items = await repo.get_by_contract(
         contract_id, org_id=auth.org_id, skip=skip, limit=limit
     )
-    total = await repo.count_by_contract(contract_id)
+    total = await repo.count_by_contract(contract_id, org_id=auth.org_id)
     return SignalListResponse(
         items=[SignalResponse.model_validate(s) for s in items],
         total=total,

@@ -41,6 +41,24 @@ param healthProbePath string = '/health'
 @description('Whether the app accepts external (internet) traffic')
 param isExternal bool = false
 
+@description('Optional Azure Container Registry login server')
+param registryServer string = ''
+
+@description('Optional Azure Container Registry name for AcrPull assignment')
+param registryName string = ''
+
+var containerAppSecrets = [
+  for envVar in envVars: if (contains(envVar, 'secretRef')) {
+    name: envVar.secretRef
+    keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/${envVar.secretRef}'
+    identity: 'system'
+  }
+]
+
+resource registry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = if (!empty(registryName)) {
+  name: registryName
+}
+
 // ── Resource ────────────────────────────────────────────────────────────────
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -52,6 +70,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: environmentId
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: containerAppSecrets
       ingress: {
         external: isExternal
         targetPort: targetPort
@@ -61,7 +80,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           { latestRevision: true, weight: 100 }
         ]
       }
-      registries: []
+      registries: empty(registryServer) ? [] : [
+        {
+          server: registryServer
+          identity: 'system'
+        }
+      ]
     }
     template: {
       containers: [
@@ -122,6 +146,16 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         ]
       }
     }
+  }
+}
+
+resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(registryName)) {
+  scope: registry
+  name: guid(registryName, containerApp.identity.principalId, 'AcrPull')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 

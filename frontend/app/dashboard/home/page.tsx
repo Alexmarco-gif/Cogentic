@@ -774,7 +774,7 @@ export default function HomePage() {
       label: premiumHomeEnabled ? 'Create your next contract' : 'Create your first contract',
       href: '/dashboard/studio',
       description: premiumHomeEnabled
-        ? `Shape a new monitoring workflow for ${selectedIndustryName}, then let Cogent keep the feed current.`
+        ? `Shape a new monitoring workflow for ${selectedIndustryName}, then let Stem-Cogent keep the feed current.`
         : 'Start simple. Set up one contract, let signals arrive, and unlock the rest of the workflow with real data.',
     }
 
@@ -927,7 +927,7 @@ export default function HomePage() {
           <div data-onboarding="home-primary-action" className="surface-elevated overflow-hidden p-6 sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <p className="eyebrow">Next best action</p>
+                <p className="eyebrow">Next Recommended Actions</p>
                 <h2 className="mt-2 text-[2rem] font-semibold leading-[1.04] tracking-[-0.04em] text-heading">
                   {primaryAction.label}
                 </h2>
@@ -985,7 +985,7 @@ export default function HomePage() {
           </div>
 
           <aside className="surface-panel p-6">
-            <p className="eyebrow">Operator notes</p>
+            <p className="eyebrow">Operator guide notes</p>
             <h2 className="mt-2 text-title">This page should never leave the user guessing.</h2>
             <p className="mt-3 text-[0.82rem] text-body">{workspaceSummary}</p>
 
@@ -1074,7 +1074,7 @@ export default function HomePage() {
               <p className="mt-2 text-[0.8rem] text-subtle">
                 {premiumHomeEnabled
                   ? `${selectedIndustryName} · What changed · Why it matters · What to do next`
-                  : 'Starter overview · Your signals, credits, and next best actions'}
+                  : 'Overview · Your signals, credits, and next best actions'}
               </p>
             </div>
             {premiumHomeEnabled && (
@@ -1136,7 +1136,7 @@ export default function HomePage() {
                   <p className="eyebrow">Progressive disclosure</p>
                   <h2 className="mt-2 text-title">Situation room unlocks on paid plans</h2>
                   <p className="mt-2 max-w-2xl text-[0.8rem] text-subtle">
-                    Starter mode stays focused on the essentials. Paid plans add live industry heatmaps, sector-level strategic status, and premium overlays when your team is ready for deeper coverage.
+                    Starter mode stays focused on the essentials. Paid plans add live industry heatmaps, sector-level strategic status, and premium overlays when you are ready for deeper coverage.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">

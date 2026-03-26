@@ -14,6 +14,7 @@ from backend.models.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from backend.models.entity import Entity
     from backend.models.industry import Industry
+    from backend.models.organization import Organization
     from backend.models.signal import Signal
 
 
@@ -41,6 +42,12 @@ class SignalContract(Base, UUIDMixin, TimestampMixin):
     entity_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("entities.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    org_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -81,10 +88,14 @@ class SignalContract(Base, UUIDMixin, TimestampMixin):
         back_populates="signal_contracts",
     )
     entity: Mapped["Entity | None"] = relationship()
+    organization: Mapped["Organization | None"] = relationship()
     signals: Mapped[list["Signal"]] = relationship(
         back_populates="contract",
         cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
-        return f"<SignalContract {self.name} source={self.source_type} status={self.status}>"
+        return (
+            f"<SignalContract {self.name} source={self.source_type} "
+            f"status={self.status} org={self.org_id}>"
+        )

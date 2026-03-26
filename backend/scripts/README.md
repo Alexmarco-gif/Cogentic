@@ -10,15 +10,13 @@ This directory contains utility and migration scripts for the Cogent backend.
 
 **What it does:**
 - Assigns Growth tier to all existing organizations
-- Enrolls them in 90-day beta pricing (50% discount)
 - Allocates 5,000 monthly credits (Growth tier allocation)
 - Sets billing cycle start date to current date
-- Creates `beta_accounts` records for lifecycle tracking
 - Marks trial status as "converted" (existing customers are past trial phase)
 
 **Prerequisites:**
 1. Database migrations must be run first (`alembic upgrade head`)
-2. All required tables must exist: `organizations`, `beta_accounts`
+2. All required tables must exist: `organizations`
 3. Database backup should be created before running
 
 **Usage:**
@@ -73,9 +71,7 @@ Errors: 0
 Migration Verification
 ============================================================
 Organizations with Growth tier: 45
-Beta accounts created: 45
-============================================================
-✅ Beta account consistency check passed
+Migration verification passed
 ```
 
 **Rollback:**
@@ -89,9 +85,7 @@ python -m backend.scripts.migrate_existing_organizations_to_gating rollback
 
 **⚠️ Warning:** Rollback will:
 - Reset all organizations to Explorer tier
-- Remove beta account status
 - Clear credit allocations
-- Delete all `beta_accounts` records
 
 **Testing in Staging:**
 
@@ -108,8 +102,8 @@ docker-compose exec backend python -m backend.scripts.migrate_existing_organizat
 # 4. Test application functionality
 # - Check that organizations can access Growth tier features
 # - Verify credit balance displays correctly
-# - Test beta pricing calculation
-# - Confirm beta banner displays with correct end date
+# - Verify pricing summary reflects Growth tier
+# - Confirm the account remains on the standard pricing path
 ```
 
 **Post-Migration Checklist:**
@@ -122,10 +116,9 @@ After running the migration in production:
 - [ ] Test sample organization:
   - [ ] Can access Growth tier features (API access, on-demand synthesis)
   - [ ] Credit balance shows 5,000 allocated
-  - [ ] Beta banner displays correct expiration date (90 days out)
-  - [ ] Subscription price shows 50% discount ($249.50 for Growth)
+  - [ ] Subscription price shows the configured Growth tier price
 - [ ] Monitor scheduled jobs:
-  - [ ] Beta lifecycle job runs successfully
+  - [ ] Trial expiry job runs successfully
   - [ ] No errors in job logs
 - [ ] Send communication to users about new pricing system
 
@@ -133,9 +126,6 @@ After running the migration in production:
 
 **Issue:** "Organizations with Growth tier: 0"
 - **Solution:** Check that migrations ran successfully. Run `alembic current` to verify.
-
-**Issue:** "Inconsistency detected: X organizations with beta flag but Y beta_accounts records"
-- **Solution:** Some records failed to create. Check logs for errors. May need to manually create missing `beta_accounts` records.
 
 **Issue:** "Error: asyncpg.exceptions.ForeignKeyViolationError"
 - **Solution:** Ensure all referenced tables exist. Run `alembic upgrade head` first.

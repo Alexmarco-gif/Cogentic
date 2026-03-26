@@ -204,8 +204,8 @@ function PreviewTable({
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Table2 className="h-4 w-4 text-subtle" />
-        <p className="text-xs font-medium text-heading">Synthetic preview</p>
-        <span className="ml-auto text-[10px] text-subtle">{rows.length} sample rows</span>
+        <p className="text-xs font-medium text-heading">Estimated delivery preview</p>
+        <span className="ml-auto text-[10px] text-subtle">{rows.length} source-backed sample rows</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -468,7 +468,7 @@ export function IntelligencePane({
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-sm font-medium text-heading">Running simulation...</p>
-                  <p className="text-xs text-subtle">Generating feasibility scores and synthetic data preview.</p>
+                  <p className="text-xs text-subtle">Generating feasibility scores and a source-backed schema preview.</p>
                 </div>
               ) : (
                 <>

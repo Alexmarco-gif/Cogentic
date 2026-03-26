@@ -1,8 +1,9 @@
 """Application configuration using Pydantic Settings"""
 
 from functools import lru_cache
+from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -131,6 +132,18 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug(cls, value: Any) -> Any:
+        """Coerce common deployment/debug markers into a boolean."""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production", "staging"}:
+                return False
+            if normalized in {"debug", "dev", "development"}:
+                return True
+        return value
 
     def model_post_init(self, __context: object) -> None:
         if (

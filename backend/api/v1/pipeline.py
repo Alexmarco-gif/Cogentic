@@ -31,8 +31,8 @@ async def get_pipeline_status(
     scheduler = get_scheduler()
     repo = SignalContractRepository(db)
 
-    active = await repo.get_active_contracts()
-    degraded = await repo.get_degraded_contracts()
+    active = await repo.get_active_contracts(org_id=auth.org_id)
+    degraded = await repo.get_degraded_contracts(org_id=auth.org_id)
 
     return PipelineStatusResponse(
         scheduler_running=scheduler.is_running,
@@ -122,7 +122,7 @@ async def get_source_health(
     from backend.services.source_health import SourceHealthService
 
     service = SourceHealthService(db)
-    return await service.get_health_summary()
+    return await service.get_health_summary(org_id=auth.org_id)
 
 
 @router.get("/source-health/{contract_id}")
@@ -142,7 +142,7 @@ async def get_contract_health(
     from backend.services.source_health import SourceHealthService
 
     service = SourceHealthService(db)
-    result = await service.get_contract_health(UUID(contract_id))
+    result = await service.get_contract_health(UUID(contract_id), org_id=auth.org_id)
     if not result:
         from fastapi import HTTPException
 

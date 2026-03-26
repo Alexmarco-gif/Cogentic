@@ -47,14 +47,14 @@ export default function TermsOfServicePage() {
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <p className="text-xs leading-relaxed text-body">
           These Terms of Service (&ldquo;Terms&rdquo;) constitute a legally binding agreement between you
-          (&ldquo;User,&rdquo; &ldquo;Customer,&rdquo; or &ldquo;you&rdquo;) and <strong>Cogent Technologies
+          (&ldquo;User,&rdquo; &ldquo;Customer,&rdquo; or &ldquo;you&rdquo;) and <strong>Stem Technologies
           Ltd.</strong> (&ldquo;Cogent,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), a company
-          registered under the laws of the Federal Republic of Nigeria, governing your access to and use of the Cogent
+          registered under the laws of the Federal Republic of Nigeria, governing your access to and use of the Stem-Cogent
           platform — an enterprise-grade signal intelligence system that continuously discovers, validates, enriches,
           and explains real-world signals for decision support.
         </p>
         <p className="mt-3 text-xs leading-relaxed text-body">
-          By accessing or using the Cogent platform, clicking &ldquo;I Agree,&rdquo; or executing an Order Form
+          By accessing or using the Stem-Cogent platform, clicking &ldquo;I Agree,&rdquo; or executing an Order Form
           that references these Terms, you acknowledge that you have read, understood, and agree to be bound by
           these Terms in their entirety. If you are entering into these Terms on behalf of a company or legal entity,
           you represent that you have the authority to bind that entity.

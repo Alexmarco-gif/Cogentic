@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false          # Never cancel a running deployment
 
 env:
-  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}         # e.g. cogentacr.azurecr.io
+  REGISTRY: ${{ vars.ACR_LOGIN_SERVER }}            # e.g. cogentacr.azurecr.io
   BACKEND_IMAGE: cogent-backend
   WORKER_IMAGE: cogent-worker
   FRONTEND_IMAGE: cogent-frontend
@@ -34,15 +34,30 @@ jobs:
     outputs:
       environment: ${{ steps.env.outputs.environment }}
       image_tag: ${{ steps.env.outputs.image_tag }}
+      env_suffix: ${{ steps.env.outputs.env_suffix }}
+      backend_app_name: ${{ steps.env.outputs.backend_app_name }}
+      worker_app_name: ${{ steps.env.outputs.worker_app_name }}
+      frontend_app_name: ${{ steps.env.outputs.frontend_app_name }}
+      migrate_job_name: ${{ steps.env.outputs.migrate_job_name }}
     steps:
       - id: env
         run: |
           if [[ "${{ github.event_name }}" == "release" ]]; then
             echo "environment=production" >> "$GITHUB_OUTPUT"
             echo "image_tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "env_suffix=prod" >> "$GITHUB_OUTPUT"
+            echo "backend_app_name=cogent-prod-backend" >> "$GITHUB_OUTPUT"
+            echo "worker_app_name=cogent-prod-worker" >> "$GITHUB_OUTPUT"
+            echo "frontend_app_name=cogent-prod-frontend" >> "$GITHUB_OUTPUT"
+            echo "migrate_job_name=cogent-prod-migrate" >> "$GITHUB_OUTPUT"
           else
             echo "environment=staging" >> "$GITHUB_OUTPUT"
             echo "image_tag=sha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+            echo "env_suffix=stg" >> "$GITHUB_OUTPUT"
+            echo "backend_app_name=cogent-stg-backend" >> "$GITHUB_OUTPUT"
+            echo "worker_app_name=cogent-stg-worker" >> "$GITHUB_OUTPUT"
+            echo "frontend_app_name=cogent-stg-frontend" >> "$GITHUB_OUTPUT"
+            echo "migrate_job_name=cogent-stg-migrate" >> "$GITHUB_OUTPUT"
           fi
 
   # ── Run CI first ───────────────────────────────────────────────────────────
@@ -128,10 +143,9 @@ jobs:
 
       - name: Run database migrations
         run: |
-          # Migrations run via a temporary Container Apps Job
-          # pointing at the target database with the new image.
+          # Migrations run via the pre-provisioned Container Apps Job.
           az containerapp job start \
-            --name cogent-migrate \
+            --name ${{ needs.resolve-env.outputs.migrate_job_name }} \
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --image "${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}" \
             --command "alembic" "upgrade" "head" \
@@ -141,21 +155,21 @@ jobs:
         uses: azure/container-apps-deploy-action@v2
         with:
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
-          containerAppName: cogent-backend
+          containerAppName: ${{ needs.resolve-env.outputs.backend_app_name }}
           imageToDeploy: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
 
       - name: Deploy worker
         uses: azure/container-apps-deploy-action@v2
         with:
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
-          containerAppName: cogent-worker
+          containerAppName: ${{ needs.resolve-env.outputs.worker_app_name }}
           imageToDeploy: ${{ env.REGISTRY }}/${{ env.WORKER_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
 
       - name: Deploy frontend
         uses: azure/container-apps-deploy-action@v2
         with:
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
-          containerAppName: cogent-frontend
+          containerAppName: ${{ needs.resolve-env.outputs.frontend_app_name }}
           imageToDeploy: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
 
       - name: Verify deployment health

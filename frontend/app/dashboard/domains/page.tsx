@@ -16,7 +16,7 @@ const MapCanvas = dynamic(() => import('@/components/domains/MapCanvas'), {
     <div className="flex h-full w-full items-center justify-center bg-slate-50">
       <div className="flex flex-col items-center gap-3">
         <Globe className="h-8 w-8 animate-pulse text-indigo-400/50" />
-        <span className="text-sm text-subtle">Loading map…</span>
+        <span className="text-sm text-subtle">Cogent Loading map…</span>
       </div>
     </div>
   ),

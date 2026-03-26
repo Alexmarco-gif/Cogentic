@@ -1,3 +1,5 @@
+const isDevelopment = process.env.NODE_ENV !== 'production'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Compress output
@@ -24,6 +26,7 @@ const nextConfig = {
   // Ensure packages that use browser APIs aren't accidentally bundled on the server
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts'],
+    sri: process.env.NODE_ENV === 'production' ? { algorithm: 'sha256' } : undefined,
   },
 
   async headers() {
@@ -52,11 +55,9 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // SECURITY GAP: 'unsafe-inline' weakens XSS protections.
-              // TODO: Replace with a per-request nonce using Next.js middleware
-              // (generateBuildId + headers nonce) once Next.js `experimental.sri`
-              // is stable. Track: https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy
-              "script-src 'self' 'unsafe-inline'",
+              `script-src 'self'${isDevelopment ? " 'unsafe-eval'" : ''}`,
+              // The app still uses controlled inline style attributes in a few places,
+              // so styles remain temporarily whitelisted while scripts are hardened.
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",

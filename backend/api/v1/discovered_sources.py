@@ -230,6 +230,7 @@ async def activate_source(
     contract = await service.activate_source(
         source_id,
         industry_id=UUID(body.industry_id),
+        org_id=auth.org_id,
         name=body.name,
         description=body.description,
     )

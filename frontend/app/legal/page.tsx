@@ -32,7 +32,7 @@ const HIGHLIGHTS = [
   {
     icon:  Scale,
     title: 'Decision Support, Not Advice',
-    text:  'Cogent provides confidence-calibrated signals for informational purposes. All business decisions remain your responsibility.',
+    text:  'Stem-Cogent provides confidence-calibrated signals for informational purposes. All business decisions remain your responsibility.',
   },
   {
     icon:  Globe,

@@ -8,7 +8,7 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -79,7 +79,9 @@ async def list_templates(
     industry_id: UUID | None = Query(None),
     signal_type: str | None = Query(None),
     tag: str | None = Query(None, description="Filter by a single tag"),
-    search: str | None = Query(None, description="Full-text search on name/description"),
+    search: str | None = Query(
+        None, description="Full-text search on name/description"
+    ),
     featured_only: bool = Query(False),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -91,10 +93,7 @@ async def list_templates(
     Returns available templates ordered by featured → subscription count.
     Each result includes whether the current org is already subscribed.
     """
-    stmt = (
-        select(SignalTemplate)
-        .where(SignalTemplate.is_active.is_(True))
-    )
+    stmt = select(SignalTemplate).where(SignalTemplate.is_active.is_(True))
 
     if country:
         stmt = stmt.where(
@@ -126,8 +125,9 @@ async def list_templates(
     total = (await db.execute(count_stmt)).scalar_one()
 
     stmt = (
-        stmt
-        .order_by(SignalTemplate.is_featured.desc(), SignalTemplate.subscription_count.desc())
+        stmt.order_by(
+            SignalTemplate.is_featured.desc(), SignalTemplate.subscription_count.desc()
+        )
         .offset(skip)
         .limit(limit)
     )
@@ -138,8 +138,7 @@ async def list_templates(
     subscribed_ids: set[UUID] = set()
     if template_ids:
         sub_result = await db.execute(
-            select(SignalTemplateSubscription.template_id)
-            .where(
+            select(SignalTemplateSubscription.template_id).where(
                 SignalTemplateSubscription.org_id == auth.org_id,
                 SignalTemplateSubscription.template_id.in_(template_ids),
                 SignalTemplateSubscription.is_active.is_(True),
@@ -191,8 +190,9 @@ async def get_template(
 ):
     """Get marketplace template detail."""
     result = await db.execute(
-        select(SignalTemplate)
-        .where(SignalTemplate.id == template_id, SignalTemplate.is_active.is_(True))
+        select(SignalTemplate).where(
+            SignalTemplate.id == template_id, SignalTemplate.is_active.is_(True)
+        )
     )
     template = result.scalar_one_or_none()
     if not template:
@@ -225,8 +225,9 @@ async def subscribe_to_template(
     """
     # Load template
     result = await db.execute(
-        select(SignalTemplate)
-        .where(SignalTemplate.id == body.template_id, SignalTemplate.is_active.is_(True))
+        select(SignalTemplate).where(
+            SignalTemplate.id == body.template_id, SignalTemplate.is_active.is_(True)
+        )
     )
     template = result.scalar_one_or_none()
     if not template:
@@ -247,7 +248,10 @@ async def subscribe_to_template(
         if existing_sub.contract_id is None:
             logger.warning(
                 "marketplace_subscription_missing_contract",
-                extra={"subscription_id": str(existing_sub.id), "org_id": str(auth.org_id)},
+                extra={
+                    "subscription_id": str(existing_sub.id),
+                    "org_id": str(auth.org_id),
+                },
             )
             raise HTTPException(
                 status_code=409,
@@ -264,6 +268,7 @@ async def subscribe_to_template(
     # Create the org-specific SignalContract from the template
     contract = SignalContract(
         id=uuid4(),
+        org_id=auth.org_id,
         industry_id=template.industry_id,
         name=f"[{auth.org_id}] {template.name}",
         description=template.description,
@@ -271,7 +276,7 @@ async def subscribe_to_template(
         source_type=template.source_type,
         refresh_cron=template.refresh_cron,
         schedule_tier=template.schedule_tier,
-        extraction_config=template.extraction_config | {"org_id": str(auth.org_id)},
+        extraction_config=template.extraction_config,
         is_active=True,
         status="active",
     )
@@ -320,8 +325,7 @@ async def unsubscribe_from_template(
     Deactivates the subscription and the associated SignalContract.
     """
     result = await db.execute(
-        select(SignalTemplateSubscription)
-        .where(
+        select(SignalTemplateSubscription).where(
             SignalTemplateSubscription.template_id == template_id,
             SignalTemplateSubscription.org_id == auth.org_id,
             SignalTemplateSubscription.is_active.is_(True),
@@ -338,7 +342,10 @@ async def unsubscribe_from_template(
     if sub.contract_id:
         await db.execute(
             update(SignalContract)
-            .where(SignalContract.id == sub.contract_id)
+            .where(
+                SignalContract.id == sub.contract_id,
+                SignalContract.org_id == auth.org_id,
+            )
             .values(is_active=False, status="disabled")
         )
 

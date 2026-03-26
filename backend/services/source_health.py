@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.discovered_source import DiscoveredSource
@@ -34,7 +34,11 @@ class SourceHealthService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_health_summary(self) -> dict[str, Any]:
+    async def get_health_summary(
+        self,
+        *,
+        org_id: UUID | None = None,
+    ) -> dict[str, Any]:
         """Compute overall source health summary.
 
         Returns:
@@ -45,9 +49,12 @@ class SourceHealthService:
         stale_cutoff = now - timedelta(hours=STALE_HOURS)
 
         # Get all active contracts
-        result = await self.db.execute(
-            select(SignalContract).where(SignalContract.is_active.is_(True))
-        )
+        query = select(SignalContract).where(SignalContract.is_active.is_(True))
+        if org_id is not None:
+            query = query.where(
+                or_(SignalContract.org_id == org_id, SignalContract.org_id.is_(None))
+            )
+        result = await self.db.execute(query)
         contracts = list(result.scalars().all())
 
         healthy = []
@@ -94,13 +101,24 @@ class SourceHealthService:
             "auto_discovered_active": await self._count_auto_discovered(),
         }
 
-    async def get_contract_health(self, contract_id: UUID) -> dict[str, Any] | None:
+    async def get_contract_health(
+        self,
+        contract_id: UUID,
+        *,
+        org_id: UUID | None = None,
+    ) -> dict[str, Any] | None:
         """Get detailed health for a single contract.
 
         Includes recent signal delivery history and freshness metrics.
         """
         contract = await self.db.get(SignalContract, contract_id)
         if not contract:
+            return None
+        if (
+            org_id is not None
+            and contract.org_id is not None
+            and contract.org_id != org_id
+        ):
             return None
 
         now = datetime.now(timezone.utc)

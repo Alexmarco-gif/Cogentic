@@ -50,13 +50,13 @@ export function UpgradePrompt({ feature }: UpgradePromptProps) {
 
       <div className="flex gap-3">
         <button
-          onClick={() => (window.location.href = '/pricing')}
+          onClick={() => (window.location.href = '/dashboard/settings?tab=plan')}
           className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
         >
           View Pricing
         </button>
         <button
-          onClick={() => (window.location.href = `/upgrade?tier=${requiredTier.toLowerCase().replace('-', '_')}`)}
+          onClick={() => (window.location.href = '/dashboard/settings?tab=plan')}
           className="px-4 py-2 bg-white border border-blue-300 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50 transition-colors"
         >
           Upgrade Now

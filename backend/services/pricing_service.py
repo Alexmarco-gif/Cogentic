@@ -99,7 +99,7 @@ class PricingService:
             organization: Organization instance
 
         Returns:
-            Dictionary with subscription_price, overage_cost, total_cost, is_beta
+            Dictionary with subscription price and overage totals.
         """
         subscription_price = await self.calculate_subscription_price(organization)
         overage_cost = await self.calculate_overage_cost(organization)

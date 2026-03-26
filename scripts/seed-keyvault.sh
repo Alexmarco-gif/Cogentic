@@ -29,7 +29,6 @@ VAULT_NAME="${VAULT_NAME:?VAULT_NAME must be set}"
 # ── Required secrets ─────────────────────────────────────────────────────────
 # Each entry: <key-vault-secret-name> <env-var-name-or-prompt>
 SECRETS=(
-    "database-url|DATABASE_URL"
     "redis-url|REDIS_URL"
     "secret-key|SECRET_KEY"
     "auth0-domain|AUTH0_DOMAIN"
@@ -65,6 +64,7 @@ for entry in "${SECRETS[@]}"; do
 done
 
 log "Done. Secrets seeded into Key Vault: $VAULT_NAME"
+log "Note: 'database-url' is created by infrastructure/main.bicep from the Azure PostgreSQL server outputs."
 log ""
 log "To verify:"
 log "  az keyvault secret list --vault-name $VAULT_NAME --output table"

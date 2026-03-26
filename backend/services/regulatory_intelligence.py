@@ -191,7 +191,9 @@ class RegulatoryIntelligenceService:
             affected_entity_types=affected_entity_types,
             severity_score=severity_score,
             compliance_complexity=0.5,  # Default, can be refined
-            requirements={},  # TODO: Extract structured requirements with NLP
+            requirements=self._extract_structured_requirements(
+                signal_text, temporal_data
+            ),
             exemptions={},
             penalties={},
             historical_precedents=[],
@@ -343,6 +345,74 @@ class RegulatoryIntelligenceService:
         return min(base_severity + severity_boost, 1.0)
 
     # ── Contextual Interpretation ───────────────────────────────────
+
+    def _extract_structured_requirements(
+        self, text: str, temporal_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Extract deterministic compliance requirements from narrative text."""
+        if not text:
+            return {}
+
+        sentences = [
+            sentence.strip(" \n\r\t.;:-")
+            for sentence in re.split(r"(?<=[.!?])\s+", text)
+            if sentence.strip()
+        ]
+        obligation_keywords = (
+            "must",
+            "shall",
+            "required to",
+            "requirement",
+            "comply",
+            "compliance",
+            "submit",
+            "file",
+            "report",
+            "register",
+            "obtain",
+            "maintain",
+            "disclose",
+            "implement",
+        )
+        filing_keywords = ("submit", "file", "report", "disclose", "register")
+        control_keywords = (
+            "maintain",
+            "implement",
+            "control",
+            "policy",
+            "procedure",
+        )
+
+        obligations: list[str] = []
+        filings: list[str] = []
+        controls: list[str] = []
+
+        for sentence in sentences:
+            lowered = sentence.lower()
+            if not any(keyword in lowered for keyword in obligation_keywords):
+                continue
+
+            normalized = sentence[:300]
+            obligations.append(normalized)
+
+            if any(keyword in lowered for keyword in filing_keywords):
+                filings.append(normalized)
+            if any(keyword in lowered for keyword in control_keywords):
+                controls.append(normalized)
+
+        requirements: dict[str, Any] = {}
+        if obligations:
+            requirements["obligations"] = obligations[:8]
+        if filings:
+            requirements["filings"] = filings[:5]
+        if controls:
+            requirements["controls"] = controls[:5]
+        if temporal_data.get("effective_date"):
+            requirements["effective_date"] = temporal_data["effective_date"].isoformat()
+        if temporal_data.get("deadline_date"):
+            requirements["deadline_date"] = temporal_data["deadline_date"].isoformat()
+
+        return requirements
 
     async def enrich_signal_with_regulatory_context(
         self,

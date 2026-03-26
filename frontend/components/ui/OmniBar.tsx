@@ -15,7 +15,11 @@ import {
 import { cn } from '@/lib/utils'
 import { LiveIndicator } from './LiveIndicator'
 import { SpotlightSearch } from './SpotlightSearch'
-import { listNotifications } from '@/lib/api/notifications'
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/lib/api/notifications'
 import type { NotificationItem as APINotifItem } from '@/lib/api/notifications'
 import { useAlerts } from '@/lib/hooks/useAlerts'
 
@@ -142,12 +146,22 @@ export function OmniBar({ notificationCount = 0, className }: OmniBarProps) {
     return () => document.removeEventListener('keydown', handler)
   }, [])
 
-  function markAllRead() {
-    setNotifs((items) => items.map((item) => ({ ...item, unread: false })))
+  async function markAllRead() {
+    try {
+      await markAllNotificationsRead()
+      setNotifs((items) => items.map((item) => ({ ...item, unread: false })))
+    } catch {
+      // Keep current state if the backend update fails.
+    }
   }
 
-  function dismissNotif(id: string) {
-    setNotifs((items) => items.filter((item) => item.id !== id))
+  async function dismissNotif(id: string) {
+    try {
+      await markNotificationRead(id)
+      setNotifs((items) => items.filter((item) => item.id !== id))
+    } catch {
+      // Keep the notification visible if the backend update fails.
+    }
   }
 
   return (
@@ -277,7 +291,7 @@ export function OmniBar({ notificationCount = 0, className }: OmniBarProps) {
 
                 {activeTab === 'notifications' && unreadCount > 0 && (
                   <button
-                    onClick={markAllRead}
+                    onClick={() => { void markAllRead() }}
                     className="ml-auto inline-flex items-center gap-1.5 text-[0.76rem] font-semibold text-primary transition-colors hover:text-primary-hover"
                   >
                     <CheckCheck size={14} />
@@ -318,7 +332,7 @@ export function OmniBar({ notificationCount = 0, className }: OmniBarProps) {
                           <div className="flex flex-col items-end gap-2">
                             {notif.unread && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
                             <button
-                              onClick={() => dismissNotif(notif.id)}
+                              onClick={() => { void dismissNotif(notif.id) }}
                               className="text-subtle opacity-0 transition-all group-hover:opacity-100 hover:text-heading"
                             >
                               <X size={14} strokeWidth={1.8} />

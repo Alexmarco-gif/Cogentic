@@ -9,15 +9,15 @@ import { ServiceWorkerRegistration } from '@/components/ui/ServiceWorkerRegistra
 
 export const metadata: Metadata = {
   title: {
-    default: 'Cogent',
-    template: '%s - Cogent',
+    default: 'Stem-Cogent',
+    template: '%s - Strategic Decision Intelligence Platform',
   },
-  description: 'Strategic intelligence platform for enterprise analysts',
+  description: ' Strategic Decision Intelligence Platform',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Cogent',
+    title: 'Stem-Cogent',
   },
   icons: {
     icon: [
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     shortcut: '/stem-icon-180x180-corrected.png',
   },
   openGraph: {
-    title: 'Cogent',
-    description: 'Strategic intelligence platform',
+    title: 'Stem-Cogent',
+    description: 'Strategic Decision Intelligence Platform',
     type: 'website',
   },
 }

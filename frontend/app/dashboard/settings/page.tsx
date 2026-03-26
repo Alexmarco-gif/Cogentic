@@ -7,6 +7,8 @@ import { SettingsTabs }          from '@/components/settings/SettingsTabs'
 import { ProfileSection }        from '@/components/settings/ProfileSection'
 import { SecuritySection }       from '@/components/settings/SecuritySection'
 import { PreferencesSection }    from '@/components/settings/PreferencesSection'
+import { NotificationsSection }  from '@/components/settings/NotificationsSection'
+import { PlanSection }           from '@/components/settings/PlanSection'
 import { UsageDashboard }        from '@/components/settings/UsageDashboard'
 import { DataPrivacySection }    from '@/components/settings/DataPrivacySection'
 import { LegalSection }          from '@/components/settings/LegalSection'
@@ -46,10 +48,15 @@ function SettingsContent() {
             apiKeys={s.apiKeys}
             onRevokeKey={s.handleRevokeApiKey}
             onGenerateKey={s.handleCreateApiKey}
+            onRotateKey={s.handleRotateApiKey}
           />
         )
       case 'preferences':
         return <PreferencesSection />
+      case 'notifications':
+        return <NotificationsSection />
+      case 'plan':
+        return <PlanSection />
       case 'usage':
         return (
           <UsageDashboard

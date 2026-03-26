@@ -49,19 +49,40 @@ async def list_contracts(
 
     if industry_id:
         items = await repo.get_by_industry(
-            industry_id, active_only=active_only, skip=skip, limit=limit
+            industry_id,
+            org_id=auth.org_id,
+            active_only=active_only,
+            skip=skip,
+            limit=limit,
         )
     elif source_type:
         items = await repo.get_by_source_type(
-            source_type, active_only=active_only, skip=skip, limit=limit
+            source_type,
+            org_id=auth.org_id,
+            active_only=active_only,
+            skip=skip,
+            limit=limit,
         )
     else:
         if active_only:
-            items = await repo.get_active_contracts(skip=skip, limit=limit)
+            items = await repo.get_active_contracts(
+                org_id=auth.org_id,
+                skip=skip,
+                limit=limit,
+            )
         else:
-            items = await repo.get_multi(skip=skip, limit=limit)
+            items = await repo.get_multi(
+                skip=skip,
+                limit=limit,
+                filters={"org_id": auth.org_id},
+            )
 
-    total = await repo.count()
+    total = await repo.count_scoped(
+        org_id=auth.org_id,
+        industry_id=industry_id,
+        source_type=source_type,
+        active_only=True if active_only else None,
+    )
     return SignalContractListResponse(
         items=[SignalContractResponse.model_validate(c) for c in items],
         total=total,
@@ -79,7 +100,11 @@ async def list_degraded_contracts(
 ):
     """List all degraded contracts (needing attention)."""
     repo = SignalContractRepository(db)
-    contracts = await repo.get_degraded_contracts(skip=skip, limit=limit)
+    contracts = await repo.get_degraded_contracts(
+        org_id=auth.org_id,
+        skip=skip,
+        limit=limit,
+    )
     return [SignalContractResponse.model_validate(c) for c in contracts]
 
 
@@ -91,7 +116,7 @@ async def get_contract(
 ):
     """Get a single signal contract by ID."""
     repo = SignalContractRepository(db)
-    contract = await repo.get(contract_id)
+    contract = await repo.get_scoped(contract_id, org_id=auth.org_id)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
     return SignalContractResponse.model_validate(contract)
@@ -118,7 +143,7 @@ async def create_contract(
         metadata={"contract_name": body.name},
     )
     repo = SignalContractRepository(db)
-    contract = await repo.create(**body.model_dump())
+    contract = await repo.create(**body.model_dump(), org_id=auth.org_id)
     return SignalContractResponse.model_validate(contract)
 
 
@@ -136,6 +161,10 @@ async def update_contract(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
+    existing = await repo.get_scoped(contract_id, org_id=auth.org_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
     contract = await repo.update(contract_id, **update_data)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
@@ -151,6 +180,9 @@ async def delete_contract(
     """Delete a signal contract. Requires admin or owner role."""
     require_role(auth, "admin")
     repo = SignalContractRepository(db)
+    contract = await repo.get_scoped(contract_id, org_id=auth.org_id)
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
     deleted = await repo.delete(contract_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Contract not found")
@@ -169,11 +201,19 @@ async def trigger_fetch(
     """
     require_role(auth, "admin")
     repo = SignalContractRepository(db)
-    contract = await repo.get(contract_id)
+    contract = await repo.get_scoped(contract_id, org_id=auth.org_id)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
     if not contract.is_active:
         raise HTTPException(status_code=400, detail="Contract is inactive")
+    if contract.source_type == "webhook":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Webhook contracts are delivery-only and cannot be fetched manually. "
+                "Use a pull-based source type for scheduled acquisition."
+            ),
+        )
 
     credit_repo = CreditRepository(db)
     await credit_repo.consume_credits(
@@ -209,6 +249,9 @@ async def activate_contract(
     """Activate a signal contract. Requires admin or owner role."""
     require_role(auth, "admin")
     repo = SignalContractRepository(db)
+    existing = await repo.get_scoped(contract_id, org_id=auth.org_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Contract not found")
     contract = await repo.update(
         contract_id, is_active=True, status="active", failure_count=0
     )
@@ -226,6 +269,9 @@ async def deactivate_contract(
     """Deactivate a signal contract. Requires admin or owner role."""
     require_role(auth, "admin")
     repo = SignalContractRepository(db)
+    existing = await repo.get_scoped(contract_id, org_id=auth.org_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Contract not found")
     contract = await repo.update(contract_id, is_active=False, status="disabled")
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")

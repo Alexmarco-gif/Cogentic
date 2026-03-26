@@ -35,7 +35,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -51,6 +51,7 @@ env/
 
 # Testing & Coverage
 .pytest_cache/
+pytest-cache-files-*/
 .coverage
 coverage.xml
 htmlcov/

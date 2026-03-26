@@ -4,8 +4,8 @@ import { ArrowLeft, FileText, Shield, Database, Scale } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s — Cogent Legal',
-    default:  'Legal — Cogent',
+    template: '%s — Stem-Cogent Legal',
+    default:  'Legal — Stem-Cogent',
   },
 }
 
@@ -27,7 +27,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             className="flex items-center gap-2 text-sm font-medium text-body hover:text-heading transition-colors"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-            Back to Cogent
+            Back to Stem-Cogent
           </Link>
           <Link href="/" className="text-lg font-semibold text-heading tracking-tight">
             Cogent

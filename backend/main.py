@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
@@ -25,6 +26,7 @@ from backend.auth.middleware import (
 from backend.auth.rate_limit import limiter
 from backend.config import get_settings
 from backend.database import engine, read_engine
+from backend.jobs.pricing_scheduler import start_pricing_jobs, stop_pricing_jobs
 from backend.observability import (
     collect_db_pool_metrics,
     collect_job_queue_metrics,
@@ -216,6 +218,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("scheduler_start_failed", error=str(e))
 
+    try:
+        start_pricing_jobs()
+        logger.info("pricing_scheduler_started")
+    except Exception as e:
+        logger.error("pricing_scheduler_start_failed", error=str(e))
+
     # Start Situation Room WebSocket manager (Redis Pub/Sub listener)
     try:
         from backend.services.ws_manager import get_connection_manager
@@ -237,8 +245,13 @@ async def lifespan(app: FastAPI):
 
         scheduler = get_scheduler()
         scheduler.stop()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("scheduler_stop_failed", error=str(e))
+
+    try:
+        stop_pricing_jobs()
+    except Exception as e:
+        logger.error("pricing_scheduler_stop_failed", error=str(e))
 
     # Stop WebSocket manager
     try:
@@ -246,8 +259,8 @@ async def lifespan(app: FastAPI):
 
         ws_manager = get_connection_manager()
         await ws_manager.stop_pubsub_listener()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("ws_manager_stop_failed", error=str(e))
 
     await close_redis()
     close_sync_redis()
@@ -287,6 +300,7 @@ app.add_middleware(
         "Accept",
     ],
 )
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestBodyLimitMiddleware)

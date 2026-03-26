@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { HelpCircle, FileText, Shield, Package, ChevronRight, ExternalLink, Search, Mail } from 'lucide-react'
 
@@ -7,10 +8,8 @@ import { HelpCircle, FileText, Shield, Package, ChevronRight, ExternalLink, Sear
 
 function ArticleLink({ title, description, href }: { title: string; description: string; href: string }) {
   return (
-    <a
+    <Link
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
       className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/20 hover:shadow-sm group"
     >
       <div className="flex-1 min-w-0">
@@ -18,7 +17,7 @@ function ArticleLink({ title, description, href }: { title: string; description:
         {description && <p className="mt-0.5 text-xs text-subtle">{description}</p>}
       </div>
       <ChevronRight className="h-4 w-4 flex-shrink-0 text-subtle group-hover:text-primary transition-colors" strokeWidth={1.5} />
-    </a>
+    </Link>
   )
 }
 
@@ -58,12 +57,12 @@ export function LegalSection() {
   const [helpQuery, setHelpQuery] = useState('')
 
   const filteredArticles = [
-    { title: 'Getting started with Cogent', description: 'A walkthrough of the platform features', href: '#' },
-    { title: 'How signals are generated', description: 'Understanding confidence scores and data sources', href: '#' },
-    { title: 'Creating your first data contract', description: 'Step-by-step guide to contract studio', href: '#' },
-    { title: 'Understanding the Library', description: 'AI-generated briefs and weekly reports explained', href: '#' },
-    { title: 'API access and rate limits', description: 'Integrating Cogent data into your applications', href: '#' },
-    { title: 'Billing and credit usage', description: 'How credits are calculated and billed', href: '#' },
+    { title: 'Getting started with Stem-Cogent', description: 'A walkthrough of the platform features', href: '/dashboard/home' },
+    { title: 'How signals are generated', description: 'Understanding confidence scores and data sources', href: '/dashboard/signals' },
+    { title: 'Creating your first data contract', description: 'Step-by-step guide to contract studio', href: '/dashboard/studio' },
+    { title: 'Understanding the Library', description: 'AI-generated briefs and weekly reports explained', href: '/dashboard/library' },
+    { title: 'API access and rate limits', description: 'Integrating Cogent data into your applications', href: '/dashboard/settings?tab=security' },
+    { title: 'Billing and credit usage', description: 'How credits are calculated and billed', href: '/dashboard/settings?tab=plan' },
   ].filter(a =>
     !helpQuery || a.title.toLowerCase().includes(helpQuery.toLowerCase()) || a.description.toLowerCase().includes(helpQuery.toLowerCase())
   )
@@ -119,12 +118,12 @@ export function LegalSection() {
         </div>
         <div className="prose prose-sm max-w-none text-subtle">
           <p className="text-xs leading-relaxed">
-            By accessing and using the Cogent platform, you agree to be bound by our Terms of Service. These cover
+            By accessing and using the Stem-Cogent platform, you agree to be bound by our Terms of Service. These cover
             license scope &amp; restrictions, service level agreements (99.9% uptime), data ownership (User Content vs.
             Derived Intelligence), acceptable use policy, AI transparency commitments, and limitation of liability.
           </p>
           <p className="mt-3 text-xs leading-relaxed">
-            Cogent reserves the right to modify these terms with 30 days&apos; notice. Enterprise customers with
+            Stem-Cogent reserves the right to modify these terms with 30 days&apos; notice. Enterprise customers with
             executed agreements are governed by their specific contract terms until renewal.
           </p>
         </div>
@@ -195,7 +194,7 @@ export function LegalSection() {
 
       {/* ── App version ──────────────────────────────────────────────────── */}
       <p className="text-center text-[11px] text-subtle">
-        Cogent v1.0.0-beta · Built Feb 2026 · <a href="#" className="text-primary hover:underline">Changelog</a>
+        Stem-Cogent v1.0.0 · Built Mar 2026 · Release changes are published through deployment change management.
       </p>
     </div>
   )

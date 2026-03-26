@@ -196,6 +196,7 @@ class SourceDiscoveryService:
         source_id: UUID,
         *,
         industry_id: UUID,
+        org_id: UUID | None = None,
         name: str | None = None,
         description: str | None = None,
     ) -> SignalContract | None:
@@ -235,6 +236,7 @@ class SourceDiscoveryService:
 
         contract = SignalContract(
             id=uuid4(),
+            org_id=org_id,
             name=contract_name,
             description=description or f"Auto-discovered source from {source.domain}",
             industry_id=industry_id,

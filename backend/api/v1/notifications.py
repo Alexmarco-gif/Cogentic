@@ -79,7 +79,11 @@ async def _synthesise_and_persist(
         logger.warning("Failed to synthesise signal notifications: %s", exc)
 
     try:
-        active_contracts = await contract_repo.get_active_contracts(skip=0, limit=10)
+        active_contracts = await contract_repo.get_active_contracts(
+            org_id=auth.org_id,
+            skip=0,
+            limit=10,
+        )
         for contract in active_contracts:
             if contract.failure_count > 0:
                 await notif_repo.upsert_by_source(
@@ -181,4 +185,3 @@ def _human_age(delta: timedelta) -> str:
         return f"{hrs} hr ago"
     days = total_seconds // 86400
     return f"{days} day{'s' if days > 1 else ''} ago"
-

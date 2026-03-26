@@ -3,12 +3,11 @@
 Request/response models for the signals and contracts API endpoints.
 """
 
+import re
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
-
-import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -125,6 +124,7 @@ class SignalContractResponse(BaseModel):
     """Signal contract response."""
 
     id: UUID
+    org_id: UUID | None
     name: str
     description: str | None
     industry_id: UUID

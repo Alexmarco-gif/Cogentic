@@ -1,4 +1,6 @@
-"""Pricing API endpoints"""
+"""Pricing API endpoints."""
+
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -12,7 +14,6 @@ from backend.models.organization import Organization
 from backend.repositories.pricing_repository import PricingRepository
 from backend.services.gating_service import GatingService
 from backend.services.pricing_service import PricingService
-from backend.services.trial_service import TrialService
 
 router = APIRouter(prefix="/pricing")
 
@@ -41,6 +42,14 @@ class TierUpgradeRequest(BaseModel):
     target_tier: str
 
 
+class TierUpgradeResponse(BaseModel):
+    """Tier upgrade request acknowledgement."""
+
+    status: str
+    requested_tier: str
+    message: str
+
+
 @router.get("/current", response_model=PricingSummaryResponse)
 async def get_current_pricing(
     organization: Organization = Depends(get_current_organization),
@@ -49,7 +58,7 @@ async def get_current_pricing(
     """
     Get current subscription pricing for authenticated organization.
 
-    Returns pricing details including beta discount if applicable.
+    Returns current subscription pricing details.
     """
     pricing_service = PricingService(db)
     summary = await pricing_service.calculate_total_monthly_cost(organization)
@@ -85,7 +94,7 @@ async def get_feature_access(
     )
 
 
-@router.post("/upgrade")
+@router.post("/upgrade", response_model=TierUpgradeResponse)
 async def upgrade_tier(
     request: TierUpgradeRequest,
     auth: AuthContext = Depends(require_permissions(["owner", "admin"])),
@@ -93,12 +102,12 @@ async def upgrade_tier(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Upgrade organization to a higher tier.
+    Record a tier-upgrade request for billing follow-up.
 
     Requires owner or admin role.
-    Payment processor integration is intentionally deferred. This endpoint
-    performs the tier change directly so the rest of the entitlement system can
-    be exercised in environments that do not yet have billing integration.
+    Self-serve billing is intentionally disabled until payment processing
+    is implemented. This endpoint creates an auditable pending request without
+    mutating the organization's live entitlements.
     """
     # Validate tier
     valid_tiers = ["explorer", "growth", "mid_market", "enterprise"]
@@ -117,31 +126,38 @@ async def upgrade_tier(
             detail="Can only upgrade to higher tiers",
         )
 
-    # For now, directly update tier
-    # TODO: Create Stripe subscription first
-    trial_service = TrialService(db)
-
-    if organization.trial_status == "active":
-        # Convert trial if still active
-        await trial_service.convert_trial_to_paid(organization, request.target_tier)
-    else:
-        # Direct upgrade
-        organization.pricing_tier = request.target_tier
-
-        # Allocate credits
-        pricing_service = PricingService(db)
-        organization.credits_allocated_monthly = await pricing_service.get_tier_credits(
-            request.target_tier
+    settings = dict(organization.settings or {})
+    existing_request = settings.get("pending_tier_upgrade")
+    if (
+        isinstance(existing_request, dict)
+        and existing_request.get("target_tier") == request.target_tier
+        and existing_request.get("status") == "pending"
+    ):
+        return TierUpgradeResponse(
+            status="already_pending",
+            requested_tier=request.target_tier,
+            message="A billing review is already pending for this tier upgrade.",
         )
 
-        await db.commit()
-        await db.refresh(organization)
-
-    return {
-        "status": "upgraded",
-        "new_tier": request.target_tier,
-        "message": "Tier upgraded successfully",
+    settings["pending_tier_upgrade"] = {
+        "status": "pending",
+        "target_tier": request.target_tier,
+        "current_tier": organization.pricing_tier,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "requested_by": str(auth.user_id),
+        "requires_payment_processor": True,
     }
+    organization.settings = settings
+    await db.commit()
+
+    return TierUpgradeResponse(
+        status="pending_review",
+        requested_tier=request.target_tier,
+        message=(
+            "Tier upgrade recorded. Billing activation is pending until the "
+            "payment processor is enabled."
+        ),
+    )
 
 
 @router.get("/tiers")
