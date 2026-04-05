@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   ArrowRight,
   BookOpen,
-  Command,
   Plus,
   RefreshCw,
   ShoppingBag,
@@ -795,10 +794,6 @@ export default function HomePage() {
       'Review the first signals, then expand into marketplace or library workflows.',
     ]
 
-  const workspaceSummary = premiumHomeEnabled
-    ? `${selectedIndustryName} is active. Use the dashboard to decide what to review next and which signals deserve immediate action.`
-    : 'Starter mode keeps the next step obvious: create, connect, then review.'
-
   const criticalCount = strategicStatuses.find((status) => status.id === 'critical-alerts')?.count ?? 0
   const surfaceError = signalsError ?? (premiumHomeEnabled ? roomError ?? industriesError : null)
   const isEmpty = !feedLoading && signals.length === 0 && feedEvents.length === 0
@@ -923,7 +918,7 @@ export default function HomePage() {
           liveConnected={premiumHomeEnabled && liveConnected}
         />
 
-        <section className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+        <section>
           <div data-onboarding="home-primary-action" className="surface-elevated overflow-hidden p-6 sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
@@ -983,36 +978,6 @@ export default function HomePage() {
               </button>
             </div>
           </div>
-
-          <aside className="surface-panel p-6">
-            <p className="eyebrow">Operator guide notes</p>
-            <h2 className="mt-2 text-title">This page should never leave the user guessing.</h2>
-            <p className="mt-3 text-[0.82rem] text-body">{workspaceSummary}</p>
-
-            <div data-onboarding="home-shortcuts" className="mt-5 rounded-[24px] border border-border bg-surface-2/70 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Command size={16} />
-                </div>
-                <div>
-                  <p className="text-[0.84rem] font-semibold text-heading">Keyboard shortcuts</p>
-                  <p className="text-[0.76rem] text-subtle">Use search without breaking context.</p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="interactive-chip"><kbd className="font-mono text-[0.68rem]">Ctrl K</kbd> command palette</span>
-                <span className="interactive-chip"><kbd className="font-mono text-[0.68rem]">/</kbd> investigate</span>
-                <span className="interactive-chip"><kbd className="font-mono text-[0.68rem]">C</kbd> create contract</span>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-[24px] border border-border bg-surface px-4 py-4">
-              <p className="text-[0.8rem] font-semibold text-heading">Professional SaaS rhythm</p>
-              <p className="mt-2 text-[0.76rem] text-subtle">
-                Keep primary actions obvious, reveal advanced options later, and use the timeline below as the source of truth for what happened.
-              </p>
-            </div>
-          </aside>
         </section>
 
         {surfaceError && (

@@ -10,6 +10,9 @@ param name string
 @description('Azure region')
 param location string
 
+@description('Optional extra access policies to apply at vault creation time')
+param additionalAccessPolicies array = []
+
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: name
   location: location
@@ -19,7 +22,7 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
       name: 'standard'
     }
     tenantId: subscription().tenantId
-    accessPolicies: []              // Policies added by container-app module
+    accessPolicies: additionalAccessPolicies
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
     enablePurgeProtection: true     // Prevent accidental permanent deletion

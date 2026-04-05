@@ -46,12 +46,6 @@ const TOURS: TourMap = {
       body: 'Use these quick actions for high-intent flows such as creating contracts, opening investigations, or refreshing the workspace.',
       placement: 'top',
     },
-    {
-      selector: '[data-onboarding="home-shortcuts"]',
-      title: 'Support faster operators',
-      body: 'Keyboard shortcuts and command search help power users stay in flow without digging through navigation.',
-      placement: 'left',
-    },
   ],
   '/dashboard/studio': [
     {

@@ -8,7 +8,9 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.config import get_settings
 from backend.signals.fetchers.base import BaseFetcher, FetchError, FetchResult
+from backend.signals.provider_presets import resolve_social_provider_config
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +41,13 @@ class SocialFetcher(BaseFetcher):
         extraction_config: dict[str, Any],
     ) -> list[FetchResult] | FetchError:
         """Fetch signals from social media APIs."""
+        source_url, extraction_config = resolve_social_provider_config(
+            source_url, extraction_config
+        )
         self.configure_timeout(extraction_config)
-        platform = extraction_config.get("platform", "twitter")
+        platform = str(extraction_config.get("platform", "x")).strip().lower()
 
-        if platform == "twitter":
+        if platform in {"twitter", "x"}:
             return await self._fetch_twitter(source_url, extraction_config)
         elif platform == "reddit":
             return await self._fetch_reddit(source_url, extraction_config)
@@ -57,17 +62,17 @@ class SocialFetcher(BaseFetcher):
         source_url: str,
         config: dict[str, Any],
     ) -> list[FetchResult] | FetchError:
-        """Fetch from Twitter/X API v2."""
+        """Fetch from X API v2."""
         client = await self._get_client()
         auth = config.get("auth", {})
-        bearer_token = auth.get("bearer_token", "")
-        params = config.get("params", {})
+        bearer_token = auth.get("bearer_token", "") or get_settings().x_bearer_token
+        params = dict(config.get("params", {}))
         signal_type = config.get("signal_type", "social")
         min_engagement = config.get("min_engagement", 0)
 
         if not bearer_token:
             return FetchError(
-                message="Twitter bearer_token not configured",
+                message="X bearer_token not configured",
                 retryable=False,
             )
 
@@ -87,7 +92,7 @@ class SocialFetcher(BaseFetcher):
             data = response.json()
         except Exception as e:
             return FetchError(
-                message=f"Twitter API error: {e}",
+                message=f"X API error: {e}",
                 retryable=True,
             )
 
@@ -112,7 +117,7 @@ class SocialFetcher(BaseFetcher):
                 FetchResult(
                     title=text[:120] + "..." if len(text) > 120 else text,
                     content=text,
-                    source_url=f"https://twitter.com/i/status/{tweet.get('id', '')}",
+                    source_url=f"https://x.com/i/status/{tweet.get('id', '')}",
                     published_at=published_at,
                     signal_type=signal_type,
                     extracted_data={
@@ -125,14 +130,15 @@ class SocialFetcher(BaseFetcher):
                     },
                     metadata={
                         "source_type": "social",
-                        "platform": "twitter",
+                        "provider": "x",
+                        "platform": "x",
                         "tweet_id": tweet.get("id"),
                         "fetched_at": datetime.now(timezone.utc).isoformat(),
                     },
                 )
             )
 
-        logger.info(f"Twitter fetcher extracted {len(results)} tweets")
+        logger.info("Social fetcher extracted %s X posts", len(results))
         return results
 
     async def _fetch_reddit(

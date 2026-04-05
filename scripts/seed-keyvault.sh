@@ -38,22 +38,50 @@ SECRETS=(
     "auth0-webhook-secret|AUTH0_WEBHOOK_SECRET"
     "openai-api-key|OPENAI_API_KEY"
     "sentry-dsn|SENTRY_DSN"
+    "logtail-token|LOGTAIL_TOKEN"
+    "posthog-api-key|POSTHOG_API_KEY"
+    "posthog-host|POSTHOG_HOST"
+    "resend-api-key|RESEND_API_KEY"
+    "resend-from-email|RESEND_FROM_EMAIL"
+    "serpapi-api-key|SERPAPI_API_KEY"
+    "newsapi-api-key|NEWSAPI_API_KEY"
+    "ngx-market-data-api-key|NGX_MARKET_DATA_API_KEY"
+    "ngx-market-data-base-url|NGX_MARKET_DATA_BASE_URL"
+    "x-bearer-token|X_BEARER_TOKEN"
+    "azure-blob-connection-string|AZURE_BLOB_CONNECTION_STRING"
+    "azure-blob-model-container|AZURE_BLOB_MODEL_CONTAINER"
     "auth0-frontend-secret|AUTH0_SECRET"
     "auth0-issuer-base-url|AUTH0_ISSUER_BASE_URL"
     "auth0-client-id|AUTH0_CLIENT_ID"
     "auth0-client-secret|AUTH0_CLIENT_SECRET"
 )
 
-# ── Seed loop ────────────────────────────────────────────────────────────────
+# ── Validation ───────────────────────────────────────────────────────────────
+MISSING=()
 for entry in "${SECRETS[@]}"; do
     KV_NAME="${entry%%|*}"
     ENV_VAR="${entry##*|}"
 
     VALUE="${!ENV_VAR:-}"
     if [[ -z "$VALUE" ]]; then
-        warn "Skipping '$KV_NAME' — $ENV_VAR is not set in the environment."
-        continue
+        MISSING+=("$ENV_VAR -> $KV_NAME")
     fi
+done
+
+if (( ${#MISSING[@]} > 0 )); then
+    err "Missing required environment variables:"
+    for item in "${MISSING[@]}"; do
+        err "  - $item"
+    done
+    err "Export every required value before running this script."
+    exit 1
+fi
+
+# ── Seed loop ────────────────────────────────────────────────────────────────
+for entry in "${SECRETS[@]}"; do
+    KV_NAME="${entry%%|*}"
+    ENV_VAR="${entry##*|}"
+    VALUE="${!ENV_VAR}"
 
     log "Setting secret: $KV_NAME"
     az keyvault secret set \

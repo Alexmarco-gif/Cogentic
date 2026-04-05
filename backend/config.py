@@ -104,6 +104,12 @@ class Settings(BaseSettings):
     web_search_default_country: str = ""  # Default country code (e.g. "ng")
     web_search_default_language: str = "en"  # Default language code
 
+    # Signal source providers
+    newsapi_api_key: str = ""
+    ngx_market_data_api_key: str = ""
+    ngx_market_data_base_url: str = ""
+    x_bearer_token: str = ""
+
     # Neo4j (causal knowledge graph)
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
@@ -178,6 +184,30 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OPENAI_API_KEY must be set in production. "
                 "All AI/embedding features will fail without it."
+            )
+
+        if is_prod and not self.newsapi_api_key:
+            raise ValueError(
+                "NEWSAPI_API_KEY must be set in production/staging. "
+                "NewsAPI-backed signal contracts depend on it."
+            )
+
+        if is_prod and not self.ngx_market_data_api_key:
+            raise ValueError(
+                "NGX_MARKET_DATA_API_KEY must be set in production/staging. "
+                "NGX market data contracts depend on it."
+            )
+
+        if is_prod and not self.ngx_market_data_base_url:
+            raise ValueError(
+                "NGX_MARKET_DATA_BASE_URL must be set in production/staging. "
+                "Use the official NGX market data endpoint for your subscription."
+            )
+
+        if is_prod and not self.x_bearer_token:
+            raise ValueError(
+                "X_BEARER_TOKEN must be set in production/staging. "
+                "X-backed social contracts depend on it."
             )
 
         if is_prod and "localhost" in self.cors_origins:

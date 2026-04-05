@@ -10,6 +10,11 @@ import type {
   StudioSourceType,
 } from '@/lib/hooks/useContractStudio'
 import type { IndustryItem } from '@/lib/api/discovered_sources'
+import {
+  getProviderOptions,
+  getSourcePlaceholder,
+  getSourcePresetDescription,
+} from '@/lib/contracts/providerPresets'
 
 // ── Field type options ────────────────────────────────────────────────────────
 
@@ -160,9 +165,8 @@ export function DefinitionPane({
     && step === 'draft'
   )
   const sourceUrlLabel = parameters.sourceType === 'webhook' ? 'Webhook Endpoint URL' : 'Source URL'
-  const sourceUrlPlaceholder = parameters.sourceType === 'webhook'
-    ? 'https://your-service.com/webhook'
-    : 'https://example.com/feed-or-endpoint'
+  const sourceUrlPlaceholder = getSourcePlaceholder(parameters.sourceType, parameters.sourcePreset)
+  const providerOptions = getProviderOptions(parameters.sourceType)
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-border">
@@ -312,6 +316,14 @@ export function DefinitionPane({
                 onChange={(value) => onUpdateParameter('sourceType', value)}
               />
             </div>
+            <div>
+              <p className="mb-1 text-[9px] text-subtle">Provider preset</p>
+              <SelectField
+                value={parameters.sourcePreset}
+                options={providerOptions.map((option) => option.value)}
+                onChange={(value) => onUpdateParameter('sourcePreset', value)}
+              />
+            </div>
             <div className="sm:col-span-1">
               <p className="mb-1 text-[9px] text-subtle">{sourceUrlLabel}</p>
               <input
@@ -327,7 +339,7 @@ export function DefinitionPane({
           <p className="mt-1 text-[9px] text-subtle">
             {parameters.sourceType === 'webhook'
               ? 'Webhook contracts deliver new signals to your endpoint after ingestion.'
-              : 'Provide the feed, API, social, or scraper entrypoint the contract should monitor.'}
+              : getSourcePresetDescription(parameters.sourceType, parameters.sourcePreset)}
           </p>
         </div>
       </div>

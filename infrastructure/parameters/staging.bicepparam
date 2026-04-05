@@ -22,6 +22,10 @@ param backendMinReplicas = 1
 param backendMaxReplicas = 2
 param workerReplicas = 1
 
+// Staging now deploys workloads by default. For first-time infra-only setup, override with:
+//   az deployment group create ... --parameters deployWorkloads=false
+param deployWorkloads = true
+
 // Database
 param dbAdminUser = 'cogentadmin'
 param dbName = 'cogent'

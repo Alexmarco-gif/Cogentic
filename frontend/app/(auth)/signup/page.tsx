@@ -58,21 +58,21 @@ function ValuePanel() {
             <p className="text-[2.6rem] font-bold leading-[1.02] tracking-[-0.05em] text-white">
               Build a workspace your team wants to return to.
             </p>
-            <p className="mt-4 max-w-lg text-[0.96rem] text-white/72">
+            <p className="mt-4 max-w-lg text-[0.96rem] text-white">
               Start with a clean operating flow: create a contract, connect sources, and let Cogent organize what matters most.
             </p>
           </div>
 
           <div className="rounded-[28px] border border-white/10 bg-black/25 p-5 backdrop-blur">
-            <p className="text-[0.76rem] font-semibold uppercase tracking-[0.18em] text-white/55">What happens next</p>
+            <p className="text-[0.76rem] font-semibold uppercase tracking-[0.18em] text-white">What happens next</p>
             <div className="mt-4 space-y-3">
               {[
                 'Create your first monitoring contract',
                 'Invite your team when you are ready',
                 'Review live signals and generated briefs',
               ].map((item, index) => (
-                <div key={item} className="flex items-center gap-3 text-[0.9rem] text-white/86">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[0.72rem] font-semibold text-white/80">
+                <div key={item} className="flex items-center gap-3 text-[0.9rem] text-white">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[0.72rem] font-semibold text-white">
                     {index + 1}
                   </div>
                   <span>{item}</span>
@@ -88,7 +88,7 @@ function ValuePanel() {
               'Clear activity logs and premium empty states',
               'Fast onboarding with smart defaults',
             ].map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-[22px] border border-white/12 bg-white/10 p-4 text-[0.84rem] text-white/84 backdrop-blur">
+              <div key={item} className="flex items-start gap-3 rounded-[22px] border border-white/12 bg-white/10 p-4 text-[0.84rem] text-white backdrop-blur">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-white" />
                 <span>{item}</span>
               </div>
@@ -194,7 +194,7 @@ export default function SignupPage() {
                   I agree to the{' '}
                   <a href="/legal/terms" className="font-semibold text-primary transition-colors hover:text-primary-hover">Terms of Service</a>
                   {' '}and{' '}
-                  <a href="/legal/privacy" className="font-semibold text-primary transition-colors hover:text-primary-hover">Privacy Policy</a>.
+                  <a href="/legal/privacy" className="font-semibold text-primary transition-colors hover:text-primary-hover">Privacy Notice</a>.
                 </span>
               </label>
 

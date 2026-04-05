@@ -176,6 +176,7 @@ async def lifespan(app: FastAPI):
         sentry_dsn=getattr(settings, "sentry_dsn", None),
         logtail_token=getattr(settings, "logtail_token", None),
         posthog_api_key=getattr(settings, "posthog_api_key", None),
+        posthog_host=getattr(settings, "posthog_host", None),
     )
 
     # Test database connection

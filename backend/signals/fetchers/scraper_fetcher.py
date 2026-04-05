@@ -15,6 +15,7 @@ import httpx
 from selectolax.parser import HTMLParser
 
 from backend.signals.fetchers.base import BaseFetcher, FetchError, FetchResult
+from backend.signals.provider_presets import resolve_scraper_provider_config
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,9 @@ class ScraperFetcher(BaseFetcher):
         extraction_config: dict[str, Any],
     ) -> list[FetchResult] | FetchError:
         """Fetch and parse web page(s) using CSS selectors."""
+        source_url, extraction_config = resolve_scraper_provider_config(
+            source_url, extraction_config
+        )
         if not _is_safe_url(source_url):
             return FetchError(
                 message=f"URL blocked by SSRF protection: {source_url}",
@@ -108,6 +112,7 @@ class ScraperFetcher(BaseFetcher):
         client = await self._get_client()
         all_results: list[FetchResult] = []
         max_retries = extraction_config.get("retries", 2)
+        request_headers = extraction_config.get("headers", {})
 
         # Pagination support
         pagination = extraction_config.get("pagination", {})
@@ -120,7 +125,7 @@ class ScraperFetcher(BaseFetcher):
             response_text: str | None = None
             for attempt in range(max_retries):
                 try:
-                    response = await client.get(current_url)
+                    response = await client.get(current_url, headers=request_headers)
                     response.raise_for_status()
                     response_text = response.text
                     break
@@ -208,6 +213,7 @@ class ScraperFetcher(BaseFetcher):
         tree = HTMLParser(html)
 
         signal_type = config.get("signal_type", "market")
+        provider = config.get("provider", "generic")
         item_selector = config.get("item_selector", "article")
         title_selector = config.get("title_selector", "h2")
         content_selector = config.get("content_selector", "p")
@@ -277,6 +283,7 @@ class ScraperFetcher(BaseFetcher):
                     extracted_data=extracted,
                     metadata={
                         "source_type": "scraper",
+                        "provider": provider,
                         "page_url": page_url,
                         "fetched_at": datetime.now(timezone.utc).isoformat(),
                     },

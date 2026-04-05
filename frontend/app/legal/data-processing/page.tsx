@@ -1,19 +1,27 @@
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Data Processing Addendum' }
+export const metadata: Metadata = { title: 'Enterprise Data Processing Addendum' }
 
-/* ─── Section helpers ──────────────────────────────────────────────────────── */
-
-function Section({ id, number, title, children }: { id: string; number: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  number,
+  title,
+  children,
+}: {
+  id: string
+  number: string
+  title: string
+  children: React.ReactNode
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="flex items-baseline gap-3 text-heading text-heading mb-4">
+      <h2 className="mb-4 flex items-baseline gap-3 text-heading text-heading">
         <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
           {number}
         </span>
         {title}
       </h2>
-      <div className="prose prose-sm max-w-none text-body space-y-3">{children}</div>
+      <div className="prose prose-sm max-w-none space-y-3 text-body">{children}</div>
     </section>
   )
 }
@@ -21,442 +29,227 @@ function Section({ id, number, title, children }: { id: string; number: string; 
 function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-4">
-      <h3 className="text-sm font-semibold text-heading mb-2">{title}</h3>
-      <div className="text-xs leading-relaxed text-body space-y-2">{children}</div>
+      <h3 className="mb-2 text-sm font-semibold text-heading">{title}</h3>
+      <div className="space-y-2 text-xs leading-relaxed text-body">{children}</div>
     </div>
   )
 }
 
-/* ─── Page ─────────────────────────────────────────────────────────────────── */
-
 export default function DataProcessingPage() {
   return (
     <article className="flex flex-col gap-10">
-      {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="border-b border-border pb-8">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-2">Legal Document</p>
-        <h1 className="text-display text-heading mb-3">Data Processing Addendum</h1>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-primary">Legal Document</p>
+        <h1 className="mb-3 text-display text-heading">Enterprise Data Processing Addendum</h1>
         <div className="flex flex-wrap gap-4 text-xs text-subtle">
-          <span>Effective Date: <strong className="text-body">March 1, 2026</strong></span>
-          <span>Last Updated: <strong className="text-body">March 1, 2026</strong></span>
-          <span>Version: <strong className="text-body">2.0</strong></span>
+          <span>
+            Effective Date: <strong className="text-body">March 29, 2026</strong>
+          </span>
+          <span>
+            Last Updated: <strong className="text-body">March 29, 2026</strong>
+          </span>
+          <span>
+            Version: <strong className="text-body">3.0</strong>
+          </span>
         </div>
       </div>
 
-      {/* ── Preamble ──────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <p className="text-xs leading-relaxed text-body">
-          This Data Processing Addendum (&ldquo;DPA&rdquo;) forms part of the Terms of Service between
-          <strong> Cogent Technologies Ltd.</strong> (&ldquo;Cogent&rdquo; or &ldquo;Processor&rdquo;) and the
-          enterprise customer (&ldquo;Client&rdquo; or &ldquo;Controller&rdquo;) and governs the processing of
-          personal data by Cogent on behalf of the Client. This DPA applies where and to the extent that Cogent
-          processes personal data subject to the Nigeria Data Protection Act (NDPA) 2023, EU General Data
-          Protection Regulation (GDPR), or other applicable data protection laws.
+          This Enterprise Data Processing Addendum (&ldquo;DPA&rdquo;) applies only where it is incorporated into an
+          order form, master services agreement, or other written agreement between <strong>Stem Systems Ltd.</strong> and
+          an enterprise customer using <strong>Cogent</strong>.
         </p>
         <p className="mt-3 text-xs leading-relaxed text-body">
-          This DPA turns our &ldquo;Enterprise Safety by Design&rdquo; philosophy into legally binding commitments.
-          It establishes clear roles, restrictions, security obligations, and sub-processor transparency requirements.
-        </p>
-      </div>
-
-      {/* ── 1. Definitions & Roles ────────────────────────────────────────── */}
-      <Section id="definitions" number="1" title="Definitions &amp; Roles">
-        <SubSection title="1.1 Data Controller (Client)">
-          <p>
-            The Client is the <strong>Data Controller</strong>. The Client determines the purposes and means of
-            processing personal data. The Client owns the input data, intent, queries, and contextual enrichment
-            information submitted to the Cogent platform.
-          </p>
-        </SubSection>
-        <SubSection title="1.2 Data Processor (Cogent)">
-          <p>
-            Cogent is the <strong>Data Processor</strong>. Cogent processes personal data on behalf of the Client
-            solely to provide the signal intelligence services described in the Terms of Service and the applicable
-            Signal Contracts. Cogent does not independently determine the purposes of processing Client data.
-          </p>
-        </SubSection>
-        <SubSection title="1.3 Dual Role Disclosure">
-          <p>
-            Cogent additionally acts as a <strong>Data Controller</strong> for the purpose of ingesting public
-            and semi-public data (&ldquo;World Activity&rdquo;) to generate market-level signals. This separate
-            controller activity is governed by the Cogent Privacy Policy, not this DPA.
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 2. Scope of Processing ────────────────────────────────────────── */}
-      <Section id="scope" number="2" title="Scope of Processing">
-        <SubSection title="2.1 Subject Matter">
-          <p>
-            Cogent processes personal data solely to provide the services described in the agreed Signal
-            Contracts, including: signal discovery, validation, enrichment, and delivery of decision-ready
-            intelligence.
-          </p>
-        </SubSection>
-        <SubSection title="2.2 Categories of Data Subjects">
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li>Authorised users of the Client&apos;s Cogent account (employees, contractors);</li>
-            <li>Individuals whose data may be incidentally included in Client-uploaded content;</li>
-            <li>Business contacts referenced in public data sources monitored by the platform.</li>
-          </ul>
-        </SubSection>
-        <SubSection title="2.3 Types of Personal Data">
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li>Account information (name, email, role, organisation);</li>
-            <li>User Content uploaded by the Client for signal enrichment;</li>
-            <li>Platform usage data (search queries, dashboard interactions, API calls);</li>
-            <li>Technical data (IP addresses, device identifiers, session logs).</li>
-          </ul>
-        </SubSection>
-      </Section>
-
-      {/* ── 3. Restricted Processing ──────────────────────────────────────── */}
-      <Section id="restricted" number="3" title="Restricted Processing Obligations">
-        <SubSection title="3.1 Purpose Limitation">
-          <p>
-            Cogent shall process personal data <strong>only</strong> to provide the services described in the
-            Signal Contracts and these Terms. Cogent shall not process personal data for any secondary purpose,
-            including but not limited to:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li>Advertising, marketing, or profiling for third-party purposes;</li>
-            <li>Selling or licensing personal data to third parties;</li>
-            <li>Training machine learning models on identifiable Client data without explicit authorisation;</li>
-            <li>Any purpose that is not reasonably necessary to provide the contracted services.</li>
-          </ul>
-        </SubSection>
-        <SubSection title="3.2 Instruction-Based Processing">
-          <p>
-            Cogent shall process personal data only on documented instructions from the Client (including the
-            Terms of Service, DPA, and Signal Contract definitions), unless required to do so by applicable
-            law — in which case, Cogent shall inform the Client before processing (unless legally prohibited
-            from doing so).
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 4. Sub-Processor Transparency ─────────────────────────────────── */}
-      <Section id="sub-processors" number="4" title="Sub-Processor Transparency">
-        <SubSection title="4.1 Current Sub-Processors">
-          <p>
-            Cogent uses the following authorised sub-processors. This list is maintained and updated regularly:
-          </p>
-          <div className="mt-2 overflow-x-auto rounded-xl border border-border">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="px-4 py-2 text-left font-medium text-heading">Sub-Processor</th>
-                  <th className="px-4 py-2 text-left font-medium text-heading">Service</th>
-                  <th className="px-4 py-2 text-left font-medium text-heading">Data Processing</th>
-                  <th className="px-4 py-2 text-left font-medium text-heading">Location</th>
-                </tr>
-              </thead>
-              <tbody className="text-body">
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2">Amazon Web Services</td>
-                  <td className="px-4 py-2">Cloud infrastructure</td>
-                  <td className="px-4 py-2">Hosting, storage, compute</td>
-                  <td className="px-4 py-2">EU (Ireland)</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2">Auth0 (Okta)</td>
-                  <td className="px-4 py-2">Authentication</td>
-                  <td className="px-4 py-2">User identity & session management</td>
-                  <td className="px-4 py-2">US / EU</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2">Stripe</td>
-                  <td className="px-4 py-2">Payments</td>
-                  <td className="px-4 py-2">Billing & payment processing</td>
-                  <td className="px-4 py-2">US / EU</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2">SendGrid / Resend</td>
-                  <td className="px-4 py-2">Email delivery</td>
-                  <td className="px-4 py-2">Transactional emails</td>
-                  <td className="px-4 py-2">US</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2">PostHog</td>
-                  <td className="px-4 py-2">Product analytics</td>
-                  <td className="px-4 py-2">Anonymised usage analytics</td>
-                  <td className="px-4 py-2">EU</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2">OpenAI</td>
-                  <td className="px-4 py-2">AI/ML</td>
-                  <td className="px-4 py-2">LLM-powered signal enrichment</td>
-                  <td className="px-4 py-2">US</td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-2">Anthropic</td>
-                  <td className="px-4 py-2">AI/ML</td>
-                  <td className="px-4 py-2">LLM-powered analysis</td>
-                  <td className="px-4 py-2">US</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </SubSection>
-        <SubSection title="4.2 New Sub-Processor Notification">
-          <p>
-            Cogent shall notify the Client at least <strong>30 days</strong> in advance before engaging a new
-            sub-processor or materially changing the scope of an existing sub-processor&apos;s access. The
-            notification will include the sub-processor&apos;s identity, the nature of processing, and the
-            data location.
-          </p>
-        </SubSection>
-        <SubSection title="4.3 Client Objection Rights">
-          <p>
-            The Client may object to a new sub-processor within 14 days of notification by providing written
-            reasons. If Cogent cannot reasonably accommodate the objection, the Client may terminate the
-            affected service upon written notice without penalty.
-          </p>
-        </SubSection>
-        <SubSection title="4.4 Sub-Processor Obligations">
-          <p>
-            Cogent ensures that all sub-processors are bound by data processing agreements that impose
-            obligations no less protective than those set out in this DPA. Cogent remains fully liable for
-            the acts and omissions of its sub-processors.
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 5. Security Measures (Annex II) ───────────────────────────────── */}
-      <Section id="security" number="5" title="Security Measures (Annex II)">
-        <p className="text-xs leading-relaxed">
-          Cogent implements and maintains the following technical and organisational measures to protect
-          personal data processed on behalf of the Client:
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[
-            {
-              title: 'Encryption at Rest',
-              description: 'All stored data is encrypted using AES-256 encryption. Database backups and archived data are similarly encrypted.',
-            },
-            {
-              title: 'Encryption in Transit',
-              description: 'All data transmissions use TLS 1.3. API communications, inter-service communication, and webhook deliveries are encrypted end-to-end.',
-            },
-            {
-              title: 'Access Controls (RBAC)',
-              description: 'Role-based access controls prevent unauthorised internal access to Client signals. Staff access requires multi-factor authentication and is logged.',
-            },
-            {
-              title: 'Audit Logging',
-              description: 'Comprehensive, tamper-evident logs of all data access, modifications, and processing activities. Logs are retained for 24 months.',
-            },
-            {
-              title: 'Network Security',
-              description: 'Virtual private cloud isolation, network segmentation, intrusion detection systems, and DDoS protection across all environments.',
-            },
-            {
-              title: 'Incident Response',
-              description: 'Documented incident response procedures. GDPR-compliant 72-hour breach notification. NDPA-compliant notification to NDPC where applicable.',
-            },
-            {
-              title: 'Data Isolation',
-              description: 'Client data is logically isolated at the application and database levels. No cross-client data leakage in signal processing pipelines.',
-            },
-            {
-              title: 'Personnel Security',
-              description: 'All Cogent staff with access to Client data undergo background checks, sign confidentiality agreements, and receive annual data protection training.',
-            },
-          ].map(measure => (
-            <div key={measure.title} className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs font-semibold text-heading mb-1">{measure.title}</p>
-              <p className="text-xs leading-relaxed text-subtle">{measure.description}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── 6. Data Subject Requests ──────────────────────────────────────── */}
-      <Section id="dsr" number="6" title="Data Subject Requests">
-        <SubSection title="6.1 Assistance">
-          <p>
-            Taking into account the nature of the processing, Cogent shall assist the Client by appropriate
-            technical and organisational measures in fulfilling the Client&apos;s obligation to respond to
-            requests from data subjects exercising their rights under the NDPA, GDPR, or other applicable law.
-          </p>
-        </SubSection>
-        <SubSection title="6.2 Notification">
-          <p>
-            If Cogent receives a data subject request directly, Cogent shall promptly notify the Client and
-            shall not respond to the request without the Client&apos;s prior written authorisation, unless
-            required to do so by applicable law.
-          </p>
-        </SubSection>
-        <SubSection title="6.3 Response Timeline">
-          <p>
-            Cogent shall respond to the Client&apos;s assistance requests within <strong>10 business days</strong>,
-            ensuring the Client can meet the 30-day statutory response deadline.
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 7. Cross-Border Transfers ─────────────────────────────────────── */}
-      <Section id="transfers" number="7" title="International Data Transfers">
-        <SubSection title="7.1 Transfer Mechanisms">
-          <p>
-            Where personal data is transferred from Nigeria or the EEA to a jurisdiction that does not provide
-            an adequate level of data protection, such transfers shall be governed by:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li><strong>Standard Contractual Clauses (SCCs):</strong> EU-approved SCCs (Commission Decision 2021/914) are incorporated by reference into this DPA;</li>
-            <li><strong>NDPA Transfer Mechanisms:</strong> Compliance with Chapter 5 of the NDPA 2023 regarding data transfers from Nigeria;</li>
-            <li><strong>Supplementary Measures:</strong> Additional technical measures (encryption, pseudonymisation) applied where required by Schrems II guidance.</li>
-          </ul>
-        </SubSection>
-        <SubSection title="7.2 Data Residency Options">
-          <p>
-            Enterprise customers may specify data residency preferences. Cogent currently supports:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li><strong>EU (Ireland):</strong> AWS eu-west-1 region;</li>
-            <li><strong>Additional regions:</strong> Available upon request for enterprise agreements.</li>
-          </ul>
-        </SubSection>
-      </Section>
-
-      {/* ── 8. Data Breach Notification ───────────────────────────────────── */}
-      <Section id="breach" number="8" title="Data Breach Notification">
-        <SubSection title="8.1 Notification Timeline">
-          <p>
-            In the event of a personal data breach, Cogent shall notify the Client <strong>without undue
-            delay</strong> and in any event within <strong>48 hours</strong> of becoming aware of the breach.
-            This allows the Client sufficient time to meet the 72-hour GDPR notification requirement to
-            supervisory authorities.
-          </p>
-        </SubSection>
-        <SubSection title="8.2 Breach Information">
-          <p>Cogent&apos;s breach notification shall include:</p>
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li>The nature of the breach, including categories and approximate number of data subjects affected;</li>
-            <li>The likely consequences of the breach;</li>
-            <li>The measures taken or proposed to address the breach and mitigate its effects;</li>
-            <li>Contact details of Cogent&apos;s Data Protection Officer.</li>
-          </ul>
-        </SubSection>
-      </Section>
-
-      {/* ── 9. Data Return & Deletion ─────────────────────────────────────── */}
-      <Section id="deletion" number="9" title="Data Return &amp; Deletion">
-        <SubSection title="9.1 Upon Termination">
-          <p>
-            Upon termination of the service agreement, Cogent shall — at the Client&apos;s election — either:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-xs text-body">
-            <li><strong>Return</strong> all personal data in a machine-readable format (JSON, CSV) within 30 days; or</li>
-            <li><strong>Delete</strong> all personal data within 90 days, except where retention is required by applicable law.</li>
-          </ul>
-        </SubSection>
-        <SubSection title="9.2 Certification">
-          <p>
-            Upon request, Cogent shall provide written certification that personal data has been deleted or
-            returned in accordance with this DPA.
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 10. Audit Rights ──────────────────────────────────────────────── */}
-      <Section id="audit" number="10" title="Audit Rights">
-        <SubSection title="10.1 Right to Audit">
-          <p>
-            The Client has the right to audit Cogent&apos;s compliance with this DPA. Audits may be conducted
-            by the Client or an independent third-party auditor appointed by the Client (subject to reasonable
-            confidentiality obligations).
-          </p>
-        </SubSection>
-        <SubSection title="10.2 Audit Process">
-          <p>
-            The Client shall provide at least <strong>30 days&apos;</strong> written notice of an audit.
-            Audits shall be conducted during normal business hours, no more than once per year, and shall
-            not unreasonably interfere with Cogent&apos;s operations.
-          </p>
-        </SubSection>
-        <SubSection title="10.3 Compliance Reports">
-          <p>
-            Cogent shall make available to the Client, upon request, relevant compliance reports including
-            SOC 2 reports, penetration test summaries, and DPCO audit findings (for Nigerian operations).
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 11. NDPC-Specific Provisions ──────────────────────────────────── */}
-      <Section id="ndpc" number="11" title="NDPA &amp; NDPC-Specific Provisions">
-        <SubSection title="11.1 NDPC Registration">
-          <p>
-            As a Data Processor of Major Importance processing the data of more than 200 Nigerian data subjects
-            within six months, Cogent maintains registration with the <strong>Nigeria Data Protection Commission
-            (NDPC)</strong> as required by the NDPA 2023.
-          </p>
-        </SubSection>
-        <SubSection title="11.2 DPCO Engagement">
-          <p>
-            Cogent engages a licensed Data Protection Compliance Organisation (DPCO) to conduct annual compliance
-            audits of data processing activities within the Nigerian jurisdiction. Audit summaries are available
-            to enterprise clients upon request.
-          </p>
-        </SubSection>
-        <SubSection title="11.3 Local Representation">
-          <p>
-            For processing activities involving Nigerian data subjects, Cogent maintains a local representative
-            contactable at <a href="mailto:nigeria-dpo@cogent.ai" className="text-primary hover:underline">nigeria-dpo@cogent.ai</a>.
-          </p>
-        </SubSection>
-      </Section>
-
-      {/* ── 12. Liability & Indemnification ───────────────────────────────── */}
-      <Section id="liability" number="12" title="Liability &amp; Indemnification">
-        <p className="text-xs leading-relaxed">
-          Each party&apos;s liability under this DPA is subject to the limitations of liability set out in the
-          Terms of Service. Cogent shall indemnify the Client against all costs, claims, damages, and expenses
-          incurred by the Client arising from any breach of this DPA by Cogent or its sub-processors, subject
-          to the liability cap in the Terms of Service.
-        </p>
-      </Section>
-
-      {/* ── 13. Term ──────────────────────────────────────────────────────── */}
-      <Section id="term" number="13" title="Term &amp; Survival">
-        <p className="text-xs leading-relaxed">
-          This DPA shall remain in effect for the duration of the service agreement between Cogent and the
-          Client. Provisions relating to confidentiality, data deletion/return, liability, and audit rights
-          shall survive the termination of this DPA.
-        </p>
-      </Section>
-
-      {/* ── Execution Notice ──────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
-        <h3 className="text-sm font-semibold text-heading mb-2">Execution &amp; Incorporation</h3>
-        <p className="text-xs text-body leading-relaxed">
-          This DPA is automatically incorporated into the Terms of Service for all customers whose data
-          processing is subject to the NDPA 2023, GDPR, or other applicable data protection laws. Enterprise
-          customers may request a separately executed DPA with custom provisions by contacting
-          <a href="mailto:legal@cogent.ai" className="text-primary hover:underline ml-1">legal@cogent.ai</a>.
-        </p>
-      </div>
-
-      {/* ── Contact ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-border bg-surface px-6 py-4">
-        <div>
-          <p className="text-sm font-medium text-heading">Enterprise DPA Requests</p>
-          <p className="text-xs text-subtle">Require a custom DPA or have questions about data processing?</p>
-        </div>
-        <div className="flex gap-3">
-          <a
-            href="mailto:dpo@cogent.ai"
-            className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-body hover:bg-muted transition-colors"
-          >
-            DPO Contact
-          </a>
-          <a
-            href="mailto:legal@cogent.ai"
-            className="rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white hover:bg-primary-hover transition-colors"
-          >
+          This page is a public summary of our standard DPA position. Enterprise customers may request an executed version
+          or negotiated schedule by contacting{' '}
+          <a href="mailto:legal@cogent.ai" className="text-primary hover:underline">
             legal@cogent.ai
           </a>
+          .
+        </p>
+      </div>
+
+      <Section id="roles" number="1" title="Roles and Scope">
+        <SubSection title="1.1 Controller and Processor Roles">
+          <p>
+            For customer content processed solely on behalf of an enterprise customer, the customer acts as controller and
+            Stem Systems Ltd. acts as processor, except where Stem Systems independently determines the purpose and means
+            of processing for its own business operations.
+          </p>
+        </SubSection>
+        <SubSection title="1.2 Scope of Processing">
+          <p>
+            Processing may include hosting, storage, retrieval, search, enrichment, summarisation, workspace management,
+            authentication support, logging, and security operations required to provide Cogent.
+          </p>
+        </SubSection>
+      </Section>
+
+      <Section id="categories" number="2" title="Categories of Data">
+        <SubSection title="2.1 Typical Data Subjects">
+          <ul className="list-disc space-y-1 pl-5 text-xs text-body">
+            <li>authorised customer users and workspace members;</li>
+            <li>individuals referenced in customer-provided content;</li>
+            <li>individuals whose professional or public-facing information is incidentally processed through product use.</li>
+          </ul>
+        </SubSection>
+        <SubSection title="2.2 Typical Data Types">
+          <ul className="list-disc space-y-1 pl-5 text-xs text-body">
+            <li>name, email, role, workspace and organisation metadata;</li>
+            <li>search and investigation inputs, saved items, and customer-uploaded content;</li>
+            <li>technical, session, and audit data associated with service access and security;</li>
+            <li>other data the customer intentionally instructs us to process through the service.</li>
+          </ul>
+        </SubSection>
+      </Section>
+
+      <Section id="instructions" number="3" title="Processing Instructions and Restrictions">
+        <SubSection title="3.1 Customer Instructions">
+          <p>
+            Stem Systems Ltd. will process customer personal data only on documented customer instructions, as reflected in
+            the agreement, product configuration, and lawful customer use of the service, unless otherwise required by law.
+          </p>
+        </SubSection>
+        <SubSection title="3.2 Restricted Uses">
+          <p>
+            We will not sell customer personal data or use identifiable customer content to train general-purpose models
+            for unrelated purposes without an appropriate permission, instruction, or another lawful basis.
+          </p>
+        </SubSection>
+      </Section>
+
+      <Section id="security" number="4" title="Security Measures">
+        <p className="text-xs leading-relaxed">
+          Stem Systems Ltd. maintains technical and organisational measures designed to protect customer data, including
+          access controls, audit logging, environment security, credential management, and incident handling processes
+          appropriate to the nature of the service.
+        </p>
+        <SubSection title="4.1 Access Controls">
+          <p>
+            Access to systems and data is limited to personnel or service components that need it for authorised support,
+            operations, or security purposes.
+          </p>
+        </SubSection>
+        <SubSection title="4.2 Incident Response">
+          <p>
+            We maintain incident handling procedures and will notify enterprise customers of a confirmed personal data
+            breach affecting customer data without undue delay, in line with applicable law and the enterprise agreement.
+          </p>
+        </SubSection>
+      </Section>
+
+      <Section id="subprocessors" number="5" title="Subprocessors and Service Providers">
+        <p className="text-xs leading-relaxed">
+          The following providers are used to support Cogent features or operations, depending on the customer&apos;s plan
+          and enabled functionality:
+        </p>
+        <div className="mt-3 overflow-x-auto rounded-xl border border-border">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-2 text-left font-medium text-heading">Provider</th>
+                <th className="px-4 py-2 text-left font-medium text-heading">Role</th>
+              </tr>
+            </thead>
+            <tbody className="text-body">
+              <tr className="border-b border-border">
+                <td className="px-4 py-2">Auth0</td>
+                <td className="px-4 py-2">Authentication and identity-related services</td>
+              </tr>
+              <tr className="border-b border-border">
+                <td className="px-4 py-2">OpenAI</td>
+                <td className="px-4 py-2">Model inference and AI-assisted features</td>
+              </tr>
+              <tr className="border-b border-border">
+                <td className="px-4 py-2">Resend</td>
+                <td className="px-4 py-2">Transactional and notification email delivery</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-2">PostHog (if enabled)</td>
+                <td className="px-4 py-2">Product analytics and measurement</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+        <SubSection title="5.1 Changes to Subprocessors">
+          <p>
+            Enterprise customers may request the current subprocessor schedule and applicable notice mechanics under their
+            contract. Additional subprocessors may be used where reasonably required to operate the service.
+          </p>
+        </SubSection>
+      </Section>
+
+      <Section id="transfers" number="6" title="Cross-Border Transfers">
+        <p className="text-xs leading-relaxed">
+          Where customer personal data is transferred outside Nigeria or another originating jurisdiction, Stem Systems
+          Ltd. will rely on a lawful transfer mechanism and appropriate safeguards required by applicable law and the
+          enterprise agreement.
+        </p>
+      </Section>
+
+      <Section id="assistance" number="7" title="Assistance With Data Subject Rights and Incidents">
+        <SubSection title="7.1 Rights Requests">
+          <p>
+            Where we act as processor, we will provide reasonable assistance to help the customer respond to access,
+            rectification, deletion, portability, objection, or restriction requests, taking into account the nature of the
+            processing and the information available to us.
+          </p>
+        </SubSection>
+        <SubSection title="7.2 Direct Requests">
+          <p>
+            If we receive a request directly from a data subject relating to customer-controlled data, we may direct the
+            requester to the customer or notify the customer, unless law requires otherwise.
+          </p>
+        </SubSection>
+      </Section>
+
+      <Section id="return-delete" number="8" title="Return and Deletion">
+        <p className="text-xs leading-relaxed">
+          At the end of the relevant service relationship, we will return or delete customer personal data in accordance
+          with the agreement, the customer&apos;s documented instructions, and any applicable retention obligations.
+        </p>
+      </Section>
+
+      <Section id="compliance" number="9" title="Regulatory Compliance Position">
+        <p className="text-xs leading-relaxed">
+          Stem Systems Ltd. intends for Cogent&apos;s enterprise processing arrangements to align with the NDPA and other
+          applicable data protection laws that may govern a customer relationship. Where Stem Systems Ltd. qualifies as a
+          controller or processor of major importance under Nigerian law, it will address the legal obligations that apply
+          to that status, including any registration, governance, or contact requirements imposed by law.
+        </p>
+      </Section>
+
+      <Section id="contact" number="10" title="Contact and Execution">
+        <p className="text-xs leading-relaxed">
+          To request an executed DPA, security questionnaire, or enterprise privacy review, contact{' '}
+          <a href="mailto:legal@cogent.ai" className="text-primary hover:underline">
+            legal@cogent.ai
+          </a>
+          .
+        </p>
+      </Section>
+
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
+        <h3 className="mb-2 text-sm font-semibold text-heading">Enterprise note</h3>
+        <p className="text-xs leading-relaxed text-body">
+          This page is not a substitute for a signed DPA. If your team needs controller-to-processor terms,
+          international transfer clauses, or procurement review documents, request the enterprise package from our legal
+          team.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-border bg-surface px-6 py-4 sm:flex-row sm:items-center">
+        <div>
+          <p className="text-sm font-medium text-heading">Enterprise privacy and DPA requests</p>
+          <p className="text-xs text-subtle">We can share the current enterprise paperwork through legal review.</p>
+        </div>
+        <a
+          href="mailto:legal@cogent.ai"
+          className="rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-primary-hover"
+        >
+          legal@cogent.ai
+        </a>
       </div>
     </article>
   )

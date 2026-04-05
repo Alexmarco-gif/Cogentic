@@ -1,0 +1,8 @@
+{
+  "name": "github-production",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:Alexmarco-gif/Cogentic:environment:production",
+  "audiences": [
+    "api://AzureADTokenExchange"
+  ]
+}

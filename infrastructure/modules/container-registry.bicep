@@ -19,12 +19,14 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   properties: {
     adminUserEnabled: false      // Use managed identity, not admin credentials
     publicNetworkAccess: 'Enabled'
-    policies: {
-      retentionPolicy: {
-        status: 'enabled'
-        days: 30
-      }
-    }
+    policies: sku == 'Premium'
+      ? {
+          retentionPolicy: {
+            status: 'enabled'
+            days: 30
+          }
+        }
+      : {}
   }
 }
 

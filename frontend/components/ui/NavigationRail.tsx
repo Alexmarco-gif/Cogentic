@@ -93,10 +93,13 @@ export function NavigationRail({ notificationCount = 0, className }: NavigationR
           <div className={cn('flex items-center py-1.5', expanded ? 'gap-3 px-2' : 'justify-center')}>
             <button
               onClick={() => setExpanded((value) => !value)}
-              className="focus-ring button-press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-glow"
+              className={cn(
+                'focus-ring button-press flex shrink-0 items-center justify-center overflow-hidden border border-border/80 bg-white shadow-[0_18px_42px_-28px_rgba(37,99,235,0.45)] transition-all duration-200 dark:bg-surface-2',
+                expanded ? 'h-12 w-12 rounded-[18px]' : 'h-11 w-11 rounded-[18px]',
+              )}
               aria-label="Toggle navigation"
             >
-              <StemIcon size={22} variant="white" aria-label="Cogent" />
+              <StemIcon size={expanded ? 28 : 26} variant="brand" aria-label="Cogent" />
             </button>
             {expanded && (
               <div className="animate-fade-up min-w-0">

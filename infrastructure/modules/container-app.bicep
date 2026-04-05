@@ -24,7 +24,7 @@ param minReplicas int = 1
 param maxReplicas int = 3
 
 @description('CPU cores (e.g. 0.5, 1.0)')
-param cpu object
+param cpu string
 
 @description('Memory (e.g. 1Gi, 2Gi)')
 param memory string
@@ -34,6 +34,9 @@ param keyVaultName string
 
 @description('Environment variables array')
 param envVars array = []
+
+@description('Key Vault secret names that should be exposed to the container app')
+param secrets array = []
 
 @description('Health probe path')
 param healthProbePath string = '/health'
@@ -47,10 +50,13 @@ param registryServer string = ''
 @description('Optional Azure Container Registry name for AcrPull assignment')
 param registryName string = ''
 
+@description('Optional user-assigned identity resource ID to use for ACR pulls')
+param registryIdentityResourceId string = ''
+
 var containerAppSecrets = [
-  for envVar in envVars: if (contains(envVar, 'secretRef')) {
-    name: envVar.secretRef
-    keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/${envVar.secretRef}'
+  for secretName in secrets: {
+    name: secretName
+    keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/${secretName}'
     identity: 'system'
   }
 ]
@@ -63,9 +69,16 @@ resource registry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' ex
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
   location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
+  identity: empty(registryIdentityResourceId)
+    ? {
+        type: 'SystemAssigned'
+      }
+    : {
+        type: 'SystemAssigned,UserAssigned'
+        userAssignedIdentities: {
+          '${registryIdentityResourceId}': {}
+        }
+      }
   properties: {
     managedEnvironmentId: environmentId
     configuration: {
@@ -83,7 +96,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: empty(registryServer) ? [] : [
         {
           server: registryServer
-          identity: 'system'
+          identity: empty(registryIdentityResourceId) ? 'system' : registryIdentityResourceId
         }
       ]
     }
@@ -93,7 +106,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: name
           image: image
           resources: {
-            cpu: cpu
+            cpu: json(cpu)
             memory: memory
           }
           env: envVars
@@ -146,16 +159,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         ]
       }
     }
-  }
-}
-
-resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(registryName)) {
-  scope: registry
-  name: guid(registryName, containerApp.identity.principalId, 'AcrPull')
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
-    principalId: containerApp.identity.principalId
-    principalType: 'ServicePrincipal'
   }
 }
 

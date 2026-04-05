@@ -59,33 +59,21 @@ function InsightPanel() {
             <p className="text-[2.6rem] font-bold leading-[1.02] tracking-[-0.05em] text-white">
               See what changed, why it matters, and what to do next.
             </p>
-            <p className="mt-4 max-w-lg text-[0.96rem] text-white/72">
-              Cogent helps strategic teams move from scattered signals to crisp decisions with live monitoring, AI synthesis, and clean operating rhythms.
+            <p className="mt-4 max-w-lg text-[0.96rem] text-white">
+              Stem-Cogent helps strategic you and teams move from scattered signals to crisp decisions with live monitoring, AI synthesis, and clean operating rhythms.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { label: 'Signals triaged', value: '2.8k' },
-              { label: 'Average brief time', value: '< 3 min' },
-              { label: 'Active sectors', value: '12' },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                <p className="text-[1.35rem] font-semibold text-white">{stat.value}</p>
-                <p className="mt-1 text-[0.74rem] uppercase tracking-[0.16em] text-white/62">{stat.label}</p>
-              </div>
-            ))}
-          </div>
 
           <div className="rounded-[28px] border border-white/10 bg-black/25 p-5 backdrop-blur">
-            <p className="text-[0.76rem] font-semibold uppercase tracking-[0.18em] text-white/55">Why teams stay</p>
+            <p className="text-[0.76rem] font-semibold uppercase tracking-[0.18em] text-white">Why teams stay</p>
             <div className="mt-4 space-y-3">
               {[
                 'A clear first action on every screen',
                 'Faster investigation with keyboard-first search',
                 'Live updates without context-breaking modal flows',
               ].map((item) => (
-                <div key={item} className="flex items-center gap-3 text-[0.9rem] text-white/86">
+                <div key={item} className="flex items-center gap-3 text-[0.9rem] text-white">
                   <CheckCircle2 size={16} className="shrink-0 text-white" />
                   <span>{item}</span>
                 </div>
@@ -113,7 +101,7 @@ export default function LoginPage() {
               <p className="eyebrow">Welcome back</p>
               <h1 className="mt-3 text-display text-heading">Log in and get oriented fast.</h1>
               <p className="mt-4 max-w-md text-body">
-                Start with your intelligence workspace, review what changed, and continue where your team left off.
+                Start with your intelligence workspace, review what changed, and continue where your you left off.
               </p>
             </div>
 
@@ -152,13 +140,13 @@ export default function LoginPage() {
             <form action="/api/auth/login" method="GET" className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-[0.82rem] font-semibold text-heading">
-                  Work email
+                  Your email
                 </label>
                 <input
                   id="email"
                   type="email"
                   name="login_hint"
-                  placeholder="you@company.com"
+                  placeholder="stem-cogent@gmail.com"
                   autoComplete="email"
                   className="focus-ring h-12 w-full rounded-[20px] border border-border bg-surface px-4 text-[0.92rem] text-heading placeholder:text-subtle transition-all duration-200 hover:border-border-hover focus:border-primary/25"
                 />

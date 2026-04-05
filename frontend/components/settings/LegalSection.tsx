@@ -57,7 +57,7 @@ export function LegalSection() {
   const [helpQuery, setHelpQuery] = useState('')
 
   const filteredArticles = [
-    { title: 'Getting started with Stem-Cogent', description: 'A walkthrough of the platform features', href: '/dashboard/home' },
+    { title: 'Getting started with Cogent', description: 'A walkthrough of the platform features', href: '/dashboard/home' },
     { title: 'How signals are generated', description: 'Understanding confidence scores and data sources', href: '/dashboard/signals' },
     { title: 'Creating your first data contract', description: 'Step-by-step guide to contract studio', href: '/dashboard/studio' },
     { title: 'Understanding the Library', description: 'AI-generated briefs and weekly reports explained', href: '/dashboard/library' },
@@ -118,13 +118,12 @@ export function LegalSection() {
         </div>
         <div className="prose prose-sm max-w-none text-subtle">
           <p className="text-xs leading-relaxed">
-            By accessing and using the Stem-Cogent platform, you agree to be bound by our Terms of Service. These cover
-            license scope &amp; restrictions, service level agreements (99.9% uptime), data ownership (User Content vs.
-            Derived Intelligence), acceptable use policy, AI transparency commitments, and limitation of liability.
+            Cogent is operated by Stem Systems Ltd. Our Terms of Service explain account use, billing, permitted use,
+            customer content, AI-assisted features, and the limits of liability that apply when you use the product.
           </p>
           <p className="mt-3 text-xs leading-relaxed">
-            Stem-Cogent reserves the right to modify these terms with 30 days&apos; notice. Enterprise customers with
-            executed agreements are governed by their specific contract terms until renewal.
+            Enterprise customers may also be covered by a separate order form, master services agreement, or data
+            processing terms where applicable.
           </p>
         </div>
         <a
@@ -136,16 +135,16 @@ export function LegalSection() {
         </a>
       </div>
 
-      {/* ── Privacy Policy ────────────────────────────────────────────────── */}
+      {/* ── Privacy Notice ────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <div className="mb-5">
-          <SectionHeader icon={Shield} title="Privacy Policy" description="NDPA 2023 & GDPR compliant — How we collect, use, and protect your data" />
+          <SectionHeader icon={Shield} title="Privacy Notice" description="How Stem Systems Ltd. collects, uses, and protects personal data in Cogent" />
         </div>
         <div className="grid grid-cols-2 gap-3 mb-5">
           {[
             { label: 'Data collected',   text: 'Account info, usage patterns, search queries, and contract definitions — strictly minimised' },
-            { label: 'Data retention',   text: 'Active data retained while your account is active; deleted 90 days after closure' },
-            { label: 'Third parties',    text: 'We do not sell your data. Sub-processors listed with 30-day notice of changes' },
+            { label: 'Data retention',   text: 'Retained for as long as needed to run the service, secure the platform, and meet legal obligations' },
+            { label: 'Third parties',    text: 'We share data only where needed to operate Cogent and support your requested features' },
             { label: 'Your rights',      text: 'Access, rectification, portability (JSON/CSV), erasure, and the right to object' },
           ].map(item => (
             <div key={item.label} className="rounded-xl border border-border bg-muted/40 p-4">
@@ -160,7 +159,7 @@ export function LegalSection() {
             className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
           >
             <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Read full Privacy Policy
+            Read full Privacy Notice
           </a>
           <a
             href="/legal/data-processing"
@@ -194,7 +193,7 @@ export function LegalSection() {
 
       {/* ── App version ──────────────────────────────────────────────────── */}
       <p className="text-center text-[11px] text-subtle">
-        Stem-Cogent v1.0.0 · Built Mar 2026 · Release changes are published through deployment change management.
+        Cogent v1.0.0 · Built Mar 2026 · Release changes are published through deployment change management.
       </p>
     </div>
   )

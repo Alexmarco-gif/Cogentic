@@ -240,6 +240,7 @@ def init_observability(
     sentry_dsn: str | None = None,
     logtail_token: str | None = None,
     posthog_api_key: str | None = None,
+    posthog_host: str | None = None,
 ):
     """Initialise observability stack (Sentry, Logtail, PostHog, OpenTelemetry).
 
@@ -249,6 +250,7 @@ def init_observability(
         sentry_dsn: Sentry DSN for error tracking (optional)
         logtail_token: Logtail/Better Stack source token (optional)
         posthog_api_key: PostHog API key for product analytics (optional)
+        posthog_host: PostHog ingestion host (optional)
     """
     # Configure logging level based on environment
     log_level = logging.DEBUG if environment == "development" else logging.INFO
@@ -320,8 +322,8 @@ def init_observability(
             import posthog
 
             posthog.api_key = posthog_api_key
-            posthog.host = "https://app.posthog.com"
-            logger.info("posthog_initialized")
+            posthog.host = posthog_host or "https://app.posthog.com"
+            logger.info("posthog_initialized", host=posthog.host)
         except ImportError:
             logger.warning("posthog_not_installed")
         except Exception as e:

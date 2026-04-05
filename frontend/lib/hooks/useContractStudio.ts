@@ -19,13 +19,21 @@ import type {
   SearchResponse,
   SignalContractResponse,
 } from '@/lib/api/types'
+import {
+  buildProviderExtractionConfig,
+  getDefaultSourcePreset,
+  getDefaultSourceUrlForPreset,
+  getProviderLabel,
+  type ContractSourcePreset,
+  type StudioSourceType,
+} from '@/lib/contracts/providerPresets'
 import { useFeatureGate } from '@/lib/hooks/useFeatureGate'
 
 export type ContractStep = 'draft' | 'validation' | 'simulation' | 'active'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'enum'
-export type StudioSourceType = 'api' | 'rss' | 'scraper' | 'social' | 'webhook'
 export type DeliveryFormat = 'json' | 'csv' | 'parquet'
+export type { ContractSourcePreset, StudioSourceType } from '@/lib/contracts/providerPresets'
 
 export interface SchemaField {
   id: string
@@ -41,6 +49,7 @@ export interface ContractParameters {
   historicalWindow: '7d' | '30d' | '90d' | '1y' | '5y'
   region: 'Nigeria' | 'West Africa' | 'Pan-Africa' | 'Global'
   sourceType: StudioSourceType
+  sourcePreset: ContractSourcePreset
   sourceUrl: string
 }
 
@@ -86,6 +95,7 @@ const DEFAULT_PARAMS: ContractParameters = {
   historicalWindow: '90d',
   region: 'Nigeria',
   sourceType: 'rss',
+  sourcePreset: getDefaultSourcePreset('rss'),
   sourceUrl: '',
 }
 
@@ -317,8 +327,10 @@ function buildSearchQuery(
 function buildConfiguredSourceDoc(params: ContractParameters): SourceDocument {
   return {
     id: 'configured-source',
-    title: params.sourceType === 'webhook' ? 'Configured webhook destination' : 'Configured source endpoint',
-    source: params.sourceType.toUpperCase(),
+    title: params.sourceType === 'webhook'
+      ? 'Configured webhook destination'
+      : `Configured ${getProviderLabel(params.sourcePreset)} endpoint`,
+    source: `${params.sourceType.toUpperCase()} · ${getProviderLabel(params.sourcePreset)}`,
     snippet: params.sourceUrl,
     relevance: 100,
     status: 'cited',
@@ -573,12 +585,20 @@ export function useContractStudio() {
         refresh_cron: mapFrequencyToCron(parameters.dataFrequency),
         schedule_tier: mapFrequencyToScheduleTier(parameters.dataFrequency),
         extraction_config: {
+          ...buildProviderExtractionConfig({
+            sourceType: parameters.sourceType,
+            preset: parameters.sourcePreset,
+            query: nlQuery,
+            industryName: selectedIndustry?.name,
+            region: parameters.region,
+          }),
           nl_query: nlQuery,
           schema_fields: schemaFields,
           studio_parameters: {
             delivery_format: parameters.deliveryFormat,
             historical_window: parameters.historicalWindow,
             region: parameters.region,
+            source_preset: parameters.sourcePreset,
           },
           source_documents: sourceDocs.map((doc) => ({
             title: doc.title,
@@ -719,7 +739,37 @@ export function useContractStudio() {
     key: K,
     value: ContractParameters[K],
   ) => {
-    setParameters((previous) => ({ ...previous, [key]: value }))
+    setParameters((previous) => {
+      if (key === 'sourceType') {
+        const nextSourceType = value as StudioSourceType
+        const previousDefaultUrl = getDefaultSourceUrlForPreset(previous.sourcePreset)
+        const nextPreset = getDefaultSourcePreset(nextSourceType)
+        const nextDefaultUrl = getDefaultSourceUrlForPreset(nextPreset)
+        const shouldReplaceUrl = !previous.sourceUrl.trim() || previous.sourceUrl === previousDefaultUrl
+
+        return {
+          ...previous,
+          sourceType: nextSourceType,
+          sourcePreset: nextPreset,
+          sourceUrl: shouldReplaceUrl ? nextDefaultUrl : previous.sourceUrl,
+        }
+      }
+
+      if (key === 'sourcePreset') {
+        const nextPreset = value as ContractSourcePreset
+        const previousDefaultUrl = getDefaultSourceUrlForPreset(previous.sourcePreset)
+        const nextDefaultUrl = getDefaultSourceUrlForPreset(nextPreset)
+        const shouldReplaceUrl = !previous.sourceUrl.trim() || previous.sourceUrl === previousDefaultUrl
+
+        return {
+          ...previous,
+          sourcePreset: nextPreset,
+          sourceUrl: shouldReplaceUrl ? nextDefaultUrl : previous.sourceUrl,
+        }
+      }
+
+      return { ...previous, [key]: value }
+    })
   }, [])
 
   const access: StudioAccessState = {
