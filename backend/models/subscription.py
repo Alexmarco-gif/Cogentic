@@ -1,4 +1,4 @@
-"""Subscription model (billing & plan management)"""
+"""Subscription model (billing & plan management)."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class Subscription(Base, UUIDMixin, TimestampMixin):
-    """Billing & subscription management (Stripe integration - future phase)"""
+    """Billing & subscription management across payment providers."""
 
     __tablename__ = "subscriptions"
 
@@ -28,9 +28,25 @@ class Subscription(Base, UUIDMixin, TimestampMixin):
         nullable=False,
     )
 
-    # Stripe integration (future phase)
+    # Legacy Stripe placeholders (kept for backward compatibility)
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+
+    # Active payment provider state
+    provider: Mapped[str | None] = mapped_column(String(50), index=True)
+    provider_customer_code: Mapped[str | None] = mapped_column(
+        String(255), unique=True
+    )
+    provider_plan_code: Mapped[str | None] = mapped_column(String(255), index=True)
+    provider_subscription_code: Mapped[str | None] = mapped_column(
+        String(255), unique=True
+    )
+    provider_email_token: Mapped[str | None] = mapped_column(String(255))
+    latest_reference: Mapped[str | None] = mapped_column(String(255), index=True)
+    authorization_code: Mapped[str | None] = mapped_column(String(255))
+    provider_metadata: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
 
     # Plan details
     plan_tier: Mapped[str] = mapped_column(

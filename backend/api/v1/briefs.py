@@ -17,7 +17,6 @@ from backend.briefs.refresh import BriefRefreshService
 from backend.database import get_db, get_db_read
 from backend.job_queue import enqueue_job
 from backend.middleware.feature_gating import get_current_organization, require_feature
-from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.intelligence_brief import IntelligenceBriefRepository
 from backend.schemas.briefs import (
     BriefDetailResponse,
@@ -30,6 +29,7 @@ from backend.schemas.briefs import (
     BriefResponse,
     BriefStatusUpdate,
 )
+from backend.services.credit_service import CreditService, InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/briefs")
@@ -103,11 +103,11 @@ async def generate_brief(
     Consumes 50 credits per brief generation.
     """
     generator = BriefGenerator(db)
-    credit_repo = CreditRepository(db)
+    credit_service = CreditService(db)
 
     try:
         # Consume credits for brief generation (50 credits)
-        await credit_repo.consume_credits(
+        await credit_service.consume_credits(
             org_id=organization.id,
             user_id=auth.user_id,
             action_type="intelligence_brief",
@@ -130,6 +130,14 @@ async def generate_brief(
             status=brief.status,
             signal_count=len(brief.signal_links) if brief.signal_links else 0,
         )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for brief generation. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
     except RuntimeError as e:
         logger.error(f"Brief generation unavailable: {e}")
         raise HTTPException(status_code=503, detail=str(e))
@@ -152,7 +160,7 @@ async def regenerate_brief(
     Consumes 50 credits per regeneration.
     """
     generator = BriefGenerator(db)
-    credit_repo = CreditRepository(db)
+    credit_service = CreditService(db)
     repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
 
     existing = await repo.get(brief_id)
@@ -161,7 +169,7 @@ async def regenerate_brief(
 
     try:
         # Consume credits for brief regeneration (50 credits)
-        await credit_repo.consume_credits(
+        await credit_service.consume_credits(
             org_id=organization.id,
             user_id=auth.user_id,
             action_type="intelligence_brief",
@@ -179,6 +187,14 @@ async def regenerate_brief(
             status=brief.status,
             signal_count=len(brief.signal_links) if brief.signal_links else 0,
         )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for brief regeneration. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
     except RuntimeError as e:
         logger.error(f"Brief regeneration unavailable: {e}")
         raise HTTPException(status_code=503, detail=str(e))

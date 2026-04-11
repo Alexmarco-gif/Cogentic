@@ -55,13 +55,14 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              `script-src 'self'${isDevelopment ? " 'unsafe-eval'" : ''}`,
+              `script-src 'self' https://js.paystack.co${isDevelopment ? " 'unsafe-eval'" : ''}`,
               // The app still uses controlled inline style attributes in a few places,
               // so styles remain temporarily whitelisted while scripts are hardened.
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.auth0.com wss://*.auth0.com https://*.sentry.io https://*.posthog.com",
+              "connect-src 'self' https://*.auth0.com wss://*.auth0.com https://*.sentry.io https://*.posthog.com https://api.paystack.co https://checkout.paystack.com https://js.paystack.co",
+              "frame-src 'self' https://checkout.paystack.com https://js.paystack.co",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

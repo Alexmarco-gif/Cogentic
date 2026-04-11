@@ -72,13 +72,13 @@ async def test_signal_contract_repository_scopes_by_org(db_session):
     assert count == 2
 
 
-def test_pricing_upgrade_route_records_pending_requests_without_live_tier_mutation():
+def test_pricing_upgrade_route_initializes_real_checkout_flow():
     source = Path("backend/api/v1/pricing.py").read_text(encoding="utf-8")
 
-    assert "pending_tier_upgrade" in source
-    assert "requires_payment_processor" in source
-    assert "pending_review" in source
-    assert "organization.pricing_tier = request.target_tier" not in source
+    assert "PaystackService" in source
+    assert 'status="checkout_initialized"' in source
+    assert "initialize_subscription_checkout" in source
+    assert '@router.post("/verify"' in source
 
 
 def test_contract_fetch_route_blocks_webhook_pull_attempts():

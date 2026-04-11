@@ -24,7 +24,9 @@ class PricingRepository(BaseRepository[PricingConfig]):
         config = result.scalar_one_or_none()
         return config.config_value if config else None
 
-    async def update_config(self, key: str, value: Any, user_id: UUID) -> PricingConfig:
+    async def update_config(
+        self, key: str, value: Any, user_id: UUID | None
+    ) -> PricingConfig:
         """Update pricing config (admin only)"""
         result = await self.db.execute(
             select(PricingConfig).where(PricingConfig.config_key == key)
@@ -49,7 +51,9 @@ class PricingRepository(BaseRepository[PricingConfig]):
         mode = await self.get_config("global_pricing_mode")
         return "standard" if mode != "standard" else mode
 
-    async def set_global_pricing_mode(self, mode: str, user_id: UUID) -> PricingConfig:
+    async def set_global_pricing_mode(
+        self, mode: str, user_id: UUID | None
+    ) -> PricingConfig:
         """Persist the globally supported pricing mode."""
         if mode != "standard":
             raise ValueError("Invalid pricing mode. Must be 'standard'.")

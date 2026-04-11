@@ -1,29 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { CreditCard, Mail, MoreVertical, Check, ExternalLink } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Check, CreditCard, ExternalLink, Mail, ReceiptText } from 'lucide-react'
+
 import type { PaymentCard, BillingContact, Invoice, InvoiceStatus } from '@/lib/hooks/useSettings'
 
-// ── Status badge ──────────────────────────────────────────────────────────────
-
 const STATUS_STYLES: Record<InvoiceStatus, string> = {
-  Paid:      'text-emerald-600 bg-emerald-50 border-emerald-200',
-  Pending:   'text-amber-600 bg-amber-50 border-amber-200',
-  Cancelled: 'text-rose-600 bg-rose-50 border-rose-200',
-  Refund:    'text-sky-600 bg-sky-50 border-sky-200',
+  Paid: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  Pending: 'border-amber-200 bg-amber-50 text-amber-700',
+  Cancelled: 'border-rose-200 bg-rose-50 text-rose-700',
+  Refund: 'border-sky-200 bg-sky-50 text-sky-700',
 }
-
-// ── Masked card display ───────────────────────────────────────────────────────
-
-function CardChip() {
-  return (
-    <div className="flex h-8 w-12 items-center justify-center rounded-md bg-gradient-to-br from-amber-300 to-amber-500 shadow-sm">
-      <div className="h-4 w-6 rounded-sm border border-amber-600/30 bg-amber-200/50" />
-    </div>
-  )
-}
-
-// ── Input field ───────────────────────────────────────────────────────────────
 
 function FormField({
   label,
@@ -31,33 +18,54 @@ function FormField({
   onChange,
   placeholder,
   type = 'text',
-  prefix,
 }: {
   label: string
   value: string
-  onChange: (v: string) => void
+  onChange: (value: string) => void
   placeholder?: string
   type?: string
-  prefix?: React.ReactNode
 }) {
   return (
-    <div>
-      <label className="mb-1.5 block text-[11px] font-medium text-subtle">{label}</label>
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20">
-        {prefix}
-        <input
-          type={type}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1 bg-transparent text-sm text-body placeholder:text-subtle focus:outline-none"
-        />
-      </div>
-    </div>
+    <label className="block">
+      <span className="mb-1.5 block text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-subtle">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="focus-ring h-12 w-full rounded-[18px] border border-border bg-surface px-4 text-[0.92rem] text-heading placeholder:text-subtle transition-all duration-200 hover:border-border-hover"
+      />
+    </label>
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+function SectionShell({
+  eyebrow,
+  title,
+  description,
+  action,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-[28px] border border-border bg-surface p-5 shadow-card sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">{eyebrow}</p>
+          <h3 className="mt-2 text-title text-heading">{title}</h3>
+          <p className="mt-2 text-sm text-subtle">{description}</p>
+        </div>
+        {action}
+      </div>
+      <div className="mt-5">{children}</div>
+    </div>
+  )
+}
 
 interface BillingSectionProps {
   card: PaymentCard
@@ -65,7 +73,7 @@ interface BillingSectionProps {
   invoices: Invoice[]
   selectedInvoices: Set<string>
   onCardChange: (patch: Partial<PaymentCard>) => void
-  onContactChange: (c: BillingContact) => void
+  onContactChange: (contact: BillingContact) => void
   onToggleInvoice: (id: string) => void
 }
 
@@ -78,216 +86,292 @@ export function BillingSection({
   onContactChange,
   onToggleInvoice,
 }: BillingSectionProps) {
-  const [addCardOpen, setAddCardOpen] = useState(false)
+  const [showCardForm, setShowCardForm] = useState(false)
 
-  // Select all toggle
-  const allSelected   = invoices.length > 0 && selectedInvoices.size === invoices.length
-  const handleSelectAll = () => {
+  const maskedNumber = useMemo(() => {
+    const digits = card.cardNumber.replace(/\D/g, '')
+    if (!digits) return 'No payment method added yet'
+    return `•••• ${digits.slice(-4)}`
+  }, [card.cardNumber])
+
+  const allSelected = invoices.length > 0 && selectedInvoices.size === invoices.length
+
+  function toggleAllInvoices() {
     if (allSelected) {
-      invoices.forEach(inv => { if (selectedInvoices.has(inv.id)) onToggleInvoice(inv.id) })
-    } else {
-      invoices.forEach(inv => { if (!selectedInvoices.has(inv.id)) onToggleInvoice(inv.id) })
+      invoices.forEach((invoice) => {
+        if (selectedInvoices.has(invoice.id)) onToggleInvoice(invoice.id)
+      })
+      return
     }
+
+    invoices.forEach((invoice) => {
+      if (!selectedInvoices.has(invoice.id)) onToggleInvoice(invoice.id)
+    })
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* ── Section header ───────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-xl font-medium text-heading">Payment Method</h2>
-        <p className="mt-0.5 text-sm text-subtle">Update your billing details and address.</p>
-      </div>
-
-      {/* ── Card details ─────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
-        <div className="mb-5 flex items-start justify-between">
-          <div>
-            <h3 className="text-sm font-medium text-heading">Card Details</h3>
-            <p className="mt-0.5 text-xs text-subtle">Update your billing details and address.</p>
-          </div>
+    <div className="flex flex-col gap-6">
+      <SectionShell
+        eyebrow="Billing"
+        title="Payment method and billing contact"
+        description="Keep saved payment details and invoice recipients up to date without exposing a heavy card form by default."
+        action={
           <button
-            onClick={() => setAddCardOpen(v => !v)}
-            className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            onClick={() => setShowCardForm((value) => !value)}
+            className="button-press inline-flex h-11 items-center justify-center rounded-[18px] border border-border bg-surface px-4 text-[0.84rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
           >
-            + Add another card
+            {showCardForm ? 'Hide update form' : 'Update payment details'}
           </button>
-        </div>
+        }
+      >
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <div className="rounded-[24px] border border-border bg-[linear-gradient(135deg,#111827,#1f2c43)] p-5 text-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.9)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-white/65">Saved method</p>
+                <p className="mt-3 text-[1.15rem] font-semibold">{maskedNumber}</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+                <CreditCard className="h-5 w-5 text-white" strokeWidth={1.7} />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-5">
-          {/* Left: name + card number */}
-          <div className="flex flex-col gap-4">
-            <FormField
-              label="Name on your Card"
-              value={card.nameOnCard}
-              onChange={v => onCardChange({ nameOnCard: v })}
-              placeholder="Full name"
-            />
-            <FormField
-              label="Card Number"
-              value={card.cardNumber}
-              onChange={v => onCardChange({ cardNumber: v })}
-              placeholder="•••• •••• •••• ••••"
-              prefix={<CardChip />}
-            />
+            <div className="mt-8 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/65">Cardholder</p>
+                <p className="mt-1 text-[0.9rem] font-medium text-white/90">
+                  {card.nameOnCard || 'Add the billing cardholder name'}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/65">Expiry</p>
+                <p className="mt-1 text-[0.9rem] font-medium text-white/90">{card.expiry || 'MM / YYYY'}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Right: expiry + CVV */}
-          <div className="flex flex-col gap-4">
-            <FormField
-              label="Expiry"
-              value={card.expiry}
-              onChange={v => onCardChange({ expiry: v })}
-              placeholder="MM / YYYY"
-            />
-            <FormField
-              label="CVV"
-              value={card.cvv}
-              onChange={v => onCardChange({ cvv: v })}
-              placeholder="•••"
-              type="password"
-            />
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-border bg-muted/35 px-4 py-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface text-subtle">
+                  <Mail className="h-4 w-4" strokeWidth={1.7} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[0.82rem] font-semibold text-heading">Billing email</p>
+                  <p className="mt-1 text-[0.8rem] leading-relaxed text-subtle">
+                    Invoices and payment confirmations are sent here.
+                  </p>
+                  <p className="mt-3 text-[0.92rem] font-medium text-body">{billingContact.email || 'No billing email added yet'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-border bg-surface px-4 py-4">
+              <p className="text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-subtle">Recipient</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => onContactChange({ ...billingContact, mode: 'existing' })}
+                  className={`button-press rounded-[20px] border px-4 py-4 text-left transition-all ${
+                    billingContact.mode === 'existing'
+                      ? 'border-primary/20 bg-primary/6'
+                      : 'border-border bg-surface hover:border-border-hover hover:bg-surface-2'
+                  }`}
+                >
+                  <p className="text-[0.84rem] font-semibold text-heading">Use account email</p>
+                  <p className="mt-1 text-[0.78rem] text-subtle">{billingContact.email || 'Sync from your account email'}</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onContactChange({ ...billingContact, mode: 'other' })}
+                  className={`button-press rounded-[20px] border px-4 py-4 text-left transition-all ${
+                    billingContact.mode === 'other'
+                      ? 'border-primary/20 bg-primary/6'
+                      : 'border-border bg-surface hover:border-border-hover hover:bg-surface-2'
+                  }`}
+                >
+                  <p className="text-[0.84rem] font-semibold text-heading">Use another inbox</p>
+                  <p className="mt-1 text-[0.78rem] text-subtle">Send invoices to finance or procurement.</p>
+                </button>
+              </div>
+
+              {billingContact.mode === 'other' ? (
+                <div className="mt-4">
+                  <FormField
+                    label="Billing email"
+                    value={billingContact.email}
+                    onChange={(value) => onContactChange({ ...billingContact, email: value })}
+                    placeholder="billing@company.com"
+                    type="email"
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        {addCardOpen && (
-          <div className="mt-5 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 text-center text-xs text-subtle">
-            Card form fields would appear here (Stripe / Paystack integration)
-          </div>
-        )}
-      </div>
-
-      {/* ── Contact email ────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
-        <div className="mb-4">
-          <h3 className="text-sm font-medium text-heading">Contact email</h3>
-          <p className="mt-0.5 text-xs text-subtle">Where should invoices be sent?</p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {/* Send to existing */}
-          <label className="flex cursor-pointer items-start gap-3">
-            <div className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-              billingContact.mode === 'existing'
-                ? 'border-primary bg-primary'
-                : 'border-border bg-surface'
-            }`}>
-              {billingContact.mode === 'existing' && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-            </div>
-            <div>
-              <p className="text-sm text-body">Send to the existing email</p>
-              <p className="text-xs text-subtle">{billingContact.email}</p>
-            </div>
-          </label>
-          <button
-            onClick={() => onContactChange({ ...billingContact, mode: 'existing' })}
-            className="sr-only"
-          />
-
-          {/* Add another email */}
-          <label className="flex cursor-pointer items-start gap-3">
-            <div
-              onClick={() => onContactChange({ ...billingContact, mode: 'other' })}
-              className={`mt-0.5 flex h-4 w-4 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors ${
-                billingContact.mode === 'other'
-                  ? 'border-primary bg-primary'
-                  : 'border-border bg-surface'
-              }`}
-            >
-              {billingContact.mode === 'other' && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-            </div>
-            <p className="text-sm text-body">Add another email address</p>
-          </label>
-
-          {billingContact.mode === 'other' && (
-            <div className="ml-7">
+        {showCardForm ? (
+          <div className="mt-4 rounded-[24px] border border-border bg-muted/25 p-4 sm:p-5">
+            <div className="grid gap-4 md:grid-cols-2">
               <FormField
-                label="Email address"
-                value=""
-                onChange={() => {}}
-                placeholder="invoices@company.com"
-                prefix={<Mail className="h-4 w-4 text-subtle" strokeWidth={1.5} />}
+                label="Cardholder name"
+                value={card.nameOnCard}
+                onChange={(value) => onCardChange({ nameOnCard: value })}
+                placeholder="Stem Systems Ltd."
+              />
+              <FormField
+                label="Card number"
+                value={card.cardNumber}
+                onChange={(value) => onCardChange({ cardNumber: value })}
+                placeholder="•••• •••• •••• ••••"
+              />
+              <FormField
+                label="Expiry"
+                value={card.expiry}
+                onChange={(value) => onCardChange({ expiry: value })}
+                placeholder="MM / YYYY"
+              />
+              <FormField
+                label="CVV"
+                value={card.cvv}
+                onChange={(value) => onCardChange({ cvv: value })}
+                placeholder="•••"
+                type="password"
               />
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        ) : null}
+      </SectionShell>
 
-      {/* ── Billing history ──────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-surface shadow-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-border">
-          <h3 className="text-sm font-medium text-heading">Billing History</h3>
-          <p className="mt-0.5 text-xs text-subtle">See the transaction you made</p>
-        </div>
+      <SectionShell
+        eyebrow="Invoices"
+        title="Billing history"
+        description="Review billing records, select invoices, and keep payment history easy to scan on any screen size."
+        action={
+          <button
+            onClick={toggleAllInvoices}
+            className="button-press inline-flex h-11 items-center justify-center rounded-[18px] border border-border bg-surface px-4 text-[0.82rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+          >
+            {allSelected ? 'Clear selection' : 'Select all'}
+          </button>
+        }
+      >
+        {invoices.length === 0 ? (
+          <div className="rounded-[24px] border border-dashed border-border bg-muted/20 px-4 py-5 text-sm text-subtle">
+            No invoices yet. Your first billing record will appear here after the first successful payment cycle.
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3 md:hidden">
+              {invoices.map((invoice) => {
+                const isSelected = selectedInvoices.has(invoice.id)
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="w-10 px-4 py-3 text-left">
-                <div
-                  onClick={handleSelectAll}
-                  className={`flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors ${
-                    allSelected ? 'border-primary bg-primary' : 'border-border bg-surface'
-                  }`}
-                >
-                  {allSelected && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
-                </div>
-              </th>
-              {['Invoice', 'Date', 'Amount', 'Status', 'Tracking & Address'].map(col => (
-                <th key={col} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-subtle">
-                  {col}
-                </th>
-              ))}
-              <th className="w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.map((inv, i) => {
-              const isSelected = selectedInvoices.has(inv.id)
-              return (
-                <tr
-                  key={inv.id}
-                  className={`border-b border-border last:border-0 transition-colors ${
-                    isSelected ? 'bg-primary/5' : i % 2 === 0 ? 'bg-surface' : 'bg-muted/30'
-                  }`}
-                >
-                  <td className="px-4 py-3.5">
-                    <div
-                      onClick={() => onToggleInvoice(inv.id)}
-                      className={`flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors ${
-                        isSelected ? 'border-primary bg-primary' : 'border-border bg-surface'
-                      }`}
-                    >
-                      {isSelected && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                return (
+                  <button
+                    key={invoice.id}
+                    type="button"
+                    onClick={() => onToggleInvoice(invoice.id)}
+                    className={`w-full rounded-[24px] border px-4 py-4 text-left transition-all ${
+                      isSelected ? 'border-primary/20 bg-primary/6' : 'border-border bg-surface hover:bg-surface-2'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[0.88rem] font-semibold text-heading">{invoice.name}</p>
+                        <p className="mt-1 text-[0.78rem] text-subtle">{invoice.date}</p>
+                      </div>
+                      <span className={`rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold ${STATUS_STYLES[invoice.status]}`}>
+                        {invoice.status}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-3 py-3.5 text-sm text-body">{inv.name}</td>
-                  <td className="px-3 py-3.5 text-sm text-subtle">{inv.date}</td>
-                  <td className="px-3 py-3.5 text-sm font-medium text-heading">${inv.amount.toLocaleString()}</td>
-                  <td className="px-3 py-3.5">
-                    <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${STATUS_STYLES[inv.status]}`}>
-                      {inv.status}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <div>
-                      <p className="flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer">
-                        <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
-                        {inv.tracking}
-                      </p>
-                      <p className="text-[11px] text-subtle">{inv.address}</p>
+
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-subtle">Amount</p>
+                        <p className="mt-1 text-[0.96rem] font-semibold text-heading">${invoice.amount.toLocaleString()}</p>
+                      </div>
+                      <span
+                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full border ${
+                          isSelected ? 'border-primary bg-primary text-white' : 'border-border bg-surface text-transparent'
+                        }`}
+                      >
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <button className="text-subtle hover:text-body transition-colors">
-                      <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+
+                    <div className="mt-4 flex items-center gap-2 text-[0.78rem] font-medium text-primary">
+                      <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.7} />
+                      {invoice.tracking}
+                    </div>
+                    <p className="mt-1 text-[0.76rem] text-subtle">{invoice.address}</p>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-border text-[0.68rem] uppercase tracking-[0.18em] text-subtle">
+                  <tr>
+                    <th className="pb-3 pr-4 font-semibold">Select</th>
+                    <th className="pb-3 pr-4 font-semibold">Invoice</th>
+                    <th className="pb-3 pr-4 font-semibold">Date</th>
+                    <th className="pb-3 pr-4 font-semibold">Amount</th>
+                    <th className="pb-3 pr-4 font-semibold">Status</th>
+                    <th className="pb-3 font-semibold">Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((invoice) => {
+                    const isSelected = selectedInvoices.has(invoice.id)
+
+                    return (
+                      <tr key={invoice.id} className="border-b border-border/70 last:border-0">
+                        <td className="py-4 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => onToggleInvoice(invoice.id)}
+                            className={`inline-flex h-5 w-5 items-center justify-center rounded border ${
+                              isSelected ? 'border-primary bg-primary text-white' : 'border-border bg-surface text-transparent'
+                            }`}
+                          >
+                            <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                          </button>
+                        </td>
+                        <td className="py-4 pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-muted text-subtle">
+                              <ReceiptText className="h-4 w-4" strokeWidth={1.7} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-heading">{invoice.name}</p>
+                              <p className="text-[0.76rem] text-subtle">{invoice.address}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 pr-4 text-body">{invoice.date}</td>
+                        <td className="py-4 pr-4 font-semibold text-heading">${invoice.amount.toLocaleString()}</td>
+                        <td className="py-4 pr-4">
+                          <span className={`rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold ${STATUS_STYLES[invoice.status]}`}>
+                            {invoice.status}
+                          </span>
+                        </td>
+                        <td className="py-4 text-primary">
+                          <span className="inline-flex items-center gap-2 text-[0.82rem] font-semibold">
+                            <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.7} />
+                            {invoice.tracking}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </SectionShell>
     </div>
   )
 }

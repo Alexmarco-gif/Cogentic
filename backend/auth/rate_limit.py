@@ -82,6 +82,7 @@ limiter = Limiter(
     default_limits=["100/minute"],  # Default for authenticated endpoints
     headers_enabled=True,  # Return X-RateLimit-* headers
     storage_uri=_settings.redis_url,  # Shared Redis storage for accurate cross-worker rate limiting
+    in_memory_fallback_enabled=True,  # Degrade gracefully if Redis is temporarily unavailable
 )
 
 

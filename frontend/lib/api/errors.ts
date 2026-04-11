@@ -54,6 +54,11 @@ export class ApiError extends Error {
   get isRateLimited(): boolean {
     return this.status === 429;
   }
+
+  /** True when the server blocked the request due to payment or credit state (402). */
+  get isPaymentRequired(): boolean {
+    return this.status === 402;
+  }
 }
 
 /** Thrown when the network request itself fails (offline, DNS, timeout, etc.). */
@@ -91,6 +96,9 @@ export function friendlyErrorMessage(err: unknown): string {
     if (err.isUnauthorized) return 'Your session has expired. Please sign in again.';
     if (err.isForbidden) return 'You do not have permission to perform this action.';
     if (err.isNotFound) return 'The requested resource was not found.';
+    if (err.isPaymentRequired) {
+      return 'You are out of credits. Upgrade your plan or wait for your credits to renew.';
+    }
     if (err.isRateLimited) return 'Too many requests. Please try again shortly.';
     if (err.isValidation) return 'Invalid input. Please check your data and try again.';
     return err.message || 'An unexpected error occurred.';

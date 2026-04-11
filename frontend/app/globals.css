@@ -247,6 +247,17 @@
   }
 }
 
+@keyframes float-gentle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
 @keyframes slide-in-right {
   0% {
     transform: translateX(100%);
@@ -264,6 +275,10 @@
 
   .animate-slide-in-right {
     animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-float-gentle {
+    animation: float-gentle 4.8s ease-in-out infinite;
   }
 
   .text-balance {

@@ -14,11 +14,11 @@ from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import get_current_organization, require_feature
-from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.intelligence_brief import IntelligenceBriefRepository
 from backend.repositories.signal import SignalRepository
 from backend.schemas.briefs import BriefResponse
 from backend.schemas.signals import SignalResponse
+from backend.services.credit_service import CreditService, InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/bulk")
@@ -94,19 +94,27 @@ async def bulk_fetch_signals(
     if len(body.signal_ids) > 100:
         raise HTTPException(status_code=400, detail="Max 100 signals per request")
 
-    credit_repo = CreditRepository(db)
+    credit_service = CreditService(db)
 
-    # Consume credits for batch API pull (25 credits)
-    await credit_repo.consume_credits(
-        org_id=organization.id,
-        user_id=auth.user_id,
-        action_type="api_batch_pull",
-        credits=25,
-        metadata={
-            "signal_count": len(body.signal_ids),
-            "endpoint": "bulk_fetch_signals",
-        },
-    )
+    try:
+        await credit_service.consume_credits(
+            org_id=organization.id,
+            user_id=auth.user_id,
+            action_type="api_batch_pull",
+            credits=25,
+            metadata={
+                "signal_count": len(body.signal_ids),
+                "endpoint": "bulk_fetch_signals",
+            },
+        )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for bulk signal fetch. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
 
     repo = SignalRepository(db)
     found_signals = await repo.get_by_ids_scoped(body.signal_ids, org_id=auth.org_id)
@@ -135,16 +143,27 @@ async def bulk_fetch_briefs(
     if len(body.brief_ids) > 50:
         raise HTTPException(status_code=400, detail="Max 50 briefs per request")
 
-    credit_repo = CreditRepository(db)
+    credit_service = CreditService(db)
 
-    # Consume credits for batch API pull (25 credits)
-    await credit_repo.consume_credits(
-        org_id=organization.id,
-        user_id=auth.user_id,
-        action_type="api_batch_pull",
-        credits=25,
-        metadata={"brief_count": len(body.brief_ids), "endpoint": "bulk_fetch_briefs"},
-    )
+    try:
+        await credit_service.consume_credits(
+            org_id=organization.id,
+            user_id=auth.user_id,
+            action_type="api_batch_pull",
+            credits=25,
+            metadata={
+                "brief_count": len(body.brief_ids),
+                "endpoint": "bulk_fetch_briefs",
+            },
+        )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for bulk brief fetch. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
 
     repo = IntelligenceBriefRepository(db, org_id=auth.org_id, user_id=auth.user_id)
     found_briefs = await repo.get_by_ids(body.brief_ids)

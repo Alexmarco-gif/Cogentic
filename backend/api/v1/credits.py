@@ -21,6 +21,7 @@ class CreditBalanceResponse(BaseModel):
     remaining: int
     overage: int
     overage_rate: float
+    strict_prepaid_enabled: bool = True
 
 
 class CreditTransactionResponse(BaseModel):

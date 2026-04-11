@@ -14,7 +14,6 @@ from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import get_current_organization
 from backend.models.organization import Organization
-from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.search_query import SearchQueryRepository
 from backend.schemas.search import (
     SearchHistoryItem,
@@ -24,7 +23,7 @@ from backend.schemas.search import (
     SearchResultItem,
     WebSearchResultItem,
 )
-from backend.services.credit_service import CreditService
+from backend.services.credit_service import CreditService, InsufficientCreditsError
 from backend.services.deep_search import DeepSearchService
 
 logger = logging.getLogger(__name__)
@@ -47,18 +46,18 @@ async def execute_search(
     """
     start = time.monotonic()
 
-    credit_repo = CreditRepository(db)
+    credit_service = CreditService(db)
     action = "deep_search_synthesis" if body.include_synthesis else "deep_search"
-    await credit_repo.consume_credits(
-        org_id=organization.id,
-        user_id=auth.user_id,
-        action_type=action,
-        credits=CreditService.CREDIT_COSTS[action],
-        metadata={"query": body.query, "synthesize": body.include_synthesis},
-    )
-
     service = DeepSearchService(db)
     try:
+        await credit_service.consume_credits(
+            org_id=organization.id,
+            user_id=auth.user_id,
+            action_type=action,
+            credits=CreditService.CREDIT_COSTS[action],
+            metadata={"query": body.query, "synthesize": body.include_synthesis},
+        )
+
         result = await service.search(
             query=body.query,
             user_id=auth.user_id,
@@ -118,6 +117,14 @@ async def execute_search(
             cached=result.get("cached", False),
         )
 
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for search. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
     except Exception as e:
         logger.error(f"Search failed: {e}")
         raise HTTPException(status_code=500, detail="Search failed")

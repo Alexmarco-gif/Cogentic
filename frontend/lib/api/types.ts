@@ -228,7 +228,8 @@ export interface SignalContractResponse {
   updated_at: string;
 }
 
-export type SignalContractListResponse = PaginatedResponse<SignalContractResponse>;
+export type SignalContractListResponse =
+  PaginatedResponse<SignalContractResponse>;
 
 export interface SignalContractCreate {
   name: string;
@@ -401,7 +402,7 @@ export interface SynthesisResponse {
 export interface ChatMessageResponse {
   id: string;
   session_id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   sources_json: Record<string, unknown> | null;
   token_count: number | null;
@@ -443,14 +444,66 @@ export interface ChatDeleteResponse {
 
 export interface PricingSummaryResponse {
   tier: string;
+  standard_price: number;
+  subscription_price: number;
+  overage_cost: number;
+  total_monthly_cost: number;
+  subscription?: BillingSubscriptionResponse | null;
 }
 
 export interface FeatureAccessResponse {
+  tier: string;
+  role: string;
   features: Record<string, boolean>;
 }
 
 export interface TierUpgradeRequest {
   target_tier: string;
+  callback_url?: string;
+}
+
+export interface TierUpgradeResponse {
+  status: string;
+  requested_tier: string;
+  message: string;
+  reference: string;
+  access_code: string | null;
+  authorization_url: string | null;
+  public_key?: string | null;
+}
+
+export interface VerifyTierCheckoutRequest {
+  reference: string;
+}
+
+export interface VerifyTierCheckoutResponse {
+  status: string;
+  tier: string;
+  message: string;
+  reference: string;
+  transaction_status: string | null;
+}
+
+export interface BillingSubscriptionResponse {
+  provider: string | null;
+  status: string | null;
+  plan_tier: string | null;
+  billing_cycle: string | null;
+  currency: string | null;
+  price_cents: number | null;
+  latest_reference: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  canceled_at: string | null;
+  provider_customer_code: string | null;
+  provider_subscription_code: string | null;
+  provider_plan_code: string | null;
+  can_cancel: boolean;
+}
+
+export interface CancelSubscriptionResponse {
+  status: string;
+  message: string;
 }
 
 // ── Credits ──────────────────────────────────────────────────────────────────
@@ -461,18 +514,20 @@ export interface CreditBalanceResponse {
   remaining: number;
   overage: number;
   overage_rate: number;
+  strict_prepaid_enabled?: boolean;
 }
 
-export interface CreditTransaction {
+export interface CreditTransactionResponse {
   id: string;
-  type: string;
-  amount: number;
-  description: string;
+  action_type: string;
+  credits_consumed: number;
+  credits_remaining: number;
   created_at: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface CreditTransactionsResponse {
-  transactions: CreditTransaction[];
+  transactions: CreditTransactionResponse[];
   total: number;
 }
 
@@ -538,13 +593,13 @@ export interface EntityDiscoveryItem {
   id: string;
   name: string;
   entity_type: string;
-  discovery_status: 'active' | 'pending_review' | 'rejected';
-  discovery_source: 'seed' | 'auto_extracted' | 'agent' | 'manual';
+  discovery_status: "active" | "pending_review" | "rejected";
+  discovery_source: "seed" | "auto_extracted" | "agent" | "manual";
   created_at: string;
 }
 
 export interface EntityReviewRequest {
-  action: 'approve' | 'reject';
+  action: "approve" | "reject";
 }
 
 export interface EntityReviewResponse {
@@ -564,7 +619,7 @@ export interface DiscoveredSourceResponse {
   signal_type: string | null;
   mention_count: number;
   relevance_score: number;
-  status: 'discovered' | 'recommended' | 'activated' | 'dismissed';
+  status: "discovered" | "recommended" | "activated" | "dismissed";
   activated_contract_id: string | null;
   created_at: string;
   last_seen_at: string;
@@ -655,7 +710,8 @@ export interface RecommendationResponse {
   created_at: string;
 }
 
-export type RecommendationListResponse = PaginatedResponse<RecommendationResponse>;
+export type RecommendationListResponse =
+  PaginatedResponse<RecommendationResponse>;
 
 export interface RecommendationBatchResponse {
   generated: number;
@@ -673,7 +729,11 @@ export interface CausalChainResponse {
 
 export interface ImpactPredictionResponse {
   event_type: string;
-  predictions: Array<{ impact: string; probability: number; timeframe: string }>;
+  predictions: Array<{
+    impact: string;
+    probability: number;
+    timeframe: string;
+  }>;
 }
 
 export interface GrangerTestRequest {
@@ -700,7 +760,7 @@ export interface SignalImpactResponse {
 
 export interface FeedbackRequest {
   feedback_type: string;
-  target_type: 'signal' | 'brief' | 'entity' | 'prediction';
+  target_type: "signal" | "brief" | "entity" | "prediction";
   target_id: string;
   comment?: string;
   context?: Record<string, unknown>;
@@ -744,7 +804,7 @@ export interface PricingModeResponse {
 }
 
 export interface PricingModeRequest {
-  mode: 'standard';
+  mode: "standard";
 }
 
 // ── Pipeline ─────────────────────────────────────────────────────────────────
@@ -837,7 +897,7 @@ export interface SignalFeedItem {
   signal_type: string;
   source_url: string | null;
   confidence: number;
-  priority: 'critical' | 'high' | 'medium' | 'low';
+  priority: "critical" | "high" | "medium" | "low";
   published_at: string | null;
   fetched_at: string;
   is_anomaly: boolean;
@@ -1069,8 +1129,8 @@ export interface BacktestChainRequest {
 
 export interface AlertResponse {
   id: string;
-  alert_type: 'anomaly' | 'threshold' | 'trend_break';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  alert_type: "anomaly" | "threshold" | "trend_break";
+  severity: "low" | "medium" | "high" | "critical";
   metric: string | null;
   country_code: string | null;
   title: string;
@@ -1109,7 +1169,7 @@ export interface CoverageCheckResult {
   relevant_signals: number;
   coverage_score: number;
   freshest_signal_at: string | null;
-  coverage_assessment: 'good' | 'partial' | 'limited';
+  coverage_assessment: "good" | "partial" | "limited";
 }
 
 export interface ContractSuggestion {

@@ -28,7 +28,7 @@ from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import get_current_organization
 from backend.models.organization import Organization
-from backend.repositories.credit_repository import CreditRepository
+from backend.services.credit_service import CreditService, InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 
@@ -301,15 +301,23 @@ async def export_brief(
     Rate limited to 10 exports per minute per user.
     Concurrency limited to 5 simultaneous exports across all users.
     """
-    # Consume credits for export (5 credits)
-    credit_repo = CreditRepository(db)
-    await credit_repo.consume_credits(
-        org_id=organization.id,
-        user_id=auth.user_id,
-        action_type="document_export",
-        credits=5,
-        metadata={"format": body.format, "section_count": len(body.sections)},
-    )
+    credit_service = CreditService(db)
+    try:
+        await credit_service.consume_credits(
+            org_id=organization.id,
+            user_id=auth.user_id,
+            action_type="document_export",
+            credits=5,
+            metadata={"format": body.format, "section_count": len(body.sections)},
+        )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for export. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
 
     # Validate total content size
     total_chars = sum(len(s.content) for s in body.sections)

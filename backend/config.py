@@ -94,6 +94,11 @@ class Settings(BaseSettings):
     resend_api_key: str | None = None  # Set via RESEND_API_KEY env var
     resend_from_email: str = "Cogent <notifications@cogent.ai>"  # Verified sender
 
+    # Payments (Paystack)
+    paystack_public_key: str | None = None
+    paystack_secret_key: str | None = None
+    paystack_base_url: str = "https://api.paystack.co"
+
     # Web Search (SerpApi)
     web_search_provider: str = "serpapi"  # "serpapi" or "none"
     serpapi_api_key: str = ""  # Set via SERPAPI_API_KEY env var

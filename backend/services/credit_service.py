@@ -10,6 +10,18 @@ from backend.models.organization import Organization
 from backend.repositories.credit_repository import CreditRepository
 
 
+class InsufficientCreditsError(Exception):
+    """Raised when an org tries to spend more credits than remain."""
+
+    def __init__(self, action_type: str, required: int, remaining: int):
+        self.action_type = action_type
+        self.required = required
+        self.remaining = remaining
+        super().__init__(
+            f"Insufficient credits for {action_type}: requires {required}, remaining {remaining}"
+        )
+
+
 class CreditService:
     """Service for credit consumption and balance management"""
 
@@ -89,7 +101,7 @@ class CreditService:
             action_type=action_type,
             credits_consumed=credits,
             credits_remaining=credits_remaining,
-            metadata=metadata or {},
+            transaction_metadata=metadata or {},
         )
         self.db.add(txn)
         await self.db.flush()
@@ -105,7 +117,7 @@ class CreditService:
         metadata: dict | None = None,
     ) -> CreditTransaction:
         """
-        Consume credits for an action.
+        Consume credits for an action using strict prepaid enforcement.
 
         Args:
             org_id: Organization ID
@@ -116,19 +128,28 @@ class CreditService:
 
         Returns:
             CreditTransaction record
+
+        Raises:
+            InsufficientCreditsError: If the org does not have enough remaining credits
         """
-        # Use default credit cost if not specified
         if credits is None:
             credits = self.CREDIT_COSTS.get(action_type, 0)
 
-        # Consume credits via repository
-        return await self.credit_repo.consume_credits(
+        transaction = await self.consume_credits_atomic(
             org_id=org_id,
             user_id=user_id,
             action_type=action_type,
             credits=credits,
             metadata=metadata,
         )
+        if transaction is None:
+            remaining = await self.credit_repo.get_remaining_credits(org_id)
+            raise InsufficientCreditsError(
+                action_type=action_type,
+                required=credits,
+                remaining=remaining,
+            )
+        return transaction
 
     async def _record_transaction(
         self,
@@ -146,7 +167,7 @@ class CreditService:
             action_type=action_type,
             credits_consumed=credits,
             credits_remaining=remaining,
-            metadata=metadata or {},
+            transaction_metadata=metadata or {},
         )
         self.db.add(txn)
         await self.db.flush()
@@ -182,14 +203,14 @@ class CreditService:
             "remaining": remaining,
             "overage": overage,
             "overage_rate": float(organization.credits_overage_rate),
+            "strict_prepaid_enabled": True,
         }
 
     async def check_sufficient_credits(
         self, org_id: UUID, action_type: str, required_credits: int | None = None
     ) -> bool:
         """
-        Check if organization has sufficient credits.
-        Note: This doesn't block - overage is allowed, but we return False to warn.
+        Check if organization has sufficient credits for a prepaid request.
 
         Args:
             org_id: Organization ID

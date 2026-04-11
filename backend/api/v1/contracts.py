@@ -15,7 +15,6 @@ from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.job_queue import enqueue_job
 from backend.middleware.feature_gating import require_feature
-from backend.repositories.credit_repository import CreditRepository
 from backend.repositories.signal_contract import SignalContractRepository
 from backend.schemas.signals import (
     SignalContractCreate,
@@ -23,6 +22,7 @@ from backend.schemas.signals import (
     SignalContractResponse,
     SignalContractUpdate,
 )
+from backend.services.credit_service import CreditService, InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/contracts")
@@ -134,14 +134,23 @@ async def create_contract(
     Consumes 25 credits per contract.
     """
     require_role(auth, "admin")
-    credit_repo = CreditRepository(db)
-    await credit_repo.consume_credits(
-        org_id=auth.org_id,
-        user_id=auth.user_id,
-        action_type="contract_create",
-        credits=25,
-        metadata={"contract_name": body.name},
-    )
+    credit_service = CreditService(db)
+    try:
+        await credit_service.consume_credits(
+            org_id=auth.org_id,
+            user_id=auth.user_id,
+            action_type="contract_create",
+            credits=25,
+            metadata={"contract_name": body.name},
+        )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits to create a contract. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
     repo = SignalContractRepository(db)
     contract = await repo.create(**body.model_dump(), org_id=auth.org_id)
     return SignalContractResponse.model_validate(contract)
@@ -215,14 +224,23 @@ async def trigger_fetch(
             ),
         )
 
-    credit_repo = CreditRepository(db)
-    await credit_repo.consume_credits(
-        org_id=auth.org_id,
-        user_id=auth.user_id,
-        action_type="contract_manual_fetch",
-        credits=25,
-        metadata={"contract_id": str(contract_id), "contract_name": contract.name},
-    )
+    credit_service = CreditService(db)
+    try:
+        await credit_service.consume_credits(
+            org_id=auth.org_id,
+            user_id=auth.user_id,
+            action_type="contract_manual_fetch",
+            credits=25,
+            metadata={"contract_id": str(contract_id), "contract_name": contract.name},
+        )
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits to trigger a manual fetch. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
 
     from backend.jobs.acquisition_job import fetch_single_contract
 

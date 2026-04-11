@@ -4,12 +4,15 @@ import { useState, useCallback, useEffect } from 'react'
 import { getMyProfile, updateMyProfile } from '@/lib/api/users'
 import { getCurrentUser } from '@/lib/api/auth'
 import { listApiKeys, createApiKey, revokeApiKey, rotateApiKey } from '@/lib/api/api_keys'
-import { getCreditBalance } from '@/lib/api/pricing'
+import { getCreditBalance, getCreditTransactions } from '@/lib/api/pricing'
 import { listMySessions, revokeMySession } from '@/lib/api/sessions'
 import type {
   APIKeyResponse,
+  CreditBalanceResponse,
+  CreditTransactionResponse,
   CreateAPIKeyRequest,
   MappedCreateAPIKeyResponse,
+  CurrentUserResponse,
 } from '@/lib/api/types'
 import type { UserSession } from '@/lib/api/sessions'
 
@@ -110,21 +113,6 @@ export interface Integration {
   color:       string
 }
 
-// ── Usage types ───────────────────────────────────────────────────────────────
-
-export interface UsagePoint {
-  month:    string
-  credits:  number
-  apiCalls: number
-}
-
-export interface PlanLimit {
-  label:   string
-  used:    number
-  total:   number
-  unit:    string
-}
-
 // ── Seed data ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -173,21 +161,14 @@ const DEFAULT_INTEGRATIONS: Integration[] = [
   { id: 'powerbi',     name: 'Power BI',      description: 'Live dashboard data connector',       category: 'Data',         connected: false, logoInitial: 'P', color: '#F2C811' },
 ]
 
-const DEFAULT_USAGE: UsagePoint[] = [
-  { month: 'Aug', credits: 1200, apiCalls: 3400 },
-  { month: 'Sep', credits: 1800, apiCalls: 4800 },
-  { month: 'Oct', credits: 2100, apiCalls: 5200 },
-  { month: 'Nov', credits: 1600, apiCalls: 4100 },
-  { month: 'Dec', credits: 2800, apiCalls: 7200 },
-  { month: 'Jan', credits: 3200, apiCalls: 8100 },
-]
-
-const DEFAULT_PLAN_LIMITS: PlanLimit[] = [
-  { label: 'Credits used',  used: 3200, total: 5000,  unit: 'credits' },
-  { label: 'API calls',     used: 8100, total: 20000, unit: 'calls'   },
-  { label: 'Data contracts',used: 4,    total: 10,    unit: 'active'  },
-  { label: 'Team members',  used: 2,    total: 5,     unit: 'seats'   },
-]
+const DEFAULT_CREDIT_BALANCE: CreditBalanceResponse = {
+  allocated: 0,
+  consumed: 0,
+  remaining: 0,
+  overage: 0,
+  overage_rate: 0,
+  strict_prepaid_enabled: true,
+}
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -210,6 +191,7 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
 
   // Resolved org ID (loaded from auth/me)
   const [orgId, setOrgId] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<CurrentUserResponse | null>(null)
 
   // Profile
   const [profile, setProfile]           = useState<UserProfile>(DEFAULT_PROFILE)
@@ -225,13 +207,21 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
           getMyProfile().catch(() => null),
         ])
         if (cancelled) return
-        if (userCtx) setOrgId(userCtx.organization.id)
+        if (userCtx) {
+          setCurrentUser(userCtx)
+          setOrgId(userCtx.organization.id)
+        }
         if (profileData) {
           setProfile(prev => ({
             ...prev,
             fullName: profileData.name ?? prev.fullName,
             email: profileData.email ?? prev.email,
             avatarUrl: profileData.picture_url ?? prev.avatarUrl,
+            plan: userCtx?.subscription.plan ?? prev.plan,
+          }))
+          setBillingContact(prev => ({
+            ...prev,
+            email: profileData.email ?? prev.email,
           }))
         }
       } catch {
@@ -353,35 +343,52 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
     setIntegrations(ii => ii.map(i => i.id === id ? { ...i, connected: !i.connected } : i))
   }, [])
 
-  // Usage — load from credits API; fall back to seed data
-  const [usageData, setUsageData]   = useState<UsagePoint[]>(DEFAULT_USAGE)
-  const [planLimits, setPlanLimits] = useState<PlanLimit[]>(DEFAULT_PLAN_LIMITS)
+  // Usage — load from credits API and refresh while the user watches usage/billing
+  const [creditBalance, setCreditBalance] = useState<CreditBalanceResponse>(DEFAULT_CREDIT_BALANCE)
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransactionResponse[]>([])
+  const [usageLoading, setUsageLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     async function loadUsage() {
       try {
-        const balance = await getCreditBalance()
+        setUsageLoading(true)
+        const [balance, transactions] = await Promise.all([
+          getCreditBalance(),
+          getCreditTransactions({ limit: 50 }),
+        ])
         if (cancelled) return
-        setPlanLimits(prev =>
-          prev.map(limit => {
-            if (limit.label === 'Credits used') {
-              return { ...limit, used: balance.consumed, total: balance.allocated }
-            }
-            return limit
-          })
-        )
+        setCreditBalance(balance)
+        setCreditTransactions(transactions.transactions)
       } catch {
-        // Keep defaults
+        if (cancelled) return
+        setCreditBalance(DEFAULT_CREDIT_BALANCE)
+        setCreditTransactions([])
+      } finally {
+        if (!cancelled) setUsageLoading(false)
       }
     }
-    loadUsage()
-    return () => { cancelled = true }
-  }, [])
+    void loadUsage()
+
+    const shouldPoll = activeTab === 'usage' || activeTab === 'plan'
+    if (!shouldPoll) {
+      return () => { cancelled = true }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadUsage()
+    }, 30_000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [activeTab])
 
   return {
     // Tab
     activeTab, setActiveTab,
+    currentUser,
     // Profile
     profile, updateProfile, isEditingProfile, setEditingProfile,
     // Billing
@@ -396,6 +403,6 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
     // Integrations
     integrations, toggleIntegration,
     // Usage
-    usageData, planLimits,
+    creditBalance, creditTransactions, usageLoading,
   }
 }

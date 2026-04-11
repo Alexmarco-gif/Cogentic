@@ -37,7 +37,7 @@ from backend.observability import (
     init_observability,
 )
 from backend.redis_client import close_redis, close_sync_redis, get_redis
-from backend.webhooks import auth0_router
+from backend.webhooks import auth0_router, paystack_router
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -380,6 +380,7 @@ async def metrics_endpoint(request: Request):
 
 
 app.include_router(auth0_router)  # Webhooks (no JWT middleware required)
+app.include_router(paystack_router)  # Billing webhooks (no JWT middleware required)
 
 
 @app.get("/")

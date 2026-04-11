@@ -7,6 +7,7 @@ NOTE: Models already use JSONB. This migration converts any existing
 JSON-typed columns in the database to JSONB to match the model definitions.
 """
 
+import sqlalchemy as sa
 from alembic import op
 
 revision = "d4e5f6a7b8c9"
@@ -37,7 +38,20 @@ COLUMNS_TO_MIGRATE = [
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
     for table, column in COLUMNS_TO_MIGRATE:
+        columns = {
+            col["name"]: col for col in inspector.get_columns(table)
+        }
+        current = columns.get(column)
+        if current is None:
+            continue
+
+        column_type = str(current["type"]).lower()
+        if "jsonb" in column_type:
+            continue
+
         op.execute(
             f"ALTER TABLE {table} ALTER COLUMN {column} "
             f"TYPE JSONB USING {column}::jsonb"
@@ -45,7 +59,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
     for table, column in COLUMNS_TO_MIGRATE:
+        columns = {
+            col["name"]: col for col in inspector.get_columns(table)
+        }
+        current = columns.get(column)
+        if current is None:
+            continue
+
+        column_type = str(current["type"]).lower()
+        if "jsonb" not in column_type:
+            continue
+
         op.execute(
             f"ALTER TABLE {table} ALTER COLUMN {column} "
             f"TYPE JSON USING {column}::json"

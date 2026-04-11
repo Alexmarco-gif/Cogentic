@@ -15,7 +15,6 @@ from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.middleware.feature_gating import get_current_organization, require_feature
 from backend.models.organization import Organization
-from backend.repositories.credit_repository import CreditRepository
 from backend.schemas.synthesis import (
     ContractSuggestion,
     CoverageCheckResult,
@@ -24,6 +23,7 @@ from backend.schemas.synthesis import (
     SynthesisSource,
     SynthesisWebSource,
 )
+from backend.services.credit_service import CreditService, InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/synthesis")
@@ -48,11 +48,11 @@ async def synthesize(
     start = time.monotonic()
 
     service = SynthesisService(db)
-    credit_repo = CreditRepository(db)
+    credit_service = CreditService(db)
 
     try:
         # Consume credits for synthesis (100 credits)
-        await credit_repo.consume_credits(
+        await credit_service.consume_credits(
             org_id=organization.id,
             user_id=auth.user_id,
             action_type="on_demand_synthesis",
@@ -145,6 +145,14 @@ async def synthesize(
             contract_suggestion=contract_suggestion,
         )
 
+    except InsufficientCreditsError as e:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Insufficient credits for synthesis. "
+                f"Requires {e.required} credits and {e.remaining} remain."
+            ),
+        ) from e
     except Exception as e:
         logger.error(f"Synthesis failed: {e}")
         raise HTTPException(status_code=500, detail="Synthesis failed")

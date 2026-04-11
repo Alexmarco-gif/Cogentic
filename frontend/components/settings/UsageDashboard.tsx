@@ -1,23 +1,32 @@
 'use client'
 
+import { useMemo } from 'react'
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart,
+  Area,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts'
-import type { UsagePoint, PlanLimit } from '@/lib/hooks/useSettings'
-import { TrendingUp, Zap, Database, Users } from 'lucide-react'
+import { Activity, AlertTriangle, Clock3, ShieldCheck, Wallet } from 'lucide-react'
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+import type {
+  CreditBalanceResponse,
+  CreditTransactionResponse,
+} from '@/lib/api/types'
 
 function StatCard({
   label,
   value,
-  unit,
+  sublabel,
   icon: Icon,
   color,
 }: {
   label: string
   value: string
-  unit: string
+  sublabel: string
   icon: React.ElementType
   color: string
 }) {
@@ -28,136 +37,296 @@ function StatCard({
       </div>
       <div>
         <p className="text-[11px] font-medium uppercase tracking-wider text-subtle">{label}</p>
-        <p className="mt-0.5 tabular-nums text-2xl font-semibold text-heading">
-          {value}
-          <span className="ml-1 text-sm font-normal text-subtle">{unit}</span>
-        </p>
+        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-heading">{value}</p>
+        <p className="text-xs text-subtle">{sublabel}</p>
       </div>
     </div>
   )
 }
 
-// ── Limit bar ─────────────────────────────────────────────────────────────────
-
-function LimitBar({ limit }: { limit: PlanLimit }) {
-  const pct = Math.min((limit.used / limit.total) * 100, 100)
-  const isWarning = pct >= 80
-  const isDanger  = pct >= 95
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-body">{limit.label}</span>
-        <span className="text-[11px] text-subtle">
-          {limit.used.toLocaleString()} / {limit.total.toLocaleString()} {limit.unit}
-        </span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${
-            isDanger ? 'bg-rose-500' : isWarning ? 'bg-amber-500' : 'bg-primary'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div className="flex justify-end">
-        <span className={`text-[10px] font-medium ${
-          isDanger ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-subtle'
-        }`}>
-          {pct.toFixed(0)}% used
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// ── Custom tooltip ────────────────────────────────────────────────────────────
-
-function CustomTooltip({ active, payload, label }: {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: {
   active?: boolean
-  payload?: { name: string; value: number; color: string }[]
+  payload?: Array<{ name: string; value: number; color: string }>
   label?: string
 }) {
   if (!active || !payload?.length) return null
+
   return (
     <div className="rounded-xl border border-border bg-surface px-3 py-2 shadow-modal">
       <p className="mb-1.5 text-[11px] font-semibold text-heading">{label}</p>
-      {payload.map(p => (
-        <div key={p.name} className="flex items-center gap-2 text-[11px] text-subtle">
-          <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
-          {p.name}: <span className="font-medium text-body">{p.value.toLocaleString()}</span>
+      {payload.map((item) => (
+        <div key={item.name} className="flex items-center gap-2 text-[11px] text-subtle">
+          <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
+          {item.name}: <span className="font-medium text-body">{item.value.toLocaleString()}</span>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
-interface UsageDashboardProps {
-  usageData: UsagePoint[]
-  planLimits: PlanLimit[]
+function actionLabel(actionType: string) {
+  return actionType
+    .split('_')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ')
 }
 
-export function UsageDashboard({ usageData, planLimits }: UsageDashboardProps) {
-  const latest     = usageData[usageData.length - 1]
-  const prev       = usageData[usageData.length - 2]
-  const creditsDelta = latest && prev ? latest.credits - prev.credits : 0
+function formatTimestamp(value: string) {
+  const date = new Date(value)
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function buildUsageSeries(transactions: CreditTransactionResponse[]) {
+  const grouped = new Map<string, { label: string; credits: number; actions: number }>()
+
+  const sorted = [...transactions].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
+
+  for (const txn of sorted) {
+    const date = new Date(txn.created_at)
+    const key = date.toISOString().slice(0, 10)
+    const label = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+    }).format(date)
+
+    const existing = grouped.get(key) ?? { label, credits: 0, actions: 0 }
+    existing.credits += txn.credits_consumed
+    existing.actions += 1
+    grouped.set(key, existing)
+  }
+
+  const series = Array.from(grouped.values()).slice(-7)
+  if (series.length > 0) return series
+
+  return [{ label: 'Today', credits: 0, actions: 0 }]
+}
+
+interface UsageDashboardProps {
+  creditBalance: CreditBalanceResponse | null
+  creditTransactions: CreditTransactionResponse[]
+  loading?: boolean
+}
+
+export function UsageDashboard({
+  creditBalance,
+  creditTransactions,
+  loading = false,
+}: UsageDashboardProps) {
+  const balance = creditBalance ?? {
+    allocated: 0,
+    consumed: 0,
+    remaining: 0,
+    overage: 0,
+    overage_rate: 0,
+    strict_prepaid_enabled: true,
+  }
+
+  const usageSeries = useMemo(
+    () => buildUsageSeries(creditTransactions),
+    [creditTransactions],
+  )
+
+  const recentTransactions = useMemo(
+    () =>
+      [...creditTransactions]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 8),
+    [creditTransactions],
+  )
+
+  const usedPercent = balance.allocated > 0
+    ? Math.min((balance.consumed / balance.allocated) * 100, 100)
+    : 0
+  const creditsExhausted = balance.remaining <= 0
+  const creditsRunningLow = !creditsExhausted && balance.remaining <= 100
 
   return (
     <div className="flex flex-col gap-8">
-      {/* ── Summary stat cards ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Credits this month" value={latest?.credits.toLocaleString() ?? '—'} unit="cr" icon={Zap}        color="bg-primary"           />
-        <StatCard label="API calls"           value={latest?.apiCalls.toLocaleString() ?? '—'} unit="calls" icon={TrendingUp} color="bg-emerald-500"     />
-        <StatCard label="Active contracts"    value="4"   unit="active"  icon={Database}  color="bg-amber-500"         />
-        <StatCard label="Team members"        value="2"   unit="seats"   icon={Users}     color="bg-violet-500"        />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4 md:grid-cols-2">
+        <StatCard
+          label="Monthly Credits"
+          value={balance.allocated.toLocaleString()}
+          sublabel="Allocated this billing cycle"
+          icon={Wallet}
+          color="bg-primary"
+        />
+        <StatCard
+          label="Credits Used"
+          value={balance.consumed.toLocaleString()}
+          sublabel={`${usedPercent.toFixed(0)}% of allocation consumed`}
+          icon={Activity}
+          color="bg-amber-500"
+        />
+        <StatCard
+          label="Credits Remaining"
+          value={balance.remaining.toLocaleString()}
+          sublabel="Hard blocking starts at zero"
+          icon={ShieldCheck}
+          color="bg-emerald-500"
+        />
+        <StatCard
+          label="Recent Actions"
+          value={recentTransactions.length.toLocaleString()}
+          sublabel="Latest billable events shown below"
+          icon={Clock3}
+          color="bg-sky-500"
+        />
       </div>
 
-      {/* ── Area chart ────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
           <div>
-            <h3 className="text-sm font-medium text-heading">Usage over time</h3>
-            <p className="mt-0.5 text-xs text-subtle">Credits and API calls — last 6 months</p>
+            <h3 className="text-sm font-medium text-heading">Credit Usage</h3>
+            <p className="mt-0.5 text-xs text-subtle">
+              Recent credit spend and billable activity from your organization.
+            </p>
           </div>
-          {creditsDelta !== 0 && (
-            <span className={`text-xs font-medium ${creditsDelta > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
-              {creditsDelta > 0 ? '↑' : '↓'} {Math.abs(creditsDelta).toLocaleString()} credits vs prev month
+          <div className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
+            Strict prepaid active
+          </div>
+        </div>
+
+        {creditsExhausted && (
+          <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <div>
+                <p className="font-semibold">You are out of credits.</p>
+                <p className="mt-1 text-amber-800">
+                  New paid actions are blocked until your monthly credits renew or your plan is upgraded.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {creditsRunningLow && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <div>
+                <p className="font-semibold">Credits are running low.</p>
+                <p className="mt-1 text-amber-800">
+                  You have {balance.remaining.toLocaleString()} credits left before paid actions are blocked.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6">
+          <div className="mb-2 flex items-center justify-between text-xs text-subtle">
+            <span>Credits used</span>
+            <span>
+              {balance.consumed.toLocaleString()} / {balance.allocated.toLocaleString()}
             </span>
-          )}
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${
+                usedPercent >= 95 ? 'bg-rose-500' : usedPercent >= 80 ? 'bg-amber-500' : 'bg-primary'
+              }`}
+              style={{ width: `${usedPercent}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-subtle">
+            Overage is disabled. New paid actions are blocked once no credits remain.
+          </p>
         </div>
 
         <ResponsiveContainer width="100%" height={240}>
-          <AreaChart data={usageData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+          <AreaChart data={usageSeries} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="creditsGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#4F46E5" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}    />
+                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.18} />
+                <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="apiGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#059669" stopOpacity={0.12} />
-                <stop offset="95%" stopColor="#059669" stopOpacity={0}    />
+              <linearGradient id="actionsGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#059669" stopOpacity={0.12} />
+                <stop offset="95%" stopColor="#059669" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '16px' }} />
-            <Area type="monotone" dataKey="credits"  name="Credits"   stroke="#4F46E5" strokeWidth={2} fill="url(#creditsGrad)" dot={false} activeDot={{ r: 4 }} />
-            <Area type="monotone" dataKey="apiCalls" name="API calls" stroke="#059669" strokeWidth={2} fill="url(#apiGrad)"     dot={false} activeDot={{ r: 4 }} />
+            <Area
+              type="monotone"
+              dataKey="credits"
+              name="Credits spent"
+              stroke="#2563EB"
+              strokeWidth={2}
+              fill="url(#creditsGrad)"
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="actions"
+              name="Billable actions"
+              stroke="#059669"
+              strokeWidth={2}
+              fill="url(#actionsGrad)"
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ── Plan limits ───────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
-        <h3 className="mb-1 text-sm font-medium text-heading">Plan Limits</h3>
-        <p className="mb-5 text-xs text-subtle">Growth Plan — renews Feb 28, 2026</p>
-        <div className="flex flex-col gap-5">
-          {planLimits.map(limit => <LimitBar key={limit.label} limit={limit} />)}
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-heading">Recent Credit Activity</h3>
+          <p className="mt-0.5 text-xs text-subtle">
+            Each entry shows what spent credits and how many remained immediately after.
+          </p>
         </div>
+
+        {loading ? (
+          <p className="text-sm text-subtle">Loading credit activity…</p>
+        ) : recentTransactions.length === 0 ? (
+          <p className="text-sm text-subtle">No credit transactions yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-border text-xs uppercase tracking-wide text-subtle">
+                <tr>
+                  <th className="pb-3 pr-4 font-medium">Action</th>
+                  <th className="pb-3 pr-4 font-medium">Spent</th>
+                  <th className="pb-3 pr-4 font-medium">Remaining</th>
+                  <th className="pb-3 font-medium">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTransactions.map((txn) => (
+                  <tr key={txn.id} className="border-b border-border/70 last:border-0">
+                    <td className="py-3 pr-4">
+                      <div className="font-medium text-body">{actionLabel(txn.action_type)}</div>
+                    </td>
+                    <td className="py-3 pr-4 tabular-nums text-rose-600">
+                      -{txn.credits_consumed.toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-4 tabular-nums text-body">
+                      {txn.credits_remaining.toLocaleString()}
+                    </td>
+                    <td className="py-3 text-subtle">{formatTimestamp(txn.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
