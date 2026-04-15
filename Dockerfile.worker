@@ -7,9 +7,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install runtime dependencies
+COPY requirements.prod.txt .
+RUN pip install --no-cache-dir --default-timeout=180 --retries 10 -r requirements.prod.txt
 
 # Copy application code
 COPY . .

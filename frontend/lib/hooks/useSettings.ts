@@ -16,6 +16,8 @@ import type {
 } from '@/lib/api/types'
 import type { UserSession } from '@/lib/api/sessions'
 
+export type { CreditBalanceResponse, CreditTransactionResponse } from '@/lib/api/types'
+
 // ── Tab definition ────────────────────────────────────────────────────────────
 
 export type SettingsTab =

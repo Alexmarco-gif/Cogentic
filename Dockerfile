@@ -5,18 +5,13 @@
 # Optimized for Azure Container Apps
 
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy runtime requirements and install dependencies
+COPY requirements.prod.txt .
+RUN pip install --no-cache-dir --default-timeout=180 --retries 10 -r requirements.prod.txt
 
 # Stage 2: Runtime
 FROM python:3.11-slim
@@ -42,13 +37,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 
 # Run FastAPI with Gunicorn + Uvicorn workers for production concurrency.
 # WEB_CONCURRENCY env var overrides --workers (Azure Container Apps sets it automatically).
-CMD ["gunicorn", "backend.main:app",
-     "--worker-class", "uvicorn.workers.UvicornWorker",
-     "--workers", "4",
-     "--bind", "0.0.0.0:8000",
-     "--timeout", "120",
-     "--graceful-timeout", "30",
-     "--keep-alive", "5",
-     "--limit-request-body", "10485760",
-     "--access-logfile", "-",
-     "--error-logfile", "-"]
+CMD ["gunicorn", "backend.main:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--workers", "4", "--bind", "0.0.0.0:8000", "--timeout", "120", "--graceful-timeout", "30", "--keep-alive", "5", "--limit-request-body", "10485760", "--access-logfile", "-", "--error-logfile", "-"]
