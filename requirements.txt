@@ -1,4 +1,4 @@
-﻿aiosqlite==0.22.1
+aiosqlite==0.22.1
 alembic==1.18.3
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -110,7 +110,7 @@ ruff==0.14.14
 scikit-learn==1.8.0
 scipy==1.17.0
 selectolax==0.4.6
-sentry-sdk==2.51.0
+sentry-sdk==2.58.0
 sgmllib3k==1.0.0
 six==1.17.0
 skl2onnx==1.18.0

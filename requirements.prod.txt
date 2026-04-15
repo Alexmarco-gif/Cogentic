@@ -87,7 +87,7 @@ rsa==4.9.1
 scikit-learn==1.8.0
 scipy==1.17.0
 selectolax==0.4.6
-sentry-sdk==2.51.0
+sentry-sdk==2.58.0
 sgmllib3k==1.0.0
 six==1.17.0
 skl2onnx==1.18.0
