@@ -19,7 +19,6 @@ from backend.database import get_db
 from backend.models.regulatory_knowledge import RegulatoryEvent
 from backend.models.signal import Signal
 from backend.repositories.regulatory import RegulatoryRepository
-from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +303,8 @@ async def record_regulatory_impact(
     This is the learning mechanism — as experts observe actual impacts,
     the system learns to predict future impacts better.
     """
+    from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
+
     service = RegulatoryIntelligenceService(db)
 
     impact = await service.record_regulatory_impact(
@@ -346,6 +347,8 @@ async def enrich_signal_with_regulatory_context(
         raise HTTPException(status_code=404, detail="Signal not found")
 
     # Apply regulatory intelligence
+    from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
+
     service = RegulatoryIntelligenceService(db)
     context = await service.enrich_signal_with_regulatory_context(signal)
 
@@ -370,6 +373,8 @@ async def extract_regulatory_event_from_signal(
     signal = await db.get(Signal, signal_id)
     if not signal:
         raise HTTPException(status_code=404, detail="Signal not found")
+
+    from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
 
     service = RegulatoryIntelligenceService(db)
     event = await service.extract_regulatory_event_from_signal(
@@ -411,6 +416,8 @@ async def provide_rule_feedback(
     Experts mark whether a rule was correctly applied,
     and the system adjusts confidence scores accordingly.
     """
+    from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
+
     service = RegulatoryIntelligenceService(db)
     await service.update_rule_accuracy(rule_id, was_accurate)
     await db.commit()
@@ -500,6 +507,8 @@ async def learn_regulatory_patterns(
 
     Requires admin or analyst permissions.
     """
+    from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
+
     service = RegulatoryIntelligenceService(db)
 
     try:
@@ -608,6 +617,8 @@ async def predict_regulatory_actions(
     event = await db.get(RegulatoryEvent, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Regulatory event not found")
+
+    from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
 
     service = RegulatoryIntelligenceService(db)
 

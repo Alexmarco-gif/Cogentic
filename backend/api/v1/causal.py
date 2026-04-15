@@ -14,8 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
-from backend.ml.causal_inference import CausalInferenceService
-from backend.services.causal_intelligence import CausalIntelligenceService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/causal")
@@ -86,6 +84,8 @@ async def get_causal_chains(
     Returns multi-step causal chains discovered from longitudinal data.
     Example: "policy_change" → "lending_rate_increase" → "loan_decline"
     """
+    from backend.services.causal_intelligence import CausalIntelligenceService
+
     service = CausalIntelligenceService(db)
     chains = await service.find_causal_chains(
         event_type,
@@ -112,6 +112,8 @@ async def predict_impacts(
     This is proprietary intelligence — no generic AI can replicate
     predictions trained on ESIP's longitudinal event data.
     """
+    from backend.services.causal_intelligence import CausalIntelligenceService
+
     service = CausalIntelligenceService(db)
     predictions = await service.predict_cascading_impacts(
         event_type,
@@ -132,6 +134,8 @@ async def test_granger_causality(
     Returns whether past occurrences of the cause event statistically
     predict future occurrences of the effect event.
     """
+    from backend.services.causal_intelligence import CausalIntelligenceService
+
     service = CausalIntelligenceService(db)
     result = await service.granger_causality_test(
         cause_event_type=body.cause_event_type,
@@ -161,6 +165,8 @@ async def analyze_signal_impact(
       - Historical precedents and outcomes
       - Affected entities
     """
+    from backend.services.causal_intelligence import CausalIntelligenceService
+
     service = CausalIntelligenceService(db)
     result = await service.analyze_signal_impact(
         signal_id, org_id=auth.org_id, time_horizon_days=time_horizon_days
@@ -186,6 +192,8 @@ async def get_historical_precedents(
     Returns past instances and their consequences — the
     "Based on N historical instances..." intelligence.
     """
+    from backend.services.causal_intelligence import CausalIntelligenceService
+
     service = CausalIntelligenceService(db)
     precedents = await service.find_historical_precedents(
         event_type, lookback_months=lookback_months, limit=limit
@@ -231,6 +239,14 @@ async def estimate_counterfactual_impact(
       - Percentage change attributable to event
       - Point-by-point effect timeline
     """
+    try:
+        from backend.ml.causal_inference import CausalInferenceService
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Advanced causal inference dependencies are not installed in this deployment.",
+        ) from exc
+
     service = CausalInferenceService(db)
     result = await service.estimate_counterfactual(
         event_signal_id=body.event_signal_id,
@@ -289,6 +305,14 @@ async def difference_in_differences_analysis(
         raise HTTPException(
             status_code=400, detail="Invalid event_date format. Use ISO 8601."
         )
+
+    try:
+        from backend.ml.causal_inference import CausalInferenceService
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Advanced causal inference dependencies are not installed in this deployment.",
+        ) from exc
 
     service = CausalInferenceService(db)
     result = await service.difference_in_differences(

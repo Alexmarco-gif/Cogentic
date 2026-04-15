@@ -1,0 +1,15 @@
+# ==============================================
+# DOCKERFILE - Shared Python Analytics Base
+# ==============================================
+# Builds the full runtime stack once so backend/worker
+# can reuse it without re-downloading the scientific stack.
+
+FROM python:3.11-slim
+
+WORKDIR /opt/cogent-base
+
+COPY requirements.prod.txt requirements.analytics.txt ./
+
+RUN pip install --no-cache-dir --prefer-binary --progress-bar off --default-timeout=300 --retries 20 \
+    -r requirements.prod.txt \
+    -r requirements.analytics.txt

@@ -25,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.ai.embeddings import EmbeddingService
 from backend.ai.entity_extraction import EntityExtractionService, ExtractionResult
 from backend.database import get_db_context
-from backend.ml.scoring import ScoringService
 from backend.models.market_data import MarketDataPoint
 from backend.models.signal import Signal
 from backend.repositories.signal import SignalRepository
@@ -54,14 +53,23 @@ class RefinementService:
         self.db = db
         self.signal_repo = SignalRepository(db)
         self.embedding_service = EmbeddingService(db)
-        self.scoring_service = ScoringService(db)
         self.dedup = DedupProcessor(db)
         self.entity_extraction = EntityExtractionService()
         # Lazy-loaded services
+        self._scoring_service = None
         self._entity_resolution_service = None
         self._source_discovery_service = None
         self._causal_service = None
         self._regulatory_service = None
+
+    @property
+    def scoring_service(self):
+        """Lazy-load ML scoring so worker startup doesn't require ML runtimes."""
+        if self._scoring_service is None:
+            from backend.ml.scoring import ScoringService
+
+            self._scoring_service = ScoringService(self.db)
+        return self._scoring_service
 
     @property
     def entity_resolution_service(self):

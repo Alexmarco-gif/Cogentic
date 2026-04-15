@@ -9,13 +9,12 @@ Provides endpoints for:
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user, require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
-from backend.ml.inference import get_inference_engine
 from backend.repositories.ml_model_registry import MLModelRegistryRepository
 from backend.repositories.ml_model_run import MLModelRunRepository
 from backend.repositories.signal_score import SignalScoreRepository
@@ -66,6 +65,14 @@ async def get_ml_status(
     auth: AuthContext = Depends(get_current_user),
 ):
     """Get overall ML pipeline status: available models, latest runs, registry."""
+    try:
+        from backend.ml.inference import get_inference_engine
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="ML inference dependencies are not installed in this deployment.",
+        ) from exc
+
     engine = get_inference_engine()
     run_repo = MLModelRunRepository(db)
     registry_repo = MLModelRegistryRepository(db)

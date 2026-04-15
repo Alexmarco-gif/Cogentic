@@ -5,13 +5,8 @@
 # Optimized for Azure Container Apps
 
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
-
-WORKDIR /app
-
-# Copy runtime requirements and install dependencies
-COPY requirements.prod.txt .
-RUN pip install --no-cache-dir --default-timeout=180 --retries 10 -r requirements.prod.txt
+ARG BASE_IMAGE=cogent-python-analytics:latest
+FROM ${BASE_IMAGE} AS builder
 
 # Stage 2: Runtime
 FROM python:3.11-slim

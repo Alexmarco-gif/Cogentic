@@ -34,10 +34,8 @@ from backend.ai.guardrails import get_guardrails
 from backend.config import get_settings
 from backend.models.signal import Signal
 from backend.redis_client import get_redis
-from backend.services.causal_intelligence import CausalIntelligenceService
 from backend.services.entity_resolution import EntityResolutionService
 from backend.services.feedback_service import FeedbackService
-from backend.services.regulatory_intelligence import RegulatoryIntelligenceService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -90,8 +88,14 @@ class SynthesisService:
         self.guardrails = get_guardrails()
         # Intelligence moat services
         self.entity_service = EntityResolutionService(db)
-        self.causal_service = CausalIntelligenceService(db)
         self.feedback_service = FeedbackService(db)
+
+        from backend.services.causal_intelligence import CausalIntelligenceService
+        from backend.services.regulatory_intelligence import (
+            RegulatoryIntelligenceService,
+        )
+
+        self.causal_service = CausalIntelligenceService(db)
         self.regulatory_service = RegulatoryIntelligenceService(db)
 
     async def synthesize(

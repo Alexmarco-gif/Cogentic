@@ -14,8 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
-from backend.services.influence_mapping import InfluenceMappingService
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/influence", tags=["influence-mapping"])
@@ -132,6 +130,8 @@ async def get_entity_influence_score(
 
     Returns composite score and detailed breakdown.
     """
+    from backend.services.influence_mapping import InfluenceMappingService
+
     influence_service = InfluenceMappingService(db)
 
     try:
@@ -171,6 +171,8 @@ async def get_key_influencers(
     - Understanding network structure
     - Targeting outreach efforts
     """
+    from backend.services.influence_mapping import InfluenceMappingService
+
     influence_service = InfluenceMappingService(db)
 
     try:
@@ -214,6 +216,8 @@ async def find_influence_path(
     - Analyzing influence propagation routes
     - Identifying gatekeepers
     """
+    from backend.services.influence_mapping import InfluenceMappingService
+
     influence_service = InfluenceMappingService(db)
 
     try:
@@ -259,6 +263,8 @@ async def predict_influence_cascade(
     - Forecast supply chain disruptions
     - Estimate crisis contagion
     """
+    from backend.services.influence_mapping import InfluenceMappingService
+
     influence_service = InfluenceMappingService(db)
 
     try:
@@ -301,6 +307,8 @@ async def get_influence_changes_over_time(
 
     Note: Requires historical relationship data (not yet fully implemented).
     """
+    from backend.services.influence_mapping import InfluenceMappingService
+
     influence_service = InfluenceMappingService(db)
 
     result = await influence_service.get_influence_changes_over_time(
