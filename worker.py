@@ -15,6 +15,7 @@ Usage:
 import argparse
 import logging
 import os
+import socket
 import sys
 import threading
 import time
@@ -143,8 +144,11 @@ def main():
     else:
         worker_class = Worker
 
+    worker_identity = f"{socket.gethostname()}-{os.getpid()}"
     worker = worker_class(
-        queues, connection=redis_conn, name=f"cogent-worker-{args.queue}"
+        queues,
+        connection=redis_conn,
+        name=f"cogent-worker-{args.queue}-{worker_identity}",
     )
 
     # Setup RQ logging

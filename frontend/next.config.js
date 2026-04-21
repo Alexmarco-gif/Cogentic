@@ -55,7 +55,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              `script-src 'self' https://js.paystack.co${isDevelopment ? " 'unsafe-eval'" : ''}`,
+              // Next.js app-router and a few auth/payment integrations still rely on
+              // controlled inline bootstrapping scripts. For now we allow inline scripts
+              // so staging remains functional; the long-term hardening path is a nonce-
+              // based CSP once the app shell is fully migrated.
+              `script-src 'self' 'unsafe-inline' https://js.paystack.co${isDevelopment ? " 'unsafe-eval'" : ''}`,
               // The app still uses controlled inline style attributes in a few places,
               // so styles remain temporarily whitelisted while scripts are hardened.
               "style-src 'self' 'unsafe-inline'",

@@ -1,4 +1,4 @@
-# Staging Intelligence Validation Checklist
+you continue, i want to ask how does the data scraping start, and when does it and how does it , and also i want it to start what should be done# Staging Intelligence Validation Checklist
 
 This runbook is for engineers validating that Cogent is not just deployed, but actively producing live intelligence from real monitoring coverage.
 
