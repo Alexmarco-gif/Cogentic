@@ -18,12 +18,17 @@ import { ApiError, AuthTokenError, NetworkError } from './errors';
 // ── Configuration ────────────────────────────────────────────────────────────
 
 /**
- * All `/api/v1/*` requests are proxied by next.config.js → backend.
- * Override with NEXT_PUBLIC_API_URL if the backend is exposed directly.
+ * Browser traffic should default to the same-origin Next.js proxy so we avoid
+ * CSP/CORS drift between environments. Direct browser-to-backend calls remain
+ * available behind an explicit opt-in for exceptional deployments.
  */
 const API_BASE =
   (typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_API_URL ?? '')
+    ? (
+        process.env.NEXT_PUBLIC_DIRECT_API === 'true'
+          ? (process.env.NEXT_PUBLIC_API_URL ?? '')
+          : ''
+      )
     : (process.env.BACKEND_URL ?? '')) || '';
 
 const API_PREFIX = '/api/v1';

@@ -20,7 +20,9 @@ COPY . .
 
 # Build-time env vars (baked into the JS bundle)
 ARG NEXT_PUBLIC_API_URL
+ARG BACKEND_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV BACKEND_URL=$BACKEND_URL
 
 # Enable standalone output for minimal production image
 ENV NEXT_TELEMETRY_DISABLED=1

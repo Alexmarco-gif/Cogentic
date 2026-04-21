@@ -1,4 +1,26 @@
 const isDevelopment = process.env.NODE_ENV !== 'production'
+const apiOrigin = (() => {
+  const raw = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || ''
+  if (!raw) return null
+
+  try {
+    return new URL(raw).origin
+  } catch {
+    return null
+  }
+})()
+
+const connectSrc = [
+  "'self'",
+  'https://*.auth0.com',
+  'wss://*.auth0.com',
+  'https://*.sentry.io',
+  'https://*.posthog.com',
+  'https://api.paystack.co',
+  'https://checkout.paystack.com',
+  'https://js.paystack.co',
+  ...(apiOrigin ? [apiOrigin, apiOrigin.replace(/^https:/, 'wss:')] : []),
+].join(' ')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -65,7 +87,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.auth0.com wss://*.auth0.com https://*.sentry.io https://*.posthog.com https://api.paystack.co https://checkout.paystack.com https://js.paystack.co",
+              `connect-src ${connectSrc}`,
               "frame-src 'self' https://checkout.paystack.com https://js.paystack.co",
               "frame-ancestors 'none'",
               "base-uri 'self'",
