@@ -19,7 +19,6 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user

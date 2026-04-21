@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import require_permissions
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/influence", tags=["influence-mapping"])

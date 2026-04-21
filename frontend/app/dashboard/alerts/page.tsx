@@ -28,9 +28,11 @@ function SeverityBadge({ severity }: { severity: string }) {
 function AlertRow({
   alert,
   onAcknowledge,
+  isAcknowledging,
 }: {
   alert: AlertResponse;
   onAcknowledge: (id: string) => void;
+  isAcknowledging: boolean;
 }) {
   const cfg = SEVERITY_CONFIG[alert.severity as Severity] ?? SEVERITY_CONFIG.low;
 
@@ -71,10 +73,11 @@ function AlertRow({
         {!alert.acknowledged && (
           <button
             onClick={() => onAcknowledge(alert.id)}
-            className="shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-body hover:text-success hover:bg-success-bg rounded-lg border border-border transition-colors"
+            disabled={isAcknowledging}
+            className="shrink-0 flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-body transition-colors hover:bg-success-bg hover:text-success disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CheckCircle className="w-3.5 h-3.5" />
-            Acknowledge
+            {isAcknowledging ? 'Acknowledging...' : 'Acknowledge'}
           </button>
         )}
         {alert.acknowledged && (
@@ -92,12 +95,13 @@ export default function AlertsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('');
   const [showAcknowledged, setShowAcknowledged] = useState(false);
 
-  const { summary } = useAlertSummary();
-  const { data, loading, error, acknowledge } = useAlerts({
+  const { summary, error: summaryError, refetch: refetchSummary } = useAlertSummary();
+  const { data, loading, error, actionError, acknowledgingId, refetch, acknowledge } = useAlerts({
     severity: (severityFilter as Severity) || undefined,
     acknowledged: showAcknowledged ? undefined : false,
     limit: 100,
   });
+  const combinedError = actionError ?? error ?? summaryError;
 
   const severities: Array<{ value: string; label: string }> = [
     { value: '', label: 'All severities' },
@@ -193,24 +197,46 @@ export default function AlertsPage() {
       {loading && (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div className="h-24 bg-muted rounded-lg animate-pulse" />
+            <div key={i} className="h-24 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       )}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      {combinedError && (
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 md:flex-row md:items-center md:justify-between">
+          <span>{combinedError}</span>
+          <button
+            onClick={() => {
+              void refetch();
+              void refetchSummary();
+            }}
+            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-50"
+          >
+            Try again
+          </button>
+        </div>
       )}
       {!loading && data && data.items.length === 0 && (
         <div className="text-center py-16 text-subtle">
           <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No alerts</p>
-          <p className="text-sm mt-1">Change detection hasn&apos;t found any anomalies yet</p>
+          <p className="font-medium">
+            {summary && Object.keys(summary.by_metric).length > 0 ? 'No active alerts' : 'No alert coverage yet'}
+          </p>
+          <p className="text-sm mt-1">
+            {summary && Object.keys(summary.by_metric).length > 0
+              ? "Change detection hasn't found any anomalies in your tracked indicators yet."
+              : 'Alerts appear here after tracked indicators and change-detection jobs start producing alert events.'}
+          </p>
         </div>
       )}
       {!loading && data && data.items.length > 0 && (
         <div className="space-y-3">
           {data.items.map((alert: AlertResponse) => (
-            <AlertRow key={alert.id} alert={alert} onAcknowledge={acknowledge} />
+            <AlertRow
+              key={alert.id}
+              alert={alert}
+              onAcknowledge={acknowledge}
+              isAcknowledging={acknowledgingId === alert.id}
+            />
           ))}
         </div>
       )}

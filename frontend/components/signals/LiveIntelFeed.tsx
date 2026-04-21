@@ -70,6 +70,8 @@ interface LiveIntelFeedProps {
   lastUpdated?: Date
   liveConnected?: boolean
   onViewTimeline?: () => void
+  emptyTitle?: string
+  emptyDescription?: string
 }
 
 function timeAgo(date: Date): string {
@@ -90,6 +92,8 @@ export function LiveIntelFeed({
   lastUpdated,
   liveConnected = false,
   onViewTimeline,
+  emptyTitle = 'No live events yet',
+  emptyDescription = 'New signals will appear here as soon as your selected industry or starter workspace receives fresh intelligence.',
 }: LiveIntelFeedProps) {
   const [filter, setFilter] = useState<FeedFilter>('all')
 
@@ -180,9 +184,9 @@ export function LiveIntelFeed({
       <div className="divide-y divide-border/80">
         {filteredEvents.length === 0 && (
           <div className="px-6 py-14 text-center">
-            <p className="text-[0.92rem] font-semibold text-heading">No live events yet</p>
+            <p className="text-[0.92rem] font-semibold text-heading">{emptyTitle}</p>
             <p className="mx-auto mt-2 max-w-md text-[0.8rem] text-subtle">
-              New signals will appear here as soon as your selected industry or starter workspace receives fresh intelligence.
+              {emptyDescription}
             </p>
           </div>
         )}

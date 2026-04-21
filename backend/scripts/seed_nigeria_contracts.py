@@ -237,8 +237,12 @@ CONTRACTS: list[dict] = [
         "extraction_config": {
             "country_code": "NGA",
             "signal_type": "market",
-            "metrics": ["maize_price_NGN_per_tonne", "soybean_price_NGN_per_tonne",
-                        "rice_price_NGN_per_50kg", "sorghum_price_NGN_per_tonne"],
+            "metrics": [
+                "maize_price_NGN_per_tonne",
+                "soybean_price_NGN_per_tonne",
+                "rice_price_NGN_per_50kg",
+                "sorghum_price_NGN_per_tonne",
+            ],
         },
     },
     {
@@ -360,7 +364,11 @@ CONTRACTS: list[dict] = [
         "extraction_config": {
             "country_code": "NGA",
             "signal_type": "market",
-            "metrics": ["active_voice_subs", "active_data_subs", "internet_penetration"],
+            "metrics": [
+                "active_voice_subs",
+                "active_data_subs",
+                "internet_penetration",
+            ],
         },
     },
     {
@@ -631,18 +639,29 @@ async def fetch_industry_map(db) -> dict[str, str]:
 async def ensure_industries(db) -> None:
     """Create required industries if they don't exist."""
     from backend.models.industry import Industry
-    
+
     industry_slugs = set()
     for contract in CONTRACTS:
         industry_slugs.add(contract.get("industry_slug", "financial-services"))
-    
+
     # Add a few defaults
-    for slug in ["financial-services", "fintech", "energy", "agriculture-agritech", "technology", "healthcare", "manufacturing", "insurance", "logistics", "real-estate"]:
+    for slug in [
+        "financial-services",
+        "fintech",
+        "energy",
+        "agriculture-agritech",
+        "technology",
+        "healthcare",
+        "manufacturing",
+        "insurance",
+        "logistics",
+        "real-estate",
+    ]:
         industry_slugs.add(slug)
-    
+
     existing_result = await db.execute(sa.select(Industry.slug))
     existing_slugs = {row.slug for row in existing_result.all()}
-    
+
     for slug in industry_slugs:
         if slug not in existing_slugs:
             industry = Industry(
@@ -652,7 +671,7 @@ async def ensure_industries(db) -> None:
                 description=f"Industry: {slug}",
             )
             db.add(industry)
-    
+
     await db.commit()
     logger.info(f"Ensured {len(industry_slugs)} industries exist")
 
@@ -664,7 +683,7 @@ async def seed(dry_run: bool = False) -> None:
     async with AsyncSessionLocal() as db:
         # Ensure industries exist first
         await ensure_industries(db)
-        
+
         industry_map = await fetch_industry_map(db)
 
         inserted = 0
@@ -679,7 +698,9 @@ async def seed(dry_run: bool = False) -> None:
                 industry_slug, industry_map.get("financial-services")
             )
             if not industry_id:
-                logger.warning(f"Industry slug '{industry_slug}' not found, skipping '{spec['name']}'")
+                logger.warning(
+                    f"Industry slug '{industry_slug}' not found, skipping '{spec['name']}'"
+                )
                 skipped += 1
                 spec["industry_slug"] = industry_slug  # restore for idempotency
                 spec["country_code"] = slug
@@ -719,7 +740,9 @@ async def seed(dry_run: bool = False) -> None:
             f"Nigeria contracts seeding complete: "
             f"inserted={inserted}, skipped={skipped}, dry_run={dry_run}"
         )
-        print(f"✓ Inserted {inserted} Nigeria signal contracts ({skipped} skipped as duplicates)")
+        print(
+            f"✓ Inserted {inserted} Nigeria signal contracts ({skipped} skipped as duplicates)"
+        )
 
 
 async def main() -> None:

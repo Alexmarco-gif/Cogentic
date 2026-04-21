@@ -180,8 +180,11 @@ export function DataPrivacySection() {
   const [exportRequesting, setExportRequesting] = useState(false)
   const [exportRequested, setExportRequested] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [exportMessage, setExportMessage] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null)
   const [deletionError, setDeletionError] = useState<string | null>(null)
+  const [deletionMessage, setDeletionMessage] = useState<string | null>(null)
   const [archivedBriefs, setArchivedBriefs] = useState<BriefResponse[]>([])
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
@@ -230,15 +233,19 @@ export function DataPrivacySection() {
   async function handleConfirm() {
     setConfirming(true)
     setHistoryError(null)
+    setHistoryMessage(null)
     setDeletionError(null)
+    setDeletionMessage(null)
 
     try {
       if (confirm === 'history') {
-        await clearUserHistory()
+        const response = await clearUserHistory()
         setHistoryCleared(true)
+        setHistoryMessage(response.message)
       } else if (confirm === 'account') {
-        await requestDataDeletion()
+        const response = await requestDataDeletion()
         setDeletionRequested(true)
+        setDeletionMessage(response.message)
       }
     } catch (error) {
       const message = friendlyErrorMessage(error)
@@ -256,11 +263,13 @@ export function DataPrivacySection() {
   async function handleRequestExport() {
     setExportRequesting(true)
     setExportError(null)
+    setExportMessage(null)
 
     try {
       const response = await requestDataExport()
       downloadExportArchive(response.data)
       setExportRequested(true)
+      setExportMessage(response.message)
     } catch (error) {
       setExportError(friendlyErrorMessage(error))
     } finally {
@@ -285,8 +294,8 @@ export function DataPrivacySection() {
           title={confirm === 'history' ? 'Clear all history?' : 'Delete account data now?'}
           body={
             confirm === 'history'
-              ? 'This permanently deletes investigation sessions, chat history, and search history. This cannot be undone.'
-              : 'This permanently deletes your account data immediately, including sessions, feedback, contracts, and investigation history.'
+              ? 'This permanently deletes investigation sessions and their associated chat messages. This cannot be undone.'
+              : 'This permanently deletes your user record, chat sessions, search queries, feedback events, and device sessions, and anonymises your audit trail.'
           }
           confirmLabel={
             confirming
@@ -373,7 +382,7 @@ export function DataPrivacySection() {
             <History className="h-4 w-4 text-subtle" strokeWidth={1.5} />
             <h3 className="text-sm font-medium text-heading">History & Archive</h3>
           </div>
-          <p className="mb-5 text-xs text-subtle">Manage investigation sessions, exports, and archived briefs.</p>
+          <p className="mb-5 text-xs text-subtle">Manage investigation history, portable user-data exports, and archived briefs.</p>
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
@@ -385,7 +394,7 @@ export function DataPrivacySection() {
                       Clear all history
                       {historyCleared && <span className="ml-2 text-[10px] font-normal text-emerald-600">Cleared</span>}
                     </p>
-                    <p className="text-xs text-subtle">Deletes investigation sessions, chats, and search history.</p>
+                    <p className="text-xs text-subtle">Deletes investigation sessions and their associated chat history.</p>
                   </div>
                 </div>
                 <button
@@ -397,6 +406,7 @@ export function DataPrivacySection() {
                 </button>
               </div>
               {historyError && <p className="px-1 text-[10px] text-rose-500">{historyError}</p>}
+              {historyMessage && <p className="px-1 text-[10px] text-emerald-600">{historyMessage}</p>}
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
@@ -404,7 +414,7 @@ export function DataPrivacySection() {
                 <Archive className="h-4 w-4 text-subtle" strokeWidth={1.5} />
                 <div>
                   <p className="text-sm font-medium text-body">Download my data</p>
-                  <p className="text-xs text-subtle">Download a JSON export of contracts, briefs, notifications, and history.</p>
+                  <p className="text-xs text-subtle">Download a JSON export of your profile, chat sessions, search queries, feedback, and device sessions.</p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -418,6 +428,7 @@ export function DataPrivacySection() {
                   {exportRequesting && <Loader2 className="h-3 w-3 animate-spin" />}
                   {exportRequested ? 'Downloaded' : exportRequesting ? 'Preparing...' : 'Download export'}
                 </button>
+                {exportMessage && <p className="text-[10px] text-emerald-600">{exportMessage}</p>}
                 {exportError && <p className="text-[10px] text-rose-500">{exportError}</p>}
               </div>
             </div>
@@ -477,7 +488,7 @@ export function DataPrivacySection() {
         <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-6">
           <h3 className="mb-1 text-sm font-medium text-rose-700">Delete account data</h3>
           <p className="mb-4 text-xs text-rose-600">
-            Delete all account data immediately. This removes workspace history, notifications, and active sessions.
+            Delete your user-owned data immediately. This removes your chat sessions, search queries, feedback events, device sessions, and anonymises audit logs.
           </p>
           <button
             onClick={() => {
@@ -486,8 +497,9 @@ export function DataPrivacySection() {
             disabled={deletionRequested}
             className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
           >
-            {deletionRequested ? 'Deleted' : 'Delete data now'}
+            {deletionRequested ? 'Deletion completed' : 'Delete data now'}
           </button>
+          {deletionMessage && <p className="mt-2 text-xs text-emerald-700">{deletionMessage}</p>}
           {deletionError && <p className="mt-2 text-xs text-rose-600">{deletionError}</p>}
         </div>
       </div>

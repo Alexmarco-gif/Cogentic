@@ -1,12 +1,14 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ArrowRight, Search, Sparkles } from 'lucide-react'
 import { useInvestigate } from '@/lib/hooks/useInvestigate'
 import { ChatInterface } from '@/components/investigate/ChatInterface'
 import { EvidenceBoard } from '@/components/investigate/EvidenceBoard'
 
 function InvestigateInner() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get('q') ?? undefined
   const initialIndustrySlug =
@@ -95,12 +97,49 @@ function InvestigateInner() {
             </div>
           </div>
         </div>
-        {industriesError && (
-          <div className="px-5 pb-4 text-[11px] text-amber-700">
-            {industriesError}
-          </div>
-        )}
+      {industriesError && (
+        <div className="px-5 pb-4 text-[11px] text-amber-700">
+          {industriesError}
+        </div>
+      )}
       </div>
+
+      {!isRestoringSession && messages.length === 0 && (
+        <div className="surface-panel border border-border/80 bg-surface/95 p-5">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="eyebrow">Best results</p>
+              <h2 className="mt-2 text-title">Investigate works best once live signals are already flowing.</h2>
+              <p className="mt-2 text-[0.82rem] text-subtle">
+                Use this workspace to ask follow-up questions about monitored entities, policy shifts, competitors, or market events. If your workspace is still empty, define monitoring in Studio or activate managed sources first so the backend has real evidence to work with.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push('/dashboard/signals')}
+                className="button-press inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[0.82rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+              >
+                <Search size={14} />
+                Open signals
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/studio')}
+                className="button-press inline-flex items-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-[0.82rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+              >
+                <Sparkles size={14} />
+                Create contract
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/marketplace')}
+                className="button-press inline-flex items-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-[0.82rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+              >
+                Browse sources
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(24rem,0.92fr)_minmax(0,1.18fr)]">
         <div

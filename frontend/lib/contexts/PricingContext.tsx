@@ -56,21 +56,28 @@ export function PricingProvider({ children }: PricingProviderProps) {
     try {
       setLoading(true)
 
-      const [pricing, features, credits] = await Promise.all([
+      const [pricingResult, featuresResult, creditsResult] = await Promise.allSettled([
         getCurrentPricing(),
         getFeatureAccess(),
         getCreditBalance(),
       ])
 
       setPricingData({
-        tier: pricing.tier,
-        features: features.features,
-        credits,
+        tier: pricingResult.status === 'fulfilled' ? pricingResult.value.tier : FALLBACK.tier,
+        features: featuresResult.status === 'fulfilled' ? featuresResult.value.features : FALLBACK.features,
+        credits: creditsResult.status === 'fulfilled' ? creditsResult.value : FALLBACK.credits,
         loading: false,
-        pricingResolved: true,
-        featuresResolved: true,
-        creditsResolved: true,
-        error: null,
+        pricingResolved: pricingResult.status === 'fulfilled',
+        featuresResolved: featuresResult.status === 'fulfilled',
+        creditsResolved: creditsResult.status === 'fulfilled',
+        error: [pricingResult, featuresResult, creditsResult]
+          .find((result) => result.status === 'rejected')
+          ? friendlyErrorMessage(
+              [pricingResult, featuresResult, creditsResult].find(
+                (result) => result.status === 'rejected',
+              )!.reason,
+            )
+          : null,
         refresh: fetchPricingData,
       })
     } catch (error) {

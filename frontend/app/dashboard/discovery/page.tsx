@@ -60,6 +60,7 @@ export default function DiscoveryPage() {
   // Industry picker state
   const [industries, setIndustries] = useState<IndustryItem[]>([])
   const [industriesError, setIndustriesError] = useState(false)
+  const [industriesLoading, setIndustriesLoading] = useState(false)
   const [pendingSourceId, setPendingSourceId] = useState<string | null>(null)
   const [activating, setActivating] = useState(false)
 
@@ -94,10 +95,12 @@ export default function DiscoveryPage() {
     if (!canManageDiscovery) {
       setIndustries([])
       setIndustriesError(false)
+      setIndustriesLoading(false)
       return
     }
 
     let cancelled = false
+    setIndustriesLoading(true)
     getIndustries()
       .then((data) => {
         if (!cancelled) {
@@ -109,6 +112,11 @@ export default function DiscoveryPage() {
         if (!cancelled) {
           setIndustries([])
           setIndustriesError(true)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIndustriesLoading(false)
         }
       })
 
@@ -198,8 +206,12 @@ export default function DiscoveryPage() {
         <div className="flex flex-col gap-2 pt-1">
           {industriesError ? (
             <p className="text-sm text-rose-500 py-4 text-center">Could not load industries. Please close and try again.</p>
-          ) : industries.length === 0 ? (
+          ) : industriesLoading ? (
             <p className="text-sm text-subtle py-4 text-center">Loading industries…</p>
+          ) : industries.length === 0 ? (
+            <p className="text-sm text-subtle py-4 text-center">
+              No industries are available yet. Bootstrap the catalog before activating discovery sources.
+            </p>
           ) : (
             industries.map(ind => (
               <button

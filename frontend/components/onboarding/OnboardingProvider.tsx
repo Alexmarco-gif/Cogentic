@@ -236,10 +236,6 @@ export function OnboardingProvider({
   const isSupportedPage = ONBOARDING_ENABLED && steps.length > 0
   const currentStep = steps[stepIndex]
 
-  if (!ONBOARDING_ENABLED) {
-    return <>{children}</>
-  }
-
   const findAvailableStep = useCallback(
     (startIndex: number) => {
       for (let index = startIndex; index < steps.length; index += 1) {
@@ -458,6 +454,10 @@ export function OnboardingProvider({
       width,
     }
   }, [currentStep?.placement, highlight])
+
+  if (!ONBOARDING_ENABLED) {
+    return <>{children}</>
+  }
 
   return (
     <>

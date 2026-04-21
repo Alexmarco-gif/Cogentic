@@ -125,6 +125,7 @@ class Settings(BaseSettings):
     # Production / staging set these to True explicitly via env vars.
     require_healthy_db_on_startup: bool = False
     require_healthy_redis_on_startup: bool = False
+    bootstrap_catalog_on_startup: bool = True
 
     # CORS origins
     cors_origins: str = "http://localhost:3000"

@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -24,6 +25,7 @@ from backend.auth.middleware import (
     forbidden_exception_handler,
 )
 from backend.auth.rate_limit import limiter
+from backend.bootstrap.catalog import ensure_core_catalog
 from backend.config import get_settings
 from backend.database import engine, read_engine
 from backend.jobs.pricing_scheduler import start_pricing_jobs, stop_pricing_jobs
@@ -208,6 +210,13 @@ async def lifespan(app: FastAPI):
         db_healthy=db_ok,
         redis_healthy=redis_ok,
     )
+
+    if db_ok and settings.bootstrap_catalog_on_startup:
+        try:
+            async with AsyncSession(engine) as db:
+                await ensure_core_catalog(db)
+        except Exception as e:
+            logger.error("bootstrap_catalog_failed", error=str(e))
 
     # Start signal acquisition scheduler
     try:

@@ -23,14 +23,14 @@ from openai import AsyncOpenAI
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.ai.embeddings import EmbeddingService
+from backend.ai.guardrails import get_guardrails
 from backend.briefs.prompting import (
     build_brief_system_prompt,
     build_brief_user_prompt,
     coerce_canonical_brief_result,
 )
 from backend.briefs.schema import normalize_brief_body
-from backend.ai.embeddings import EmbeddingService
-from backend.ai.guardrails import get_guardrails
 from backend.config import get_settings
 from backend.models.signal import Signal
 from backend.redis_client import get_redis
@@ -420,7 +420,9 @@ class SynthesisService:
                 )
             )
 
-        query = query.where(Signal.id.in_([UUID(signal_id) for signal_id in signal_ids]))
+        query = query.where(
+            Signal.id.in_([UUID(signal_id) for signal_id in signal_ids])
+        )
 
         result = await self.db.execute(query)
         rows = list(result.scalars().all())

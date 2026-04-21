@@ -68,12 +68,53 @@ param deployWorkloads bool = true
 @description('Optional Azure AD object ID to grant Key Vault secret get/list/set access for deployment and verification.')
 param keyVaultOperatorObjectId string = ''
 
+@description('Public frontend base URL used by Auth0 and browser navigation.')
+param frontendBaseUrl string = environment == 'production'
+  ? 'https://app.cogent.ai'
+  : 'https://staging.cogent.ai'
+
+@description('Public backend API URL used by the frontend browser bundle.')
+param publicApiUrl string = environment == 'production'
+  ? 'https://api.cogent.ai'
+  : 'https://api-staging.cogent.ai'
+
 // ── Variables ───────────────────────────────────────────────────────────────
 var envSuffix = environment == 'production' ? 'prod' : 'stg'
 var resourcePrefix = '${projectName}-${envSuffix}'
 var acrName = '${projectName}acr${envSuffix}'
 var keyVaultName = '${resourcePrefix}-kv'
 var databaseUrl = 'postgresql://${dbAdminUser}:${dbAdminPassword}@${postgres.outputs.serverFqdn}:5432/${dbName}?sslmode=require'
+var keyVaultAccessPolicies = concat(
+  empty(keyVaultOperatorObjectId)
+    ? []
+    : [
+        {
+          tenantId: subscription().tenantId
+          objectId: keyVaultOperatorObjectId
+          permissions: {
+            secrets: [
+              'get'
+              'list'
+              'set'
+            ]
+          }
+        }
+      ],
+  deployWorkloads
+    ? [
+        {
+          tenantId: subscription().tenantId
+          objectId: acrPullIdentity.properties.principalId
+          permissions: {
+            secrets: [
+              'get'
+              'list'
+            ]
+          }
+        }
+      ]
+    : []
+)
 
 // ── Log Analytics ───────────────────────────────────────────────────────────
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -120,21 +161,7 @@ module keyVault 'modules/keyvault.bicep' = {
   params: {
     name: keyVaultName
     location: location
-    additionalAccessPolicies: empty(keyVaultOperatorObjectId)
-      ? []
-      : [
-          {
-            tenantId: subscription().tenantId
-            objectId: keyVaultOperatorObjectId
-            permissions: {
-              secrets: [
-                'get'
-                'list'
-                'set'
-              ]
-            }
-          }
-        ]
+    additionalAccessPolicies: keyVaultAccessPolicies
   }
 }
 
@@ -237,9 +264,7 @@ module backend 'modules/container-app.bicep' = if (deployWorkloads) {
       { name: 'X_BEARER_TOKEN',          secretRef: 'x-bearer-token' }
       { name: 'AZURE_BLOB_CONNECTION_STRING', secretRef: 'azure-blob-connection-string' }
       { name: 'AZURE_BLOB_MODEL_CONTAINER',   secretRef: 'azure-blob-model-container' }
-      { name: 'CORS_ORIGINS',     value: environment == 'production'
-        ? 'https://app.cogent.ai'
-        : 'https://staging.cogent.ai' }
+      { name: 'CORS_ORIGINS',     value: frontendBaseUrl }
       { name: 'REQUIRE_HEALTHY_DB_ON_STARTUP',    value: 'true' }
       { name: 'REQUIRE_HEALTHY_REDIS_ON_STARTUP',  value: 'true' }
     ]
@@ -360,17 +385,16 @@ module frontend 'modules/container-app.bicep' = if (deployWorkloads) {
     envVars: [
       { name: 'NODE_ENV',          value: 'production' }
       { name: 'AUTH0_SECRET',      secretRef: 'auth0-frontend-secret' }
-      { name: 'AUTH0_BASE_URL',    value: environment == 'production'
-        ? 'https://app.cogent.ai'
-        : 'https://staging.cogent.ai' }
+      { name: 'AUTH0_BASE_URL',    value: frontendBaseUrl }
+      { name: 'NEXT_PUBLIC_LOGIN_ROUTE', value: '/api/auth/login' }
+      { name: 'NEXT_PUBLIC_PROFILE_ROUTE', value: '/api/auth/profile' }
+      { name: 'NEXT_PUBLIC_ACCESS_TOKEN_ROUTE', value: '/api/auth/access-token' }
       { name: 'AUTH0_ISSUER_BASE_URL', secretRef: 'auth0-issuer-base-url' }
       { name: 'AUTH0_CLIENT_ID',       secretRef: 'auth0-client-id' }
       { name: 'AUTH0_CLIENT_SECRET',   secretRef: 'auth0-client-secret' }
       { name: 'AUTH0_AUDIENCE',        secretRef: 'auth0-audience' }
       { name: 'AUTH0_WEBHOOK_SECRET',  secretRef: 'auth0-webhook-secret' }
-      { name: 'NEXT_PUBLIC_API_URL',   value: environment == 'production'
-        ? 'https://api.cogent.ai'
-        : 'https://api-staging.cogent.ai' }
+      { name: 'NEXT_PUBLIC_API_URL',   value: publicApiUrl }
       { name: 'BACKEND_URL',          value: 'https://${backend!.outputs.fqdn}' }
     ]
     secrets: [
@@ -407,7 +431,7 @@ resource migrateJob 'Microsoft.App/jobs@2024-03-01' = if (deployWorkloads) {
       replicaTimeout: 300
       replicaRetryLimit: 1
       secrets: [
-        { name: 'database-url', keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/database-url', identity: 'system' }
+        { name: 'database-url', keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/database-url', identity: acrPullIdentity.id }
       ]
       registries: [
         {
@@ -438,7 +462,7 @@ resource migrateJobKvAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023
     accessPolicies: [
       {
         tenantId: subscription().tenantId
-        objectId: migrateJob!.identity.principalId
+        objectId: acrPullIdentity.properties.principalId
         permissions: {
           secrets: ['get', 'list']
         }

@@ -374,6 +374,7 @@ async def get_metric_trend(
 async def list_available_metrics(
     auth: AuthContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _feature_check: bool = Depends(require_feature("market_data")),
     country_code: str | None = Query(None, max_length=3),
 ):
     """List all distinct metric names in the system.

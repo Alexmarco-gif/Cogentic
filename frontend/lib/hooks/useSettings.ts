@@ -135,34 +135,6 @@ const DEFAULT_PROFILE: UserProfile = {
   coverGradient: 'from-gray-100 via-gray-50 to-gray-100',
 }
 
-const DEFAULT_CARD: PaymentCard = {
-  nameOnCard: '',
-  cardNumber: '',
-  expiry:     '',
-  cvv:        '',
-}
-
-const DEFAULT_INVOICES: Invoice[] = []
-
-const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
-  signalAlerts:        true,
-  weeklyDigest:        true,
-  contractUpdates:     true,
-  systemAnnouncements: false,
-  emailEnabled:        true,
-  pushEnabled:         true,
-  smsEnabled:          false,
-}
-
-const DEFAULT_INTEGRATIONS: Integration[] = [
-  { id: 'slack',       name: 'Slack',         description: 'Push signal alerts to channels',     category: 'Communication', connected: true,  logoInitial: 'S', color: '#4A154B' },
-  { id: 'notion',      name: 'Notion',        description: 'Export briefs to Notion pages',      category: 'Productivity',  connected: false, logoInitial: 'N', color: '#000000' },
-  { id: 'google',      name: 'Google Sheets', description: 'Sync data contracts as spreadsheets',category: 'Data',         connected: true,  logoInitial: 'G', color: '#0F9D58' },
-  { id: 'zapier',      name: 'Zapier',        description: 'Automate workflows with signal data', category: 'Automation',   connected: false, logoInitial: 'Z', color: '#FF4A00' },
-  { id: 'webhook',     name: 'Webhooks',      description: 'Custom HTTP endpoint delivery',       category: 'Developer',     connected: false, logoInitial: 'W', color: '#4F46E5' },
-  { id: 'powerbi',     name: 'Power BI',      description: 'Live dashboard data connector',       category: 'Data',         connected: false, logoInitial: 'P', color: '#F2C811' },
-]
-
 const DEFAULT_CREDIT_BALANCE: CreditBalanceResponse = {
   allocated: 0,
   consumed: 0,
@@ -221,10 +193,6 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
             avatarUrl: profileData.picture_url ?? prev.avatarUrl,
             plan: userCtx?.subscription.plan ?? prev.plan,
           }))
-          setBillingContact(prev => ({
-            ...prev,
-            email: profileData.email ?? prev.email,
-          }))
         }
       } catch {
         // Backend unavailable — keep defaults
@@ -251,31 +219,9 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
     }
   }, [])
 
-  // Billing
-  const [card, setCard]                   = useState<PaymentCard>(DEFAULT_CARD)
-  const [billingContact, setBillingContact] = useState<BillingContact>({
-    mode: 'existing', email: DEFAULT_PROFILE.email,
-  })
-  const [invoices]                         = useState<Invoice[]>(DEFAULT_INVOICES)
-  const [selectedInvoices, setSelected]    = useState<Set<string>>(new Set())
-  const toggleInvoiceSelect = useCallback((id: string) => {
-    setSelected(s => {
-      const next = new Set(s)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }, [])
-
-  // Notifications
-  const [notifications, setNotifications] = useState<NotificationPrefs>(DEFAULT_NOTIFICATIONS)
-  const toggleNotification = useCallback((key: keyof NotificationPrefs) => {
-    setNotifications(n => ({ ...n, [key]: !n[key] }))
-  }, [])
-
   // Security — sessions loaded from backend
   const [sessions, setSessions]   = useState<UserSession[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(true)
-  const [twoFAEnabled, setTwoFA]  = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -339,12 +285,6 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
     return result
   }, [orgId])
 
-  // Integrations
-  const [integrations, setIntegrations] = useState<Integration[]>(DEFAULT_INTEGRATIONS)
-  const toggleIntegration = useCallback((id: string) => {
-    setIntegrations(ii => ii.map(i => i.id === id ? { ...i, connected: !i.connected } : i))
-  }, [])
-
   // Usage — load from credits API and refresh while the user watches usage/billing
   const [creditBalance, setCreditBalance] = useState<CreditBalanceResponse>(DEFAULT_CREDIT_BALANCE)
   const [creditTransactions, setCreditTransactions] = useState<CreditTransactionResponse[]>([])
@@ -393,17 +333,10 @@ export function useSettings(initialTab: SettingsTab = 'profile') {
     currentUser,
     // Profile
     profile, updateProfile, isEditingProfile, setEditingProfile,
-    // Billing
-    card, setCard, billingContact, setBillingContact,
-    invoices, selectedInvoices, toggleInvoiceSelect,
-    // Notifications
-    notifications, toggleNotification,
     // Security
-    sessions, sessionsLoading, twoFAEnabled, setTwoFA, revokeSession,
+    sessions, sessionsLoading, revokeSession,
     // API Keys
     apiKeys, handleRevokeApiKey, handleCreateApiKey, handleRotateApiKey,
-    // Integrations
-    integrations, toggleIntegration,
     // Usage
     creditBalance, creditTransactions, usageLoading,
   }

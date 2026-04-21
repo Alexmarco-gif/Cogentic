@@ -32,6 +32,16 @@ interface PipelineStatus {
   active_contracts: number
   degraded_contracts: number
   degraded_names: string[]
+  queues: Record<string, { name: string; count: number; failed: number; scheduled: number }>
+  workers_online: number
+  workers: Array<{
+    name: string
+    state: string
+    queues: string[]
+    current_job_id: string | null
+    last_heartbeat: string | null
+  }>
+  provider_readiness: Record<string, boolean>
 }
 
 // ── Health badge ────────────────────────────────────────────────────────────
@@ -212,6 +222,36 @@ export default function PipelinePage() {
           </div>
         </div>
 
+        <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-3">
+          <div className="rounded-lg border border-border bg-surface p-4">
+            <span className="text-sm text-subtle">Workers Online</span>
+            <p className={`text-xl font-semibold ${(status?.workers_online ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {status?.workers_online ?? 0}
+            </p>
+            <p className="mt-1 text-xs text-subtle">
+              {(status?.workers_online ?? 0) > 0
+                ? 'RQ workers are connected and available to process acquisition jobs.'
+                : 'No RQ workers are currently visible. Scheduled fetches will queue but not be processed.'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-surface p-4 md:col-span-2">
+            <span className="text-sm text-subtle">Provider Readiness</span>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {Object.entries(status?.provider_readiness ?? {}).map(([provider, ready]) => (
+                <span
+                  key={provider}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                    ready ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                  }`}
+                >
+                  {ready ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                  {provider.replace(/_/g, ' ')}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Manual tier fetch buttons */}
         <div className="mt-4 border-t border-border pt-4">
           <span className="text-sm text-subtle mb-2 block">Manual Fetch:</span>
@@ -234,6 +274,48 @@ export default function PipelinePage() {
           )}
         </div>
       </div>
+
+      {status && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="surface-panel p-5">
+            <h2 className="text-base font-semibold text-heading">Queue Depth</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {Object.values(status.queues ?? {}).map((queue) => (
+                <div key={queue.name} className="rounded-lg border border-border bg-surface p-4">
+                  <p className="text-sm font-medium text-heading capitalize">{queue.name}</p>
+                  <p className="mt-2 text-xs text-subtle">Queued: {queue.count}</p>
+                  <p className="text-xs text-subtle">Failed: {queue.failed}</p>
+                  <p className="text-xs text-subtle">Scheduled: {queue.scheduled}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="surface-panel p-5">
+            <h2 className="text-base font-semibold text-heading">Worker Heartbeats</h2>
+            <div className="mt-4 space-y-3">
+              {(status.workers ?? []).length === 0 ? (
+                <div className="rounded-lg border border-red-200 bg-red-50/50 p-4 text-sm text-red-800">
+                  No workers are currently reporting to Redis. The acquisition pipeline needs at least one running worker to fetch, refine, and refresh intelligence.
+                </div>
+              ) : (
+                status.workers.map((worker) => (
+                  <div key={worker.name} className="rounded-lg border border-border bg-surface p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-heading">{worker.name}</p>
+                      <HealthBadge health={worker.state === 'busy' || worker.state === 'idle' ? 'healthy' : 'stale'} />
+                    </div>
+                    <p className="mt-2 text-xs text-subtle">Queues: {worker.queues.join(', ') || 'None'}</p>
+                    <p className="text-xs text-subtle">State: {worker.state}</p>
+                    <p className="text-xs text-subtle">Current job: {worker.current_job_id ?? 'Idle'}</p>
+                    <p className="text-xs text-subtle">Last heartbeat: {worker.last_heartbeat ? new Date(worker.last_heartbeat).toLocaleString() : 'Unknown'}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Source health summary */}
       {health && (

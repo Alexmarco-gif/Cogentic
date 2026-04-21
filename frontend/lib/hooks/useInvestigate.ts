@@ -413,7 +413,7 @@ export function useInvestigate({
         setIndustries(data)
       } catch {
         if (cancelled) return
-        setIndustriesError('Industry filters are unavailable right now.')
+        setIndustriesError('Industry filters are unavailable right now. You can still investigate across all monitored industries.')
       } finally {
         if (!cancelled) {
           setIndustriesLoading(false)

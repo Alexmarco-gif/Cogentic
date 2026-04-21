@@ -82,7 +82,9 @@ export function NavigationRail({ notificationCount = 0, className }: NavigationR
         className,
       )}
       aria-label="Main navigation"
+      onFocusCapture={() => setExpanded(true)}
       onMouseEnter={() => setExpanded(true)}
+      onPointerEnter={() => setExpanded(true)}
       onMouseLeave={() => {
         setExpanded(false)
         setProfileOpen(false)

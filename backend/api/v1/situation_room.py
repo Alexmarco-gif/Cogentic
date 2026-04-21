@@ -24,8 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db, get_db_read
-from backend.middleware.feature_gating import get_current_organization, require_feature
-from backend.models.organization import Organization
+from backend.middleware.feature_gating import require_feature
 from backend.schemas.situation_room import (
     SituationRoomDashboard,
     SituationRoomEventType,
@@ -162,7 +161,9 @@ async def situation_room_websocket(
         if org:
             gating = GatingService(db)
             gate = await gating.feature_gate_repo.get_by_feature_key("situation_room")
-            if gate and not gating._check_tier_access(org.pricing_tier, gate.required_tier):
+            if gate and not gating._check_tier_access(
+                org.pricing_tier, gate.required_tier
+            ):
                 logger.warning(
                     "ws_tier_gate_denied",
                     extra={"org": str(token_payload.org_id), "tier": org.pricing_tier},

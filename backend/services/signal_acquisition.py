@@ -22,6 +22,7 @@ from backend.database import get_db_context
 from backend.models.signal_contract import SignalContract
 from backend.repositories.signal import SignalRepository
 from backend.repositories.signal_contract import SignalContractRepository
+from backend.signals.provider_presets import apply_provider_contract_defaults
 from backend.signals.fetchers import FetchError, get_fetcher
 from backend.signals.processors.dedup import DedupProcessor
 from backend.signals.processors.extractor import ExtractorProcessor
@@ -104,7 +105,7 @@ class SignalAcquisitionService:
         """
         logger.info(
             f"Fetching contract: {contract.name} "
-            f"(type={contract.source_type}, url={contract.source_url[:80]})"
+            f"(type={contract.source_type}, url={(contract.source_url or '[managed source]').strip()[:80]})"
         )
 
         if contract.source_type == "webhook":
@@ -118,14 +119,28 @@ class SignalAcquisitionService:
             )
             return {"fetched": 0, "deduped": 0, "stored": 0}
 
+        resolved_source_url, resolved_extraction_config = apply_provider_contract_defaults(
+            contract.source_type,
+            contract.source_url or "",
+            contract.extraction_config or {},
+        )
+        if not resolved_source_url:
+            error_message = (
+                "No source URL or managed provider endpoint could be resolved for this contract."
+            )
+            await self._handle_failure(contract, error_message)
+            raise RuntimeError(
+                f"Fetch failed for {contract.name}: {error_message}"
+            )
+
         # 1. Get the right fetcher
         fetcher = get_fetcher(contract.source_type)
 
         try:
             # 2. Fetch raw results
             raw_results = await fetcher.fetch(
-                source_url=contract.source_url,
-                extraction_config=contract.extraction_config or {},
+                source_url=resolved_source_url,
+                extraction_config=resolved_extraction_config,
             )
         finally:
             await fetcher.close()

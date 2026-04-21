@@ -53,7 +53,8 @@ export const RISK_LEVEL_STYLES: Record<RiskLevel, string> = {
 
 /**
  * Fetch region intelligence from the backend.
- * Falls back to an empty array when the endpoint is unavailable.
+ * Service failures are surfaced so the UI can distinguish unavailable data
+ * from a real "no geographic coverage yet" empty state.
  */
 const DOMAIN_LABELS: Record<string, string> = {
   financial: 'Finance',

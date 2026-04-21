@@ -172,6 +172,8 @@ interface RegionSidebarProps {
   loading?: boolean
   error?: string | null
   onRetry?: () => void
+  emptyTitle?: string
+  emptyDescription?: string
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -190,6 +192,8 @@ export const RegionSidebar = memo(function RegionSidebar({
   loading = false,
   error = null,
   onRetry,
+  emptyTitle = 'No regions mapped yet',
+  emptyDescription = 'Regional intelligence will appear once visible signals include geographic metadata.',
 }: RegionSidebarProps) {
   const domainTabs = buildDomainTabs(availableDomains)
   return (
@@ -306,9 +310,9 @@ export const RegionSidebar = memo(function RegionSidebar({
           </div>
         ) : regions.length === 0 ? (
           <div className="rounded-lg border border-border bg-muted/20 px-3 py-6 text-center">
-            <p className="text-xs font-medium text-heading">No regions mapped yet</p>
+            <p className="text-xs font-medium text-heading">{emptyTitle}</p>
             <p className="mt-1 text-[11px] text-subtle">
-              Regional intelligence will appear once visible signals include geographic metadata.
+              {emptyDescription}
             </p>
           </div>
         ) : (

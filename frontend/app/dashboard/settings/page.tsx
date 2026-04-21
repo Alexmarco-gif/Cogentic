@@ -40,7 +40,7 @@ const SETTINGS_META: Record<
   },
   preferences: {
     label: 'Preferences',
-    description: 'Display, density, language, and regional settings.',
+    description: 'Device-level appearance, language, and regional settings.',
     group: 'Account',
     icon: Palette,
   },
@@ -191,8 +191,6 @@ function SettingsContent() {
       case 'security':
         return (
           <SecuritySection
-            twoFAEnabled={s.twoFAEnabled}
-            onSetTwoFA={s.setTwoFA}
             sessions={s.sessions}
             sessionsLoading={s.sessionsLoading}
             onRevokeSession={s.revokeSession}

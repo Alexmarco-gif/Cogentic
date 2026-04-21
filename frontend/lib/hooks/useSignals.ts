@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { submitFeedback } from '@/lib/api/feedback'
+import { friendlyErrorMessage } from '@/lib/api'
 import {
   normalizeIntelligenceBrief,
 } from '@/lib/briefs/schema'
@@ -313,7 +314,7 @@ export function useSignals({
           setSignals([])
           setTotal(0)
           setSkip(0)
-          setError(err instanceof Error ? err.message : 'Failed to load signals')
+          setError(friendlyErrorMessage(err))
         }
       } finally {
         if (!cancelled) {
@@ -339,7 +340,7 @@ export function useSignals({
         setTotal(data.total ?? total)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load more signals')
+      setError(friendlyErrorMessage(err))
     } finally {
       setIsLoadingMore(false)
     }
@@ -385,7 +386,7 @@ export function useSignals({
       setSignals((prev) => sortSignalsByPublishedAt([...prev, hydrated]))
       openDrawer(hydrated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to open signal')
+      setError(friendlyErrorMessage(err))
     }
   }, [applyUiState, openDrawer, signals])
 
@@ -436,7 +437,7 @@ export function useSignals({
           ? { ...prev, isSaved: false }
           : prev
       ))
-      setError('Unable to save signal right now')
+      setError('Unable to save this signal right now. Please try again.')
     })
   }, [industryId, mode, persistIds])
 
@@ -472,7 +473,7 @@ export function useSignals({
       if (removedSignal) {
         setSignals((prev) => sortSignalsByPublishedAt([...prev, applyUiState(removedSignal!)]))
       }
-      setError('Unable to dismiss signal right now')
+      setError('Unable to dismiss this signal right now. Please try again.')
     })
   }, [applyUiState, industryId, mode, persistIds])
 

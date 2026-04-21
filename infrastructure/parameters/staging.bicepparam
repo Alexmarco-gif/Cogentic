@@ -26,6 +26,9 @@ param workerReplicas = 1
 //   az deployment group create ... --parameters deployWorkloads=false
 param deployWorkloads = true
 
+param frontendBaseUrl = 'https://cogent-stg-frontend.purpleglacier-069239e0.uksouth.azurecontainerapps.io'
+param publicApiUrl = 'https://cogent-stg-backend.purpleglacier-069239e0.uksouth.azurecontainerapps.io'
+
 // Database
 param dbAdminUser = 'cogentadmin'
 param dbName = 'cogent'

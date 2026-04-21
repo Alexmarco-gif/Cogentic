@@ -59,8 +59,14 @@ class SignalContractBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
-    source_url: str = Field(..., min_length=1)
-    source_type: str = Field(..., pattern=r"^(api|scraper|rss|social|webhook)$")
+    source_url: str | None = Field(default=None, min_length=1)
+    source_type: str | None = Field(
+        default=None, pattern=r"^(api|scraper|rss|social|webhook)$"
+    )
+    source_preset: str | None = Field(
+        default=None,
+        pattern=r"^(generic|newsapi|ngx_market_data|ngx_pulse_market|ngx_pulse_stocks|x|linkedin_public)$",
+    )
     refresh_cron: str = Field(default="0 */1 * * *")
     schedule_tier: str = Field(
         default="standard",
@@ -88,6 +94,10 @@ class SignalContractCreate(SignalContractBase):
     @model_validator(mode="after")
     def validate_webhook_url(self) -> "SignalContractCreate":
         if self.source_type == "webhook":
+            if not self.source_url:
+                raise ValueError(
+                    "source_url is required when source_type is webhook"
+                )
             _assert_webhook_url(self.source_url)
         return self
 
@@ -99,6 +109,10 @@ class SignalContractUpdate(BaseModel):
     description: str | None = None
     source_url: str | None = None
     source_type: str | None = Field(None, pattern=r"^(api|scraper|rss|social|webhook)$")
+    source_preset: str | None = Field(
+        None,
+        pattern=r"^(generic|newsapi|ngx_market_data|ngx_pulse_market|ngx_pulse_stocks|x|linkedin_public)$",
+    )
     refresh_cron: str | None = None
     schedule_tier: str | None = Field(None, pattern=r"^(realtime|standard|slow|daily)$")
     extraction_config: dict[str, Any] | None = None
@@ -277,3 +291,7 @@ class PipelineStatusResponse(BaseModel):
     active_contracts: int
     degraded_contracts: int
     degraded_names: list[str]
+    queues: dict[str, Any] = Field(default_factory=dict)
+    workers_online: int = 0
+    workers: list[dict[str, Any]] = Field(default_factory=list)
+    provider_readiness: dict[str, Any] = Field(default_factory=dict)

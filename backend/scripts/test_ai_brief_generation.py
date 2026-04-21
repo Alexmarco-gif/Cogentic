@@ -11,7 +11,6 @@ Run:
 import asyncio
 import json
 import logging
-from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,7 +96,7 @@ async def main():
                 logger.info("✅ Schema valid — all required keys present")
 
                 # Pretty-print the brief
-                logger.info(f"\n📝 Generated Brief:\n")
+                logger.info("\n📝 Generated Brief:\n")
                 logger.info(f"  Title:      {result['title']}")
                 logger.info(f"  BLUF:       {result['bluf'][:80]}...")
                 logger.info(f"  Domain:     {result['domain']}")
@@ -132,7 +131,7 @@ async def main():
 
                 # Full JSON output option
                 if i == 1:
-                    logger.info(f"\n  📄 Full JSON (first brief):")
+                    logger.info("\n  📄 Full JSON (first brief):")
                     logger.info(json.dumps(result, indent=2))
 
             except Exception as e:

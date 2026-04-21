@@ -14,6 +14,13 @@ from backend.config import get_settings
 DEFAULT_NEWSAPI_URL = "https://newsapi.org/v2/everything"
 DEFAULT_X_SEARCH_URL = "https://api.twitter.com/2/tweets/search/recent"
 
+_PROVIDER_SOURCE_TYPES = {
+    "newsapi": "api",
+    "ngx_market_data": "api",
+    "x": "social",
+    "linkedin_public": "scraper",
+}
+
 
 def normalize_provider_name(provider: str | None) -> str:
     """Normalize provider aliases to canonical preset names."""
@@ -25,6 +32,12 @@ def normalize_provider_name(provider: str | None) -> str:
         "ngx_market_api": "ngx_market_data",
     }
     return aliases.get(normalized, normalized or "generic")
+
+
+def infer_source_type_for_provider(provider: str | None) -> str | None:
+    """Infer the fetcher type implied by a provider preset."""
+    normalized = normalize_provider_name(provider)
+    return _PROVIDER_SOURCE_TYPES.get(normalized)
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -167,3 +180,20 @@ def resolve_scraper_provider_config(
 
     config["provider"] = provider
     return source_url, config
+
+
+def apply_provider_contract_defaults(
+    source_type: str,
+    source_url: str,
+    extraction_config: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    """Resolve provider presets for any supported source type."""
+    normalized_source_type = (source_type or "").strip().lower()
+
+    if normalized_source_type == "api":
+        return resolve_api_provider_config(source_url, extraction_config)
+    if normalized_source_type == "social":
+        return resolve_social_provider_config(source_url, extraction_config)
+    if normalized_source_type == "scraper":
+        return resolve_scraper_provider_config(source_url, extraction_config)
+    return source_url, deepcopy(extraction_config)

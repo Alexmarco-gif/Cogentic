@@ -85,7 +85,6 @@ function SingleChart({ chart }: { chart: ChartDefinition }) {
 
             {chart.series.map(s => {
               const commonProps = {
-                key:      s.key,
                 dataKey:  s.key,
                 name:     s.label,
                 yAxisId:  s.yAxisId ?? 'left',
@@ -93,6 +92,7 @@ function SingleChart({ chart }: { chart: ChartDefinition }) {
               if (s.type === 'bar') {
                 return (
                   <Bar
+                    key={s.key}
                     {...commonProps}
                     fill={s.color}
                     radius={[3, 3, 0, 0]}
@@ -103,6 +103,7 @@ function SingleChart({ chart }: { chart: ChartDefinition }) {
               if (s.type === 'area') {
                 return (
                   <Area
+                    key={s.key}
                     {...commonProps}
                     type="monotone"
                     fill={`${s.color}18`}
@@ -117,6 +118,7 @@ function SingleChart({ chart }: { chart: ChartDefinition }) {
               // line
               return (
                 <Line
+                  key={s.key}
                   {...commonProps}
                   type="monotone"
                   stroke={s.color}

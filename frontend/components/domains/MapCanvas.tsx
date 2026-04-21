@@ -43,8 +43,7 @@ export default function MapCanvas({
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef       = useRef<ReturnType<typeof import('leaflet')['map']> | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markersRef   = useRef<any[]>([])
+  const markersRef   = useRef<Array<{ remove: () => void }>>([])
   const roRef        = useRef<ResizeObserver | null>(null)
 
   // ── Initialize map once ───────────────────────────────────────────────────
@@ -85,20 +84,19 @@ export default function MapCanvas({
 
       // ── Country boundary overlay (if provided) ─────────────────────────
       if (countryOutline) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        L.geoJSON(countryOutline as any, {
-        style: {
-          color:       '#6366F1',  // indigo border
-          weight:      2.5,
-          opacity:     0.85,
-          fillColor:   '#6366F1',
-          fillOpacity: 0.04,       // near-transparent fill just inside the border
-          dashArray:   undefined,
-          lineCap:     'round',
-          lineJoin:    'round',
-        },
-        interactive: false,
-      }).addTo(map)
+        L.geoJSON(countryOutline, {
+          style: {
+            color:       '#6366F1',  // indigo border
+            weight:      2.5,
+            opacity:     0.85,
+            fillColor:   '#6366F1',
+            fillOpacity: 0.04,       // near-transparent fill just inside the border
+            dashArray:   undefined,
+            lineCap:     'round',
+            lineJoin:    'round',
+          },
+          interactive: false,
+        }).addTo(map)
       }
 
       // ── Attribution ────────────────────────────────────────────────────

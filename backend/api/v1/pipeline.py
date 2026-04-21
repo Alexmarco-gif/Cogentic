@@ -12,9 +12,10 @@ from backend.auth.dependencies import get_current_user
 from backend.auth.guards import require_role
 from backend.auth.schemas import AuthContext
 from backend.database import get_db
-from backend.job_queue import enqueue_job, get_queue_stats
+from backend.job_queue import enqueue_job, get_queue_stats, get_worker_stats
 from backend.repositories.signal_contract import SignalContractRepository
 from backend.schemas.signals import FetchTierRequest, PipelineStatusResponse
+from backend.config import get_settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/pipeline")
@@ -28,17 +29,33 @@ async def get_pipeline_status(
     """Get signal acquisition pipeline status."""
     from backend.signals.scheduler import get_scheduler
 
+    settings = get_settings()
     scheduler = get_scheduler()
     repo = SignalContractRepository(db)
+    queue_stats = get_queue_stats()
+    worker_stats = get_worker_stats()
 
     active = await repo.get_active_contracts(org_id=auth.org_id)
     degraded = await repo.get_degraded_contracts(org_id=auth.org_id)
+
+    provider_readiness = {
+        "newsapi": bool(settings.newsapi_api_key),
+        "ngx_market_data": bool(
+            settings.ngx_market_data_api_key and settings.ngx_market_data_base_url
+        ),
+        "x": bool(settings.x_bearer_token),
+        "openai": bool(settings.openai_api_key),
+    }
 
     return PipelineStatusResponse(
         scheduler_running=scheduler.is_running,
         active_contracts=len(active),
         degraded_contracts=len(degraded),
         degraded_names=[c.name for c in degraded],
+        queues=queue_stats,
+        workers_online=worker_stats["online"],
+        workers=worker_stats["workers"],
+        provider_readiness=provider_readiness,
     )
 
 

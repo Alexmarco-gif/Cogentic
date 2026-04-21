@@ -1,20 +1,20 @@
 'use client'
 
-import { ChevronUp, ChevronDown, BookOpen, Loader2 } from 'lucide-react'
+import { ChevronUp, ChevronDown, BookOpen } from 'lucide-react'
 import type { SourceDocument } from '@/lib/hooks/useContractStudio'
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<SourceDocument['status'], string> = {
-  reading: 'text-amber-600 bg-amber-50 border-amber-200',
-  indexed: 'text-emerald-600 bg-emerald-50 border-emerald-200',
-  cited:   'text-primary bg-primary/5 border-primary/20',
+  planned: 'text-slate-600 bg-slate-50 border-slate-200',
+  matched: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+  selected: 'text-primary bg-primary/5 border-primary/20',
 }
 
 const STATUS_LABEL: Record<SourceDocument['status'], string> = {
-  reading: 'Reading…',
-  indexed: 'Indexed',
-  cited:   'Cited',
+  planned: 'Planned',
+  matched: 'Matched',
+  selected: 'Selected',
 }
 
 // ── Source card ───────────────────────────────────────────────────────────────
@@ -33,12 +33,7 @@ function SourceCard({ doc }: { doc: SourceDocument }) {
           </div>
         </div>
         <span className={`flex-shrink-0 rounded-pill border px-1.5 py-0.5 text-[9px] font-medium ${STATUS_STYLES[doc.status]}`}>
-          {doc.status === 'reading' ? (
-            <span className="flex items-center gap-0.5">
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-              {STATUS_LABEL[doc.status]}
-            </span>
-          ) : STATUS_LABEL[doc.status]}
+          {STATUS_LABEL[doc.status]}
         </span>
       </div>
 
@@ -69,8 +64,8 @@ interface SourceTrayProps {
 }
 
 export function SourceTray({ docs, isOpen, onToggle, isProcessing }: SourceTrayProps) {
-  const readingCount = docs.filter(d => d.status === 'reading').length
-  const citedCount   = docs.filter(d => d.status === 'cited').length
+  const plannedCount = docs.filter(d => d.status === 'planned').length
+  const selectedCount = docs.filter(d => d.status === 'selected').length
 
   return (
     <div className="flex-shrink-0 border-t border-border bg-canvas/60">
@@ -81,28 +76,27 @@ export function SourceTray({ docs, isOpen, onToggle, isProcessing }: SourceTrayP
       >
         <div className="flex items-center gap-3">
           <BookOpen className="h-3.5 w-3.5 text-subtle" />
-          <span className="text-[11px] font-medium text-heading">Source Documents</span>
+          <span className="text-[11px] font-medium text-heading">Evidence & Source Plan</span>
           {docs.length > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="rounded-pill bg-muted px-2 py-0.5 text-[9px] font-medium text-data">
                 {docs.length} sources
               </span>
-              {readingCount > 0 && (
-                <span className="flex items-center gap-1 rounded-pill border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-medium text-amber-700">
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                  {readingCount} reading
+              {plannedCount > 0 && (
+                <span className="rounded-pill border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-medium text-slate-700">
+                  {plannedCount} planned
                 </span>
               )}
-              {citedCount > 0 && (
+              {selectedCount > 0 && (
                 <span className="rounded-pill border border-primary/20 bg-primary/5 px-2 py-0.5 text-[9px] font-medium text-primary">
-                  {citedCount} cited
+                  {selectedCount} selected
                 </span>
               )}
             </div>
           )}
           {docs.length === 0 && (
             <span className="text-[10px] text-subtle">
-              {isProcessing ? 'Searching data sources…' : 'Sources appear after validation runs'}
+              {isProcessing ? 'Resolving managed sources and evidence…' : 'Evidence and source plans appear after validation runs'}
             </span>
           )}
         </div>

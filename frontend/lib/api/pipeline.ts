@@ -14,6 +14,16 @@ export interface PipelineAdminStatusResponse {
   active_contracts: number;
   degraded_contracts: number;
   degraded_names: string[];
+  queues: Record<string, { name: string; count: number; failed: number; scheduled: number }>;
+  workers_online: number;
+  workers: Array<{
+    name: string;
+    state: string;
+    queues: string[];
+    current_job_id: string | null;
+    last_heartbeat: string | null;
+  }>;
+  provider_readiness: Record<string, boolean>;
 }
 
 /** GET /api/v1/pipeline/status */

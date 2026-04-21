@@ -86,7 +86,17 @@ export default function DomainsPage() {
     closeDrawer,
     toggleSave,
   } = useSignals({ enabled: false, mode: 'feed' })
+  const {
+    total: workspaceSignalTotal,
+    loading: signalInventoryLoading,
+  } = useSignals({ enabled: true, mode: 'feed', pageSize: 1 })
   const [pageMessage, setPageMessage] = useState<string | null>(null)
+  const emptyTitle = !signalInventoryLoading && workspaceSignalTotal === 0
+    ? 'No signals available yet'
+    : 'No regions mapped yet'
+  const emptyDescription = !signalInventoryLoading && workspaceSignalTotal === 0
+    ? 'Create a contract or activate a source first. Region intelligence appears after your workspace ingests signals.'
+    : 'Your workspace has signals, but none of the visible ones include geographic metadata yet.'
 
   // Called from both the sidebar card and the map marker
   const handleRegionOpen = useCallback(async (region: MapRegion | null) => {
@@ -160,6 +170,8 @@ export default function DomainsPage() {
           loading={loading}
           error={error}
           onRetry={() => { void refresh() }}
+          emptyTitle={emptyTitle}
+          emptyDescription={emptyDescription}
         />
 
         {/* ── Right: map card ───────────────────────────────────────────────── */}

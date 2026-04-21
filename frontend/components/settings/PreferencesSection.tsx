@@ -1,10 +1,44 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Globe, Moon, Sun } from 'lucide-react'
 import { useThemeStore } from '@/lib/stores/themeStore'
-import { Sun, Moon, Monitor, Globe, Bell } from 'lucide-react'
 
-// ── Option card ───────────────────────────────────────────────────────────────
+const PREFERENCES_STORAGE_KEY = 'cogent-device-preferences'
+
+interface DevicePreferences {
+  language: string
+  timezone: string
+}
+
+const DEFAULT_PREFERENCES: DevicePreferences = {
+  language: 'en',
+  timezone: 'UTC',
+}
+
+function loadStoredPreferences(): DevicePreferences {
+  if (typeof window === 'undefined') {
+    return DEFAULT_PREFERENCES
+  }
+
+  try {
+    const raw = window.localStorage.getItem(PREFERENCES_STORAGE_KEY)
+    if (!raw) {
+      return {
+        language: navigator.language?.slice(0, 2) || DEFAULT_PREFERENCES.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_PREFERENCES.timezone,
+      }
+    }
+
+    const parsed = JSON.parse(raw) as Partial<DevicePreferences>
+    return {
+      language: typeof parsed.language === 'string' ? parsed.language : DEFAULT_PREFERENCES.language,
+      timezone: typeof parsed.timezone === 'string' ? parsed.timezone : DEFAULT_PREFERENCES.timezone,
+    }
+  } catch {
+    return DEFAULT_PREFERENCES
+  }
+}
 
 function OptionCard<T extends string>({
   value,
@@ -39,25 +73,40 @@ function OptionCard<T extends string>({
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
 export function PreferencesSection() {
-  const { theme, toggleTheme } = useThemeStore()
-  const [language, setLanguage]   = useState('en')
-  const [timezone, setTimezone]   = useState('UTC')
-  const [density, setDensity]     = useState<'comfortable' | 'compact'>('comfortable')
+  const { theme, setTheme } = useThemeStore()
+  const [language, setLanguage] = useState(DEFAULT_PREFERENCES.language)
+  const [timezone, setTimezone] = useState(DEFAULT_PREFERENCES.timezone)
+
+  useEffect(() => {
+    const stored = loadStoredPreferences()
+    setLanguage(stored.language)
+    setTimezone(stored.timezone)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    window.localStorage.setItem(
+      PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ language, timezone }),
+    )
+  }, [language, timezone])
 
   return (
     <div className="flex flex-col gap-8">
-      {/* ── Appearance ────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <h3 className="mb-1 text-sm font-medium text-heading">Appearance</h3>
-        <p className="mb-5 text-xs text-subtle">Choose your preferred colour scheme</p>
-        <div className="grid grid-cols-3 gap-3">
+        <p className="mb-5 text-xs text-subtle">
+          Choose the visual mode for this browser. Theme changes are saved on this device.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
           <OptionCard
             value="light"
             selected={theme === 'light'}
-            onSelect={() => { if (theme !== 'light') toggleTheme() }}
+            onSelect={(value) => setTheme(value)}
             icon={Sun}
             label="Light"
             description="Clean white interface"
@@ -65,75 +114,44 @@ export function PreferencesSection() {
           <OptionCard
             value="dark"
             selected={theme === 'dark'}
-            onSelect={() => { if (theme !== 'dark') toggleTheme() }}
+            onSelect={(value) => setTheme(value)}
             icon={Moon}
             label="Dark"
             description="Easy on the eyes"
           />
-          <OptionCard
-            value="system"
-            selected={false}
-            onSelect={() => {}}
-            icon={Monitor}
-            label="System"
-            description="Follow OS setting"
-          />
         </div>
       </div>
 
-      {/* ── Display density ──────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
-        <h3 className="mb-1 text-sm font-medium text-heading">Display Density</h3>
-        <p className="mb-5 text-xs text-subtle">Control how much information is shown at once</p>
-        <div className="grid grid-cols-2 gap-3">
-          <OptionCard
-            value="comfortable"
-            selected={density === 'comfortable'}
-            onSelect={setDensity}
-            icon={Globe}
-            label="Comfortable"
-            description="More spacing, easier to scan"
-          />
-          <OptionCard
-            value="compact"
-            selected={density === 'compact'}
-            onSelect={setDensity}
-            icon={Bell}
-            label="Compact"
-            description="More data per screen"
-          />
-        </div>
-      </div>
-
-      {/* ── Language & timezone ───────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
         <h3 className="mb-1 text-sm font-medium text-heading">Language & Region</h3>
-        <p className="mb-5 text-xs text-subtle">Set your preferred language and time zone</p>
-        <div className="grid grid-cols-2 gap-5 max-w-lg">
+        <p className="mb-5 text-xs text-subtle">
+          These are device-level preferences today. Workspace-wide localization is not yet enabled.
+        </p>
+        <div className="grid max-w-lg grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-[11px] font-medium text-subtle">Language</label>
             <select
               value={language}
-              onChange={e => setLanguage(e.target.value)}
+              onChange={(event) => setLanguage(event.target.value)}
               className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body focus:border-primary/50 focus:outline-none"
             >
               <option value="en">English</option>
-              <option value="fr">Français</option>
-              <option value="pt">Português</option>
-              <option value="es">Español</option>
-              <option value="ar">العربية</option>
-              <option value="zh">中文</option>
+              <option value="fr">French</option>
+              <option value="pt">Portuguese</option>
+              <option value="es">Spanish</option>
+              <option value="ar">Arabic</option>
+              <option value="zh">Chinese</option>
               <option value="ha">Hausa</option>
-              <option value="yo">Yorùbá</option>
+              <option value="yo">Yoruba</option>
               <option value="ig">Igbo</option>
-              <option value="sw">Kiswahili</option>
+              <option value="sw">Swahili</option>
             </select>
           </div>
           <div>
             <label className="mb-1.5 block text-[11px] font-medium text-subtle">Time Zone</label>
             <select
               value={timezone}
-              onChange={e => setTimezone(e.target.value)}
+              onChange={(event) => setTimezone(event.target.value)}
               className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body focus:border-primary/50 focus:outline-none"
             >
               <option value="UTC">UTC (GMT +0)</option>
@@ -152,6 +170,10 @@ export function PreferencesSection() {
               <option value="Asia/Tokyo">Asia/Tokyo (JST +9)</option>
             </select>
           </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-subtle">
+          These preferences help the interface feel consistent on this device, but they do not yet change organization-wide reports, alerts, or exported documents.
         </div>
       </div>
     </div>

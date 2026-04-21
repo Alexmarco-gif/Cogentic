@@ -99,7 +99,10 @@ export function LegalSection() {
         <div className="mt-5 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
           <div>
             <p className="text-sm font-medium text-heading">Still need help?</p>
-            <p className="text-xs text-subtle">Our support team responds within 4 hours on business days.</p>
+            <p className="text-xs text-subtle">
+              Our support team reviews requests during business hours and prioritises responses by severity and plan
+              coverage.
+            </p>
           </div>
           <a
             href="mailto:support@cogent.ai"
@@ -193,7 +196,8 @@ export function LegalSection() {
 
       {/* ── App version ──────────────────────────────────────────────────── */}
       <p className="text-center text-[11px] text-subtle">
-        Cogent v1.0.0 · Built Mar 2026 · Release changes are published through deployment change management.
+        Cogent release information and customer-facing legal updates are published through controlled change
+        management.
       </p>
     </div>
   )

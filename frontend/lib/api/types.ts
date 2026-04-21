@@ -236,8 +236,9 @@ export interface SignalContractCreate {
   description?: string;
   industry_id: string;
   entity_id?: string;
-  source_url: string;
-  source_type: string;
+  source_url?: string;
+  source_type?: string;
+  source_preset?: string;
   refresh_cron?: string;
   schedule_tier?: string;
   extraction_config?: Record<string, unknown>;
@@ -249,6 +250,7 @@ export interface SignalContractUpdate {
   description?: string;
   source_url?: string;
   source_type?: string;
+  source_preset?: string;
   refresh_cron?: string;
   schedule_tier?: string;
   extraction_config?: Record<string, unknown>;
@@ -308,14 +310,18 @@ export interface BriefStatusUpdate {
 
 export interface BriefRefreshResponse {
   brief_id: string;
-  status: string;
-  signals_added: number;
+  refreshed: boolean;
+  status?: string | null;
+  reason?: string | null;
 }
 
 export interface BriefRefreshBatchResponse {
+  queued: boolean;
+  message?: string | null;
+  checked: number;
   refreshed: number;
-  failed: number;
-  details: Array<{ brief_id: string; status: string }>;
+  skipped: number;
+  errors: number;
 }
 
 // ── Search ───────────────────────────────────────────────────────────────────

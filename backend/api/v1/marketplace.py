@@ -16,6 +16,8 @@ from sqlalchemy.orm import selectinload
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import AuthContext
 from backend.database import get_db, get_db_read
+from backend.job_queue import enqueue_job
+from backend.jobs.acquisition_job import fetch_single_contract
 from backend.middleware.feature_gating import require_feature
 from backend.models.signal_contract import SignalContract
 from backend.models.signal_template import SignalTemplate, SignalTemplateSubscription
@@ -301,6 +303,20 @@ async def subscribe_to_template(
     )
 
     await db.commit()
+
+    if contract.source_type != "webhook":
+        try:
+            enqueue_job(
+                fetch_single_contract,
+                str(contract.id),
+                queue_name="high",
+                job_timeout="5m",
+            )
+        except Exception as exc:
+            logger.warning(
+                "marketplace_initial_fetch_enqueue_failed",
+                extra={"contract_id": str(contract.id), "error": str(exc)},
+            )
     logger.info(
         f"Org {auth.org_id} subscribed to template {template.slug} "
         f"→ contract {contract.id}"

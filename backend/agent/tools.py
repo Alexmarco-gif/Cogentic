@@ -361,7 +361,6 @@ async def execute_deep_search(
     """Execute deep live search via DeepSearchService."""
     from backend.models.organization import Organization
     from backend.services.deep_search import DeepSearchService
-    from backend.models.organization import Organization
 
     service = DeepSearchService(db)
     org = await db.get(Organization, org_id)

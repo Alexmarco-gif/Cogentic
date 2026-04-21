@@ -59,14 +59,7 @@ export interface ValidationError {
   severity: 'error' | 'warning'
 }
 
-export interface FeasibilityPoint {
-  period: string
-  availability: number
-  quality: number
-  coverage: number
-}
-
-export interface SyntheticRow {
+export interface PreviewRow {
   id: string
   [key: string]: string | number | boolean
 }
@@ -77,7 +70,7 @@ export interface SourceDocument {
   source: string
   snippet: string
   relevance: number
-  status: 'reading' | 'indexed' | 'cited'
+  status: 'planned' | 'matched' | 'selected'
 }
 
 export interface StudioAccessState {
@@ -94,8 +87,8 @@ const DEFAULT_PARAMS: ContractParameters = {
   deliveryFormat: 'json',
   historicalWindow: '90d',
   region: 'Nigeria',
-  sourceType: 'rss',
-  sourcePreset: getDefaultSourcePreset('rss'),
+  sourceType: 'api',
+  sourcePreset: getDefaultSourcePreset('api'),
   sourceUrl: '',
 }
 
@@ -141,33 +134,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
 }
 
-function generateFeasibility(
-  query: string,
-  sourceCount: number,
-  sourceType: StudioSourceType,
-): FeasibilityPoint[] {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const seed = query.length % 13
-  const sourceLift = Math.min(sourceCount * 2, 16)
-  const typeLift = sourceType === 'api' ? 10 : sourceType === 'rss' ? 6 : sourceType === 'webhook' ? 12 : 4
-
-  return months.map((period, index) => ({
-    period,
-    availability: clamp(48 + seed * 2 + sourceLift + typeLift + index * 1.4, 20, 98),
-    quality: clamp(54 + seed * 1.7 + sourceLift + index * 1.2, 20, 98),
-    coverage: clamp(42 + seed * 2.1 + sourceLift + index * 1.6, 20, 95),
-  }))
-}
-
-function generateSyntheticPreview(
+function generatePreviewRows(
   fields: SchemaField[],
   docs: SourceDocument[],
   params: ContractParameters,
-): SyntheticRow[] {
-  const sourceRows = docs.length > 0 ? docs.slice(0, 5) : [buildConfiguredSourceDoc(params)]
+): PreviewRow[] {
+  const sourceRows = docs.length > 0 ? docs.slice(0, 5) : [buildManagedSourceDoc(params)]
 
   return sourceRows.map((doc, index) => {
-    const row: SyntheticRow = { id: `row-${index + 1}` }
+    const row: PreviewRow = { id: `row-${index + 1}` }
     const words = `${doc.title} ${doc.snippet}`.trim().split(/\s+/).filter(Boolean)
 
     fields.slice(0, 6).forEach((field, fieldIndex) => {
@@ -181,7 +156,7 @@ function generateSyntheticPreview(
           row[field.name] = Math.max(1, Math.round(doc.relevance - fieldIndex * 3))
           break
         case 'boolean':
-          row[field.name] = doc.status === 'cited'
+          row[field.name] = doc.status === 'selected'
           break
         case 'date':
           row[field.name] = new Date().toISOString().slice(0, 10)
@@ -233,6 +208,8 @@ function buildValidationErrors(
 ): ValidationError[] {
   const errors: ValidationError[] = []
   const trimmedSourceUrl = params.sourceUrl.trim()
+  const requiresExplicitSource =
+    params.sourceType === 'webhook' || params.sourcePreset === 'generic'
 
   if (!industryId) {
     errors.push({
@@ -274,13 +251,15 @@ function buildValidationErrors(
     })
   }
 
-  if (!trimmedSourceUrl) {
+  if (requiresExplicitSource && !trimmedSourceUrl) {
     errors.push({
       field: 'source_url',
-      message: 'A source URL is required for live contract activation.',
+      message: params.sourceType === 'webhook'
+        ? 'Webhook delivery requires a destination URL.'
+        : 'Generic source overrides require a source URL.',
       severity: 'error',
     })
-  } else {
+  } else if (trimmedSourceUrl) {
     try {
       const parsed = new URL(trimmedSourceUrl)
       if (!['http:', 'https:'].includes(parsed.protocol)) {
@@ -318,10 +297,34 @@ function buildSearchQuery(
     nlQuery.trim(),
     industry?.name ?? '',
     params.region,
-    params.sourceType === 'webhook' ? 'webhook delivery endpoint' : `${params.sourceType} source`,
+    params.sourceType === 'webhook' ? 'webhook delivery endpoint' : 'managed intelligence source plan',
   ]
     .filter(Boolean)
     .join(' ')
+}
+
+function buildManagedSourceDoc(params: ContractParameters): SourceDocument {
+  const providerLabel = getProviderLabel(params.sourcePreset)
+
+  if (params.sourceType === 'webhook') {
+    return {
+      id: 'configured-source',
+      title: 'Configured webhook destination',
+      source: 'Webhook delivery',
+      snippet: params.sourceUrl || 'Signals will be delivered to the webhook endpoint you provide.',
+      relevance: 100,
+      status: 'planned',
+    }
+  }
+
+  return {
+    id: 'configured-source',
+    title: `Cogent managed source plan · ${providerLabel}`,
+    source: `Managed provider · ${providerLabel}`,
+    snippet: 'Cogent will choose, connect, and operate the best-fit source mix for this tracking intent.',
+    relevance: 100,
+    status: 'planned',
+  }
 }
 
 function buildConfiguredSourceDoc(params: ContractParameters): SourceDocument {
@@ -329,11 +332,11 @@ function buildConfiguredSourceDoc(params: ContractParameters): SourceDocument {
     id: 'configured-source',
     title: params.sourceType === 'webhook'
       ? 'Configured webhook destination'
-      : `Configured ${getProviderLabel(params.sourcePreset)} endpoint`,
+      : `Cogent managed source plan · ${getProviderLabel(params.sourcePreset)}`,
     source: `${params.sourceType.toUpperCase()} · ${getProviderLabel(params.sourcePreset)}`,
-    snippet: params.sourceUrl,
+    snippet: params.sourceUrl || 'Cogent will resolve and operate the source configuration for this contract.',
     relevance: 100,
-    status: 'cited',
+    status: 'planned',
   }
 }
 
@@ -344,7 +347,7 @@ function mapSearchResultsToDocs(search: SearchResponse): SourceDocument[] {
     source: item.source ?? item.signal_type ?? 'Internal signal',
     snippet: item.summary ?? item.source_url ?? 'Signal-backed intelligence result',
     relevance: clamp(Math.round(item.composite_score * 100), 35, 98),
-    status: index === 0 ? 'cited' as const : 'indexed' as const,
+    status: index === 0 ? 'selected' as const : 'matched' as const,
   }))
 
   const webDocs = search.web_results.slice(0, Math.max(0, 5 - signalDocs.length)).map((item, index) => ({
@@ -353,7 +356,7 @@ function mapSearchResultsToDocs(search: SearchResponse): SourceDocument[] {
     source: item.source ?? 'Web',
     snippet: item.snippet ?? item.url ?? 'Live web result',
     relevance: clamp(Math.round((item.relevance_score ?? item.confidence ?? 0.6) * 100), 30, 92),
-    status: 'indexed' as const,
+    status: 'matched' as const,
   }))
 
   return [...signalDocs, ...webDocs]
@@ -420,8 +423,7 @@ export function useContractStudio() {
   const [selectedIndustryId, setSelectedIndustryId] = useState('')
 
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
-  const [feasibilityData, setFeasibilityData] = useState<FeasibilityPoint[]>([])
-  const [syntheticPreview, setSyntheticPreview] = useState<SyntheticRow[]>([])
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([])
   const [sourceDocs, setSourceDocs] = useState<SourceDocument[]>([])
   const [creditEstimate, setCreditEstimate] = useState(0)
   const [lastCreatedContractId, setLastCreatedContractId] = useState<string | null>(null)
@@ -495,8 +497,9 @@ export function useContractStudio() {
     try {
       const data = await apiListContracts({ limit: 50, active_only: false })
       setContracts(data.items)
-    } catch {
+    } catch (error) {
       setContracts([])
+      setActivationError(friendlyErrorMessage(error))
     } finally {
       setContractsLoading(false)
     }
@@ -512,8 +515,7 @@ export function useContractStudio() {
     setActivationError(null)
     setStep('validation')
     setIsProcessing(true)
-    setFeasibilityData([])
-    setSyntheticPreview([])
+    setPreviewRows([])
 
     const errors = buildValidationErrors(schemaFields, parameters, selectedIndustryId)
     setValidationErrors(errors)
@@ -526,24 +528,27 @@ export function useContractStudio() {
     }
 
     try {
-      if (!hasFeatureAccess) {
-        setSourceDocs([buildConfiguredSourceDoc(parameters)])
-        return
-      }
-
       const search = await executeSearch({
         query: buildSearchQuery(nlQuery, selectedIndustry, parameters),
         max_results: 6,
         include_synthesis: false,
       })
       const docs = mapSearchResultsToDocs(search)
-      setSourceDocs(docs.length > 0 ? docs : [buildConfiguredSourceDoc(parameters)])
-    } catch {
-      setSourceDocs([buildConfiguredSourceDoc(parameters)])
+      setSourceDocs(docs.length > 0 ? docs : [buildManagedSourceDoc(parameters)])
+    } catch (error) {
+      setValidationErrors((current) => [
+        ...current.filter((item) => item.field !== 'evidence_lookup'),
+        {
+          field: 'evidence_lookup',
+          message: `Live evidence lookup is unavailable right now. ${friendlyErrorMessage(error)}`,
+          severity: 'warning',
+        },
+      ])
+      setSourceDocs([buildManagedSourceDoc(parameters)])
     } finally {
       setIsProcessing(false)
     }
-  }, [hasFeatureAccess, nlQuery, parameters, schemaFields, selectedIndustry, selectedIndustryId])
+  }, [nlQuery, parameters, schemaFields, selectedIndustry, selectedIndustryId])
 
   const runSimulation = useCallback(() => {
     if (validationErrors.some((error) => error.severity === 'error')) return
@@ -551,12 +556,10 @@ export function useContractStudio() {
     setIsProcessing(true)
     setStep('simulation')
 
-    const docsCount = sourceDocs.length > 0 ? sourceDocs.length : 1
-    setFeasibilityData(generateFeasibility(nlQuery, docsCount, parameters.sourceType))
-    setSyntheticPreview(generateSyntheticPreview(schemaFields, sourceDocs, parameters))
+    setPreviewRows(generatePreviewRows(schemaFields, sourceDocs, parameters))
     setCreditEstimate(estimateCredits(schemaFields, parameters))
     setIsProcessing(false)
-  }, [nlQuery, parameters, schemaFields, sourceDocs, validationErrors])
+  }, [parameters, schemaFields, sourceDocs, validationErrors])
 
   const activateContract = useCallback(async () => {
     if (!canManageContracts) {
@@ -580,8 +583,9 @@ export function useContractStudio() {
         name: buildContractName(nlQuery, selectedIndustry),
         description: `Created in Studio for ${selectedIndustry?.name ?? 'selected industry'}`,
         industry_id: selectedIndustryId,
-        source_url: parameters.sourceUrl.trim(),
+        source_url: parameters.sourceUrl.trim() || undefined,
         source_type: parameters.sourceType,
+        source_preset: parameters.sourcePreset,
         refresh_cron: mapFrequencyToCron(parameters.dataFrequency),
         schedule_tier: mapFrequencyToScheduleTier(parameters.dataFrequency),
         extraction_config: {
@@ -599,6 +603,7 @@ export function useContractStudio() {
             historical_window: parameters.historicalWindow,
             region: parameters.region,
             source_preset: parameters.sourcePreset,
+            managed_source: !parameters.sourceUrl.trim(),
           },
           source_documents: sourceDocs.map((doc) => ({
             title: doc.title,
@@ -639,8 +644,7 @@ export function useContractStudio() {
     setIsProcessing(false)
     setActivationError(null)
     setValidationErrors([])
-    setFeasibilityData([])
-    setSyntheticPreview([])
+    setPreviewRows([])
     setSourceDocs([])
     setCreditEstimate(0)
     setLastCreatedContractId(null)
@@ -802,8 +806,7 @@ export function useContractStudio() {
     selectedIndustry,
     access,
     validationErrors,
-    feasibilityData,
-    syntheticPreview,
+    previewRows,
     sourceDocs,
     creditEstimate,
     lastCreatedContractId,

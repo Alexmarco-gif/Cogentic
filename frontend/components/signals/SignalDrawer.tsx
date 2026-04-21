@@ -39,6 +39,12 @@ interface SignalDrawerProps {
 }
 
 type BriefViewMode = 'executive' | 'analyst'
+type ShareFeedbackTone = 'success' | 'error'
+
+interface ShareFeedback {
+  tone: ShareFeedbackTone
+  text: string
+}
 
 const CONFIDENCE_STYLES: Record<BriefConfidenceLevel, string> = {
   Low: 'bg-red-50 text-red-700 border-red-200',
@@ -506,6 +512,7 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
   const [shareOpen, setShareOpen] = useState(false)
   const [exportingFmt, setExportingFmt] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<BriefViewMode>('executive')
+  const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -513,7 +520,14 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
 
   useEffect(() => {
     setViewMode('executive')
+    setShareFeedback(null)
   }, [signal?.id])
+
+  useEffect(() => {
+    if (!shareFeedback) return
+    const timeout = window.setTimeout(() => setShareFeedback(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [shareFeedback])
 
   useEffect(() => {
     if (!shareOpen) return
@@ -550,9 +564,24 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
 
   if (!mounted) return null
 
-  function copyLink() {
+  function describeActionError(error: unknown, fallback: string) {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message
+    }
+    return fallback
+  }
+
+  async function copyLink() {
     if (!signal) return
-    navigator.clipboard.writeText(`${window.location.origin}/dashboard/signals?open=${signal.id}`).catch(() => {})
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/dashboard/signals?open=${signal.id}`)
+      setShareFeedback({ tone: 'success', text: 'Signal link copied to your clipboard.' })
+    } catch (error) {
+      setShareFeedback({
+        tone: 'error',
+        text: describeActionError(error, 'Clipboard access is unavailable in this browser.'),
+      })
+    }
     setShareOpen(false)
   }
 
@@ -560,7 +589,12 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
     if (!signal) return
     const title = encodeURIComponent(`${signal.headline} - ${signal.entityName}`)
     const url = encodeURIComponent(`${window.location.origin}/dashboard/signals?open=${signal.id}`)
-    window.open(`https://twitter.com/intent/tweet?text=${title}&url=${url}`, '_blank')
+    const popup = window.open(`https://twitter.com/intent/tweet?text=${title}&url=${url}`, '_blank')
+    setShareFeedback(
+      popup
+        ? { tone: 'success', text: 'Twitter / X share opened in a new tab.' }
+        : { tone: 'error', text: 'The browser blocked the Twitter / X share window.' },
+    )
     setShareOpen(false)
   }
 
@@ -568,7 +602,12 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
     if (!signal) return
     const url = encodeURIComponent(`${window.location.origin}/dashboard/signals?open=${signal.id}`)
     const title = encodeURIComponent(signal.headline)
-    window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${url}&title=${title}`, '_blank')
+    const popup = window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${url}&title=${title}`, '_blank')
+    setShareFeedback(
+      popup
+        ? { tone: 'success', text: 'LinkedIn share opened in a new tab.' }
+        : { tone: 'error', text: 'The browser blocked the LinkedIn share window.' },
+    )
     setShareOpen(false)
   }
 
@@ -592,6 +631,7 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
     anchor.download = `${signal.entityName.replace(/[\s/]+/g, '-').toLowerCase()}-${viewMode}-brief.md`
     anchor.click()
     URL.revokeObjectURL(anchor.href)
+    setShareFeedback({ tone: 'success', text: 'Markdown brief downloaded.' })
     setShareOpen(false)
   }
 
@@ -610,8 +650,15 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
         sections,
         format,
       })
+      setShareFeedback({
+        tone: 'success',
+        text: `${format === 'pdf-html' ? 'PDF' : format === 'pptx' ? 'PowerPoint' : 'Word'} export is downloading.`,
+      })
     } catch (error) {
-      console.error('Export failed:', error)
+      setShareFeedback({
+        tone: 'error',
+        text: describeActionError(error, 'Export failed. Please try again in a moment.'),
+      })
     } finally {
       setExportingFmt(null)
     }
@@ -727,6 +774,18 @@ export function SignalDrawer({ signal, onClose, onSave }: SignalDrawerProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/30 px-6 py-2">
+              {shareFeedback && (
+                <div
+                  className={cn(
+                    'w-full rounded-xl border px-3 py-2 text-xs',
+                    shareFeedback.tone === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-rose-200 bg-rose-50 text-rose-700',
+                  )}
+                >
+                  {shareFeedback.text}
+                </div>
+              )}
               <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
                 Category: {signal.brief.metadata.category}
               </span>

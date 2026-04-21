@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Search,
   SlidersHorizontal,
@@ -11,6 +12,8 @@ import {
   X,
   AlertTriangle,
   Loader2,
+  RefreshCw,
+  ArrowRight,
 } from 'lucide-react'
 import { useLibrary } from '@/lib/hooks/useLibrary'
 import type { LibraryBrief, LibraryFilterDomain, LibraryFilterType, LibrarySortKey } from '@/lib/hooks/useLibrary'
@@ -131,13 +134,13 @@ function WeeklyReportModal({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LibraryPage() {
+  const router = useRouter()
   const {
     briefs,
     weeklyReports,
     loading,
     error,
     refresh,
-    isDemoData,
     searchQuery,
     setSearchQuery,
     filterDomain,
@@ -161,8 +164,10 @@ export default function LibraryPage() {
   const [activeWeekly, setActiveWeekly] = useState<LibraryBrief | null>(null)
   const [showFilters, setShowFilters]   = useState(false)
   const [loadingBriefId, setLoadingBriefId] = useState<string | null>(null)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   const handleOpen = useCallback(async (brief: LibraryBrief) => {
+    setDetailError(null)
     if (brief.type === 'weekly-report') {
       setActiveWeekly(brief)
     } else {
@@ -178,7 +183,7 @@ export default function LibraryPage() {
         setActiveBrief(detailedBrief)
       }
     } catch {
-      // Keep the already-open brief visible if the detail fetch fails.
+      setDetailError('The full brief could not be refreshed right now. Showing the latest loaded version instead.')
     } finally {
       setLoadingBriefId((current) => (current === brief.id ? null : current))
     }
@@ -202,22 +207,35 @@ export default function LibraryPage() {
               {totalSaved > 0 && ` · ${totalSaved} saved`}
             </p>
           </div>
-
-          {/* Latest weekly report CTA */}
-          {latestWeekly && (
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <button
-              onClick={() => { void handleOpen(latestWeekly) }}
-              className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-left transition-colors hover:bg-primary/10"
+              onClick={() => {
+                setDetailError(null)
+                void refresh()
+              }}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-xs font-semibold text-heading transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <Radio className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold text-primary">Latest Weekly Report</p>
-                <p className="text-[10px] text-subtle">{latestWeekly.relativeDate}</p>
-              </div>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh library
             </button>
-          )}
+
+            {/* Latest weekly report CTA */}
+            {latestWeekly && (
+              <button
+                onClick={() => { void handleOpen(latestWeekly) }}
+                className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-left transition-colors hover:bg-primary/10"
+              >
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Radio className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold text-primary">Latest Weekly Report</p>
+                  <p className="text-[10px] text-subtle">{latestWeekly.relativeDate}</p>
+                </div>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Toolbar ─────────────────────────────────────────────────────── */}
@@ -329,21 +347,22 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {(error || isDemoData || loadingBriefId) && (
+        {(error || detailError || loadingBriefId) && (
           <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-2 text-sm text-body">
               <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${error ? 'text-rose-500' : 'text-amber-500'}`} />
               <span>
                 {loadingBriefId
                   ? 'Opening the full brief…'
-                  : error ?? (isDemoData
-                    ? 'Library is showing demo content because the live briefs service is unavailable.'
-                    : null)}
+                  : error ?? detailError}
               </span>
             </div>
-            {(error || isDemoData) && (
+            {error && (
               <button
-                onClick={() => { void refresh() }}
+                onClick={() => {
+                  setDetailError(null)
+                  void refresh()
+                }}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-body hover:bg-muted"
               >
                 Retry
@@ -356,8 +375,29 @@ export default function LibraryPage() {
           <div className="mb-6 rounded-xl border border-border bg-surface p-6 text-center">
             <h2 className="text-base font-semibold text-heading">No briefs yet</h2>
             <p className="mt-2 text-sm text-subtle">
-              Generated briefs and weekly reports will appear here as your workspace produces them.
+              Published briefs appear here after Cogent turns live signals into intelligence. Start monitoring something first, then come back once your workspace has fresh signals to synthesize.
             </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => router.push('/dashboard/studio')}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+              >
+                Create contract
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/marketplace')}
+                className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-heading transition-colors hover:bg-muted"
+              >
+                Browse sources
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/signals')}
+                className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-heading transition-colors hover:bg-muted"
+              >
+                Open signals workspace
+              </button>
+            </div>
           </div>
         )}
 

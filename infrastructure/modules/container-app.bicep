@@ -57,7 +57,7 @@ var containerAppSecrets = [
   for secretName in secrets: {
     name: secretName
     keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/${secretName}'
-    identity: 'system'
+    identity: empty(registryIdentityResourceId) ? 'system' : registryIdentityResourceId
   }
 ]
 
@@ -170,7 +170,9 @@ resource kvAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-01' = 
     accessPolicies: [
       {
         tenantId: subscription().tenantId
-        objectId: containerApp.identity.principalId
+        objectId: empty(registryIdentityResourceId)
+          ? containerApp.identity.principalId
+          : reference(registryIdentityResourceId, '2023-01-31').principalId
         permissions: {
           secrets: ['get', 'list']
         }

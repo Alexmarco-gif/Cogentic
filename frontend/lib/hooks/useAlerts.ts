@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { listAlerts, getAlertSummary, acknowledgeAlert } from '@/lib/api/alerts';
 import type { ListAlertsParams } from '@/lib/api/alerts';
 import type { AlertListResponse, AlertSummaryResponse } from '@/lib/api/types';
+import { friendlyErrorMessage } from '@/lib/api';
 
 // ── useAlerts ────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ export function useAlerts(params: ListAlertsParams = {}) {
   const [data, setData] = useState<AlertListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
 
   const paramsKey = JSON.stringify(params);
 
@@ -28,7 +31,7 @@ export function useAlerts(params: ListAlertsParams = {}) {
       const result = await listAlerts(params);
       setData(result);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load alerts');
+      setError(friendlyErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -41,13 +44,21 @@ export function useAlerts(params: ListAlertsParams = {}) {
 
   const acknowledge = useCallback(
     async (alertId: string) => {
-      await acknowledgeAlert(alertId);
-      await fetch();
+      setAcknowledgingId(alertId);
+      setActionError(null);
+      try {
+        await acknowledgeAlert(alertId);
+        await fetch();
+      } catch (e: unknown) {
+        setActionError(friendlyErrorMessage(e));
+      } finally {
+        setAcknowledgingId(null);
+      }
     },
     [fetch]
   );
 
-  return { data, loading, error, refetch: fetch, acknowledge };
+  return { data, loading, error, actionError, acknowledgingId, refetch: fetch, acknowledge };
 }
 
 // ── useAlertSummary ──────────────────────────────────────────────────────────
@@ -64,7 +75,7 @@ export function useAlertSummary() {
       const result = await getAlertSummary();
       setSummary(result);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load summary');
+      setError(friendlyErrorMessage(e));
     } finally {
       setLoading(false);
     }

@@ -11,8 +11,6 @@ import type {
 import { formatLastSeen, type UserSession } from '@/lib/api/sessions'
 
 interface SecuritySectionProps {
-  twoFAEnabled: boolean
-  onSetTwoFA: (value: boolean) => void
   sessions: UserSession[]
   sessionsLoading?: boolean
   onRevokeSession: (id: string) => Promise<void>

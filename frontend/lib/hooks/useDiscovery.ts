@@ -117,14 +117,17 @@ export function useDiscoveredSources(
 export function useRecommendedSources(limit = 10) {
   const [sources, setSources] = useState<DiscoveredSourceResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await listRecommendedSources(limit)
       setSources(data)
-    } catch {
-      // silent
+    } catch (err) {
+      setSources([])
+      setError(friendlyErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -134,7 +137,7 @@ export function useRecommendedSources(limit = 10) {
     refresh()
   }, [refresh])
 
-  return { sources, loading, refresh }
+  return { sources, loading, error, refresh }
 }
 
 // ── Entity Review Hook ─────────────────────────────────────────────────────────

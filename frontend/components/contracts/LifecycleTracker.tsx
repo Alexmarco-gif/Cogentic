@@ -13,8 +13,8 @@ interface Step {
 
 const STEPS: Step[] = [
   { id: 'draft',      label: 'Define',     description: 'Natural language + schema' },
-  { id: 'validation', label: 'Validate',   description: 'Schema & source check' },
-  { id: 'simulation', label: 'Simulate',   description: 'Feasibility & cost model' },
+  { id: 'validation', label: 'Validate',   description: 'Requirements & evidence check' },
+  { id: 'simulation', label: 'Review',     description: 'Preview rows & launch plan' },
   { id: 'active',     label: 'Activate',   description: 'Contract is live' },
 ]
 

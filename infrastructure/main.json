@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "12405346364631671005"
+      "templateHash": "11654425962490223882"
     }
   },
   "parameters": {
@@ -111,6 +111,20 @@
       "metadata": {
         "description": "Optional Azure AD object ID to grant Key Vault secret get/list/set access for deployment and verification."
       }
+    },
+    "frontendBaseUrl": {
+      "type": "string",
+      "defaultValue": "[if(equals(parameters('environment'), 'production'), 'https://app.cogent.ai', 'https://staging.cogent.ai')]",
+      "metadata": {
+        "description": "Public frontend base URL used by Auth0 and browser navigation."
+      }
+    },
+    "publicApiUrl": {
+      "type": "string",
+      "defaultValue": "[if(equals(parameters('environment'), 'production'), 'https://api.cogent.ai', 'https://api-staging.cogent.ai')]",
+      "metadata": {
+        "description": "Public backend API URL used by the frontend browser bundle."
+      }
     }
   },
   "variables": {
@@ -206,7 +220,7 @@
             {
               "name": "database-url",
               "keyVaultUrl": "[format('https://{0}.vault.azure.net/secrets/database-url', variables('keyVaultName'))]",
-              "identity": "system"
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-acr-pull', variables('resourcePrefix')))]"
             }
           ],
           "registries": [
@@ -256,7 +270,7 @@
         "accessPolicies": [
           {
             "tenantId": "[subscription().tenantId]",
-            "objectId": "[reference(resourceId('Microsoft.App/jobs', format('{0}-migrate', variables('resourcePrefix'))), '2024-03-01', 'full').identity.principalId]",
+            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-acr-pull', variables('resourcePrefix'))), '2023-01-31').principalId]",
             "permissions": {
               "secrets": [
                 "get",
@@ -267,7 +281,7 @@
         ]
       },
       "dependsOn": [
-        "[resourceId('Microsoft.App/jobs', format('{0}-migrate', variables('resourcePrefix')))]"
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-acr-pull', variables('resourcePrefix')))]"
       ]
     },
     {
@@ -371,7 +385,9 @@
           "location": {
             "value": "[parameters('location')]"
           },
-          "additionalAccessPolicies": "[if(empty(parameters('keyVaultOperatorObjectId')), createObject('value', createArray()), createObject('value', createArray(createObject('tenantId', subscription().tenantId, 'objectId', parameters('keyVaultOperatorObjectId'), 'permissions', createObject('secrets', createArray('get', 'list', 'set'))))))]"
+          "additionalAccessPolicies": {
+            "value": "[concat(if(empty(parameters('keyVaultOperatorObjectId')), createArray(), createArray(createObject('tenantId', subscription().tenantId, 'objectId', parameters('keyVaultOperatorObjectId'), 'permissions', createObject('secrets', createArray('get', 'list', 'set'))))), if(parameters('deployWorkloads'), createArray(createObject('tenantId', subscription().tenantId, 'objectId', reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-acr-pull', variables('resourcePrefix'))), '2023-01-31').principalId, 'permissions', createObject('secrets', createArray('get', 'list')))), createArray()))]"
+          }
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -439,7 +455,10 @@
             }
           }
         }
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-acr-pull', variables('resourcePrefix')))]"
+      ]
     },
     {
       "type": "Microsoft.Resources/deployments",
@@ -926,7 +945,7 @@
               },
               {
                 "name": "CORS_ORIGINS",
-                "value": "[if(equals(parameters('environment'), 'production'), 'https://app.cogent.ai', 'https://staging.cogent.ai')]"
+                "value": "[parameters('frontendBaseUrl')]"
               },
               {
                 "name": "REQUIRE_HEALTHY_DB_ON_STARTUP",
@@ -978,7 +997,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "15101245711202693316"
+              "templateHash": "2925624158449933607"
             }
           },
           "parameters": {
@@ -1102,7 +1121,7 @@
                 "input": {
                   "name": "[parameters('secrets')[copyIndex('containerAppSecrets')]]",
                   "keyVaultUrl": "[format('https://{0}.vault.azure.net/secrets/{1}', parameters('keyVaultName'), parameters('secrets')[copyIndex('containerAppSecrets')])]",
-                  "identity": "system"
+                  "identity": "[if(empty(parameters('registryIdentityResourceId')), 'system', parameters('registryIdentityResourceId'))]"
                 }
               }
             ]
@@ -1202,7 +1221,7 @@
                 "accessPolicies": [
                   {
                     "tenantId": "[subscription().tenantId]",
-                    "objectId": "[reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01', 'full').identity.principalId]",
+                    "objectId": "[if(empty(parameters('registryIdentityResourceId')), reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01', 'full').identity.principalId, reference(parameters('registryIdentityResourceId'), '2023-01-31').principalId)]",
                     "permissions": {
                       "secrets": [
                         "get",
@@ -1401,7 +1420,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "15101245711202693316"
+              "templateHash": "2925624158449933607"
             }
           },
           "parameters": {
@@ -1525,7 +1544,7 @@
                 "input": {
                   "name": "[parameters('secrets')[copyIndex('containerAppSecrets')]]",
                   "keyVaultUrl": "[format('https://{0}.vault.azure.net/secrets/{1}', parameters('keyVaultName'), parameters('secrets')[copyIndex('containerAppSecrets')])]",
-                  "identity": "system"
+                  "identity": "[if(empty(parameters('registryIdentityResourceId')), 'system', parameters('registryIdentityResourceId'))]"
                 }
               }
             ]
@@ -1625,7 +1644,7 @@
                 "accessPolicies": [
                   {
                     "tenantId": "[subscription().tenantId]",
-                    "objectId": "[reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01', 'full').identity.principalId]",
+                    "objectId": "[if(empty(parameters('registryIdentityResourceId')), reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01', 'full').identity.principalId, reference(parameters('registryIdentityResourceId'), '2023-01-31').principalId)]",
                     "permissions": {
                       "secrets": [
                         "get",
@@ -1721,7 +1740,19 @@
               },
               {
                 "name": "AUTH0_BASE_URL",
-                "value": "[if(equals(parameters('environment'), 'production'), 'https://app.cogent.ai', 'https://staging.cogent.ai')]"
+                "value": "[parameters('frontendBaseUrl')]"
+              },
+              {
+                "name": "NEXT_PUBLIC_LOGIN_ROUTE",
+                "value": "/api/auth/login"
+              },
+              {
+                "name": "NEXT_PUBLIC_PROFILE_ROUTE",
+                "value": "/api/auth/profile"
+              },
+              {
+                "name": "NEXT_PUBLIC_ACCESS_TOKEN_ROUTE",
+                "value": "/api/auth/access-token"
               },
               {
                 "name": "AUTH0_ISSUER_BASE_URL",
@@ -1745,7 +1776,7 @@
               },
               {
                 "name": "NEXT_PUBLIC_API_URL",
-                "value": "[if(equals(parameters('environment'), 'production'), 'https://api.cogent.ai', 'https://api-staging.cogent.ai')]"
+                "value": "[parameters('publicApiUrl')]"
               },
               {
                 "name": "BACKEND_URL",
@@ -1777,7 +1808,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "15101245711202693316"
+              "templateHash": "2925624158449933607"
             }
           },
           "parameters": {
@@ -1901,7 +1932,7 @@
                 "input": {
                   "name": "[parameters('secrets')[copyIndex('containerAppSecrets')]]",
                   "keyVaultUrl": "[format('https://{0}.vault.azure.net/secrets/{1}', parameters('keyVaultName'), parameters('secrets')[copyIndex('containerAppSecrets')])]",
-                  "identity": "system"
+                  "identity": "[if(empty(parameters('registryIdentityResourceId')), 'system', parameters('registryIdentityResourceId'))]"
                 }
               }
             ]
@@ -2001,7 +2032,7 @@
                 "accessPolicies": [
                   {
                     "tenantId": "[subscription().tenantId]",
-                    "objectId": "[reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01', 'full').identity.principalId]",
+                    "objectId": "[if(empty(parameters('registryIdentityResourceId')), reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01', 'full').identity.principalId, reference(parameters('registryIdentityResourceId'), '2023-01-31').principalId)]",
                     "permissions": {
                       "secrets": [
                         "get",

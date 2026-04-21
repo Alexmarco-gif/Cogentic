@@ -11,8 +11,7 @@ import type {
   SchemaField,
   ContractParameters,
   ValidationError,
-  FeasibilityPoint,
-  SyntheticRow,
+  PreviewRow,
   SourceDocument,
   StudioAccessState,
 } from '@/lib/hooks/useContractStudio'
@@ -51,8 +50,7 @@ export interface ContractStudioProps {
   onTriggerContractFetch: (id: string) => Promise<void>
   // Intelligence
   validationErrors: ValidationError[]
-  feasibilityData: FeasibilityPoint[]
-  syntheticPreview: SyntheticRow[]
+  previewRows: PreviewRow[]
   creditEstimate: number
   activationError?: string | null
   contracts: SignalContractResponse[]
@@ -92,8 +90,7 @@ export function ContractStudio({
   onToggleContractActive,
   onTriggerContractFetch,
   validationErrors,
-  feasibilityData,
-  syntheticPreview,
+  previewRows,
   creditEstimate,
   activationError,
   contracts,
@@ -147,8 +144,7 @@ export function ContractStudio({
             isProcessing={isProcessing}
             access={access}
             validationErrors={validationErrors}
-            feasibilityData={feasibilityData}
-            syntheticPreview={syntheticPreview}
+            previewRows={previewRows}
             schemaFields={schemaFields}
             creditEstimate={creditEstimate}
             contracts={contracts}

@@ -10,7 +10,6 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-
 DEFAULT_BRIEF_BODY: dict[str, Any] = {
     "metadata": {
         "category": "Strategic",
@@ -106,7 +105,11 @@ def _as_list(value: Any) -> list[Any]:
 
 
 def _as_str_list(value: Any) -> list[str]:
-    return [item.strip() for item in _as_list(value) if isinstance(item, str) and item.strip()]
+    return [
+        item.strip()
+        for item in _as_list(value)
+        if isinstance(item, str) and item.strip()
+    ]
 
 
 def _as_confidence(value: Any, fallback: float = 0.75) -> float:
@@ -173,11 +176,15 @@ def build_confidence_note(score: float, evidence_count: int = 0) -> str:
     if level == "Verified":
         if evidence_count >= 3:
             return "Verified confidence from corroborating evidence across multiple recent signals."
-        return "Verified confidence, though the evidence base is still relatively narrow."
+        return (
+            "Verified confidence, though the evidence base is still relatively narrow."
+        )
     if level == "High":
         if evidence_count >= 3:
             return "High confidence based on corroborating recent signals."
-        return "High confidence, but this view still leans on a concentrated evidence set."
+        return (
+            "High confidence, but this view still leans on a concentrated evidence set."
+        )
     if level == "Medium":
         return "Medium confidence: the pattern is credible, but there are still open variables to watch."
     return "Low confidence: treat this as an early signal until more evidence arrives."
@@ -206,8 +213,10 @@ def _normalize_claim(item: Any, index: int) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
 
-    text = _as_str(item.get("text")) or _as_str(item.get("claim")) or _as_str(
-        item.get("statement")
+    text = (
+        _as_str(item.get("text"))
+        or _as_str(item.get("claim"))
+        or _as_str(item.get("statement"))
     )
     if not text:
         return None
@@ -230,9 +239,7 @@ def _normalize_signal_evidence(
 
     signal_ref = _as_str(item.get("signal_ref")) or f"SIG-{index + 1}"
     signal_title = (
-        _as_str(item.get("signal_title"))
-        or _as_str(item.get("title"))
-        or signal_ref
+        _as_str(item.get("signal_title")) or _as_str(item.get("title")) or signal_ref
     )
     contribution = (
         _as_str(item.get("contribution"))
@@ -261,7 +268,9 @@ def _legacy_to_canonical(
     decision_lens: str | None = None,
 ) -> dict[str, Any]:
     score = _as_confidence(payload.get("confidence"), confidence or 0.75)
-    findings = [item for item in _as_list(payload.get("findings")) if isinstance(item, dict)]
+    findings = [
+        item for item in _as_list(payload.get("findings")) if isinstance(item, dict)
+    ]
     indicators = [
         item for item in _as_list(payload.get("indicators")) if isinstance(item, dict)
     ]
@@ -276,7 +285,9 @@ def _legacy_to_canonical(
 
     for index, finding in enumerate(findings):
         evidence_points = _as_str_list(finding.get("evidence"))
-        signal_ref = _as_str_list(finding.get("signal_refs"))[:1] or [f"SIG-{index + 1}"]
+        signal_ref = _as_str_list(finding.get("signal_refs"))[:1] or [
+            f"SIG-{index + 1}"
+        ]
         claims.append(
             {
                 "text": _as_str(finding.get("finding")) or f"Finding {index + 1}",
@@ -293,7 +304,10 @@ def _legacy_to_canonical(
                 "confidence": score,
                 "contribution": " ".join(
                     part
-                    for part in [evidence_points[0] if evidence_points else None, _as_str(finding.get("rebuttal"))]
+                    for part in [
+                        evidence_points[0] if evidence_points else None,
+                        _as_str(finding.get("rebuttal")),
+                    ]
                     if part
                 )
                 or "Contributes supporting context to the brief.",
@@ -330,8 +344,16 @@ def _legacy_to_canonical(
             "overview": bluf,
         },
         "signals_and_indicators": {
-            "leading_indicators": [_as_str(item.get("watch")) for item in indicators if _as_str(item.get("watch"))],
-            "triggers": [_as_str(item.get("confirms_if")) for item in indicators if _as_str(item.get("confirms_if"))],
+            "leading_indicators": [
+                _as_str(item.get("watch"))
+                for item in indicators
+                if _as_str(item.get("watch"))
+            ],
+            "triggers": [
+                _as_str(item.get("confirms_if"))
+                for item in indicators
+                if _as_str(item.get("confirms_if"))
+            ],
             "signal_evidence": signal_evidence,
         },
         "analysis": {
@@ -340,7 +362,11 @@ def _legacy_to_canonical(
                 "market": [],
                 "regulatory": [],
             },
-            "patterns_detected": [_as_str(item.get("rebuttal")) for item in findings if _as_str(item.get("rebuttal"))],
+            "patterns_detected": [
+                _as_str(item.get("rebuttal"))
+                for item in findings
+                if _as_str(item.get("rebuttal"))
+            ],
             "risk_assessment": {
                 "operational": None,
                 "strategic": None,
@@ -391,14 +417,18 @@ def normalize_brief_body(
     """Normalize a brief payload to the canonical UI schema."""
 
     raw = payload or {}
-    canonical = raw if _looks_canonical(raw) else _legacy_to_canonical(
-        raw,
-        topic=topic,
-        summary=summary,
-        domain=domain,
-        confidence=confidence,
-        outlook=outlook,
-        decision_lens=decision_lens,
+    canonical = (
+        raw
+        if _looks_canonical(raw)
+        else _legacy_to_canonical(
+            raw,
+            topic=topic,
+            summary=summary,
+            domain=domain,
+            confidence=confidence,
+            outlook=outlook,
+            decision_lens=decision_lens,
+        )
     )
 
     brief = deepcopy(DEFAULT_BRIEF_BODY)
@@ -491,7 +521,9 @@ def normalize_brief_body(
             0.75,
         )
     )
-    brief["confidence_note"] = _as_str(canonical.get("confidence_note")) or build_confidence_note(
+    brief["confidence_note"] = _as_str(
+        canonical.get("confidence_note")
+    ) or build_confidence_note(
         score, len(brief["signals_and_indicators"]["signal_evidence"])
     )
 

@@ -15,12 +15,18 @@ from backend.auth.schemas import AuthContext
 from backend.database import get_db
 from backend.job_queue import enqueue_job
 from backend.middleware.feature_gating import require_feature
+from backend.jobs.acquisition_job import fetch_single_contract
 from backend.repositories.signal_contract import SignalContractRepository
 from backend.schemas.signals import (
     SignalContractCreate,
     SignalContractListResponse,
     SignalContractResponse,
     SignalContractUpdate,
+)
+from backend.signals.provider_presets import (
+    apply_provider_contract_defaults,
+    infer_source_type_for_provider,
+    normalize_provider_name,
 )
 from backend.services.credit_service import CreditService, InsufficientCreditsError
 
@@ -152,7 +158,79 @@ async def create_contract(
             ),
         ) from e
     repo = SignalContractRepository(db)
-    contract = await repo.create(**body.model_dump(), org_id=auth.org_id)
+    payload = body.model_dump(exclude_none=True)
+    source_preset = normalize_provider_name(payload.pop("source_preset", None))
+    extraction_config = dict(payload.get("extraction_config") or {})
+    provider_hint = normalize_provider_name(
+        source_preset or extraction_config.get("provider")
+    )
+
+    if not payload.get("source_type") and provider_hint == "generic":
+        provider_hint = "newsapi"
+
+    if provider_hint != "generic":
+        extraction_config.setdefault("provider", provider_hint)
+
+    resolved_source_type = payload.get("source_type") or infer_source_type_for_provider(
+        provider_hint
+    )
+    if not resolved_source_type:
+        resolved_source_type = "api"
+
+    resolved_source_url = payload.get("source_url") or ""
+
+    if resolved_source_type == "webhook" and not resolved_source_url:
+        raise HTTPException(
+            status_code=422,
+            detail="Webhook contracts require a destination URL.",
+        )
+
+    if (
+        resolved_source_type != "webhook"
+        and not resolved_source_url
+        and provider_hint == "generic"
+    ):
+        provider_hint = "newsapi"
+        extraction_config["provider"] = provider_hint
+        resolved_source_type = "api"
+
+    resolved_source_url, extraction_config = apply_provider_contract_defaults(
+        resolved_source_type,
+        resolved_source_url,
+        extraction_config,
+    )
+
+    if resolved_source_type != "webhook" and not resolved_source_url:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No managed source could be resolved for this contract. "
+                "Choose a managed preset or provide an advanced source URL."
+            ),
+        )
+
+    payload["source_type"] = resolved_source_type
+    payload["source_url"] = resolved_source_url
+    payload["extraction_config"] = extraction_config
+
+    contract = await repo.create(**payload, org_id=auth.org_id)
+    await db.commit()
+    await db.refresh(contract)
+
+    if contract.is_active and contract.source_type != "webhook":
+        try:
+            enqueue_job(
+                fetch_single_contract,
+                str(contract.id),
+                queue_name="high",
+                job_timeout="5m",
+            )
+        except Exception as exc:
+            logger.warning(
+                "contract_initial_fetch_enqueue_failed",
+                extra={"contract_id": str(contract.id), "error": str(exc)},
+            )
+
     return SignalContractResponse.model_validate(contract)
 
 

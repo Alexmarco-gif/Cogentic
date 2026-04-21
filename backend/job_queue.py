@@ -1,9 +1,11 @@
 """Background job queue setup using Redis Queue (RQ)."""
 
 import logging
+from datetime import timezone
 from typing import Any
 
 from rq import Queue
+from rq import Worker as RQWorker
 from rq.job import Job
 
 from backend.redis_client import get_redis_client
@@ -166,4 +168,31 @@ def get_queue_stats() -> dict[str, Any]:
             "failed": _get_queue("low").failed_job_registry.count,
             "scheduled": _get_queue("low").scheduled_job_registry.count,
         },
+    }
+
+
+def get_worker_stats() -> dict[str, Any]:
+    """Get live RQ worker status from Redis."""
+    workers = RQWorker.all(connection=_get_redis())
+    items = []
+
+    for worker in workers:
+        last_heartbeat = getattr(worker, "last_heartbeat", None)
+        items.append(
+            {
+                "name": worker.name,
+                "state": worker.get_state(),
+                "queues": [queue.name for queue in worker.queues],
+                "current_job_id": worker.get_current_job_id(),
+                "last_heartbeat": (
+                    last_heartbeat.astimezone(timezone.utc).isoformat()
+                    if last_heartbeat
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "online": len(items),
+        "workers": items,
     }

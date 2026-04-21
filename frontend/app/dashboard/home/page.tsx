@@ -72,12 +72,6 @@ interface StarterCreditState {
   remaining: number
 }
 
-const FALLBACK_INDUSTRIES: IndustryOption[] = [
-  { id: 'fintech', name: 'Fintech', slug: 'fintech' },
-  { id: 'financial-services', name: 'Financial Services', slug: 'financial-services' },
-  { id: 'agriculture-agritech', name: 'Agriculture & Agritech', slug: 'agriculture-agritech' },
-]
-
 const QUICK_ACTIONS = [
   { label: 'Create Contract', icon: <Plus size={12} />, href: '/dashboard/studio' },
   { label: 'Open Signals', icon: <Zap size={12} />, href: '/dashboard/signals' },
@@ -439,7 +433,7 @@ function buildSituationRoomWebSocketUrl(industrySlug: string, token: string): st
 }
 
 function useIndustryOptions(enabled: boolean) {
-  const [industries, setIndustries] = useState<IndustryOption[]>(FALLBACK_INDUSTRIES)
+  const [industries, setIndustries] = useState<IndustryOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -458,12 +452,17 @@ function useIndustryOptions(enabled: boolean) {
 
       try {
         const data = await get<IndustryOption[]>('/industries')
-        if (!cancelled && Array.isArray(data) && data.length > 0) {
-          setIndustries(data)
+        if (!cancelled) {
+          if (Array.isArray(data) && data.length > 0) {
+            setIndustries(data)
+          } else {
+            setIndustries([])
+            setError('The industry catalog is not ready yet. Seed the platform catalog, then reload Home.')
+          }
         }
       } catch (err) {
         if (!cancelled) {
-          setIndustries(FALLBACK_INDUSTRIES)
+          setIndustries([])
           setError(friendlyErrorMessage(err))
         }
       } finally {
@@ -674,7 +673,7 @@ export default function HomePage() {
   const { credits, resolved: creditsResolved } = useCredits()
   const premiumHomeEnabled = gateResolved && hasAccess
   const { industries, loading: industriesLoading, error: industriesError } = useIndustryOptions(premiumHomeEnabled)
-  const [industrySlug, setIndustrySlug] = useState(FALLBACK_INDUSTRIES[0].slug)
+  const [industrySlug, setIndustrySlug] = useState('')
 
   useEffect(() => {
     if (!premiumHomeEnabled || industries.length === 0) return
@@ -763,6 +762,27 @@ export default function HomePage() {
     ? lastUpdated
     : (signals[0]?.publishedAt ? new Date(signals[0].publishedAt) : null)
 
+  const liveFeedEmptyState = useMemo(() => {
+    if (signals.length === 0) {
+      return {
+        title: 'No signals yet',
+        description: 'Create a contract or activate a managed source first. Home will start summarizing live changes here as soon as monitored intelligence begins arriving.',
+      }
+    }
+
+    if (premiumHomeEnabled) {
+      return {
+        title: 'No recent live events',
+        description: 'Signals exist in this workspace, but there are no recent alert, brief, or timeline events for the selected industry right now.',
+      }
+    }
+
+    return {
+      title: 'No recent live events',
+      description: 'Your workspace already has monitored signals, but nothing new has landed in the live feed yet. Open the full Signals workspace to review the current intelligence set.',
+    }
+  }, [premiumHomeEnabled, signals.length])
+
   const primaryAction = !premiumHomeEnabled && creditsResolved && credits.remaining <= 0
     ? {
       label: 'Browse signal marketplace',
@@ -804,6 +824,50 @@ export default function HomePage() {
     }
     refreshSignals()
   }, [premiumHomeEnabled, refetchRoom, refreshSignals])
+
+  if (premiumHomeEnabled && !pageLoading && industries.length === 0 && industriesError) {
+    return (
+      <div className="space-y-6 py-6">
+        <MorningBrief
+          unreadCount={0}
+          criticalCount={0}
+          riskCount={0}
+          opportunityCount={0}
+          lastUpdated={effectiveLastUpdated}
+          liveConnected={premiumHomeEnabled && liveConnected}
+        />
+        <div className="surface-elevated p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-critical/10 text-critical">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <p className="eyebrow">Catalog status</p>
+                <h2 className="mt-2 text-title">Home cannot load without the industry catalog.</h2>
+                <p className="mt-2 max-w-2xl text-[0.84rem] text-subtle">{industriesError}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleRefresh}
+                className="button-press inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[0.82rem] font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+              >
+                <RefreshCw size={14} />
+                Retry sync
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/studio')}
+                className="button-press rounded-full border border-border bg-surface px-5 py-2.5 text-[0.82rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2"
+              >
+                Open Studio
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (premiumHomeEnabled && !pageLoading && !dashboard && roomError) {
     return (
@@ -869,7 +933,7 @@ export default function HomePage() {
             <p className="mt-4 max-w-2xl text-[0.9rem] text-body">
               {premiumHomeEnabled
                 ? 'Your dashboard shell is ready. The next win is simple: define a contract or activate a source so the workspace has live signals to organize.'
-                : 'Blank dashboards feel amateur. This workspace now points you to the single next move that gets real value flowing in.'}
+                : 'Start by defining what you want monitored or activating a managed source. Once live signals arrive, Home will summarize them here automatically.'}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
@@ -1145,7 +1209,9 @@ export default function HomePage() {
             liveConnected={premiumHomeEnabled && liveConnected}
             onOpenSignal={(signalId) => { void openDrawerById(signalId) }}
             onViewTimeline={() => router.push('/dashboard/signals')}
-            lastUpdated={lastUpdated ?? undefined}
+            lastUpdated={effectiveLastUpdated ?? undefined}
+            emptyTitle={liveFeedEmptyState.title}
+            emptyDescription={liveFeedEmptyState.description}
           />
         </section>
       </div>

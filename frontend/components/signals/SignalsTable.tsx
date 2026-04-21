@@ -49,15 +49,21 @@ function SortIcon({
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 
-function EmptyState() {
+function EmptyState({ hasSignals }: { hasSignals: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-24">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-surface border border-border">
         <Inbox className="h-5 w-5 text-subtle" />
       </div>
       <div className="text-center">
-        <p className="text-sm font-medium text-heading">No signals match your filters</p>
-        <p className="mt-1 text-xs text-subtle">Try adjusting your search or filters</p>
+        <p className="text-sm font-medium text-heading">
+          {hasSignals ? 'No signals match your filters' : 'No signals yet'}
+        </p>
+        <p className="mt-1 text-xs text-subtle">
+          {hasSignals
+            ? 'Try adjusting your search or filters.'
+            : 'Signals appear here after you create a contract or activate a source in Marketplace.'}
+        </p>
       </div>
     </div>
   )
@@ -139,7 +145,7 @@ export const SignalsTable = memo(function SignalsTable({
       <div className={cn('rounded-card border border-border bg-canvas overflow-hidden', className)}>
         <ConfidenceHistogram signals={allSignals} />
         {rows.length === 0 ? (
-          <EmptyState />
+          <EmptyState hasSignals={allSignals.length > 0} />
         ) : (
           <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
             {rows.map((signal) => (
@@ -218,7 +224,7 @@ export const SignalsTable = memo(function SignalsTable({
       {/* Rows */}
       <div role="rowgroup">
         {rows.length === 0 ? (
-          <EmptyState />
+          <EmptyState hasSignals={allSignals.length > 0} />
         ) : (
           rows.map((signal) => (
             <SignalTableRow

@@ -51,7 +51,8 @@ export type LibrarySortKey = 'date' | 'confidence' | 'readTime' | 'title'
 export type LibraryFilterDomain = LibraryBriefDomain | 'All'
 export type LibraryFilterType = LibraryBriefType | 'All'
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
+// Legacy fixture data retained only as a migration reference while Library cleanup continues.
+// It is no longer used in the runtime fetching path.
 
 const SEED_BRIEFS: LibraryBrief[] = [
   {
@@ -657,7 +658,6 @@ export function useLibrary() {
   )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isDemoData, setIsDemoData] = useState(false)
   // Pagination
   const PAGE_SIZE = 20
   const [skip, setSkip]   = useState(0)
@@ -691,12 +691,10 @@ export function useLibrary() {
         setTotal(0)
         setSkip(0)
       }
-      setIsDemoData(false)
     } catch (err) {
       setBaseBriefs([])
       setTotal(0)
       setSkip(0)
-      setIsDemoData(false)
       setError(friendlyErrorMessage(err))
     } finally {
       setLoading(false)
@@ -795,7 +793,6 @@ export function useLibrary() {
     loading,
     error,
     refresh,
-    isDemoData,
     searchQuery,
     setSearchQuery,
     filterDomain,

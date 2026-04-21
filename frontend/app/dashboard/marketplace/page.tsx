@@ -349,11 +349,15 @@ export default function MarketplacePage() {
       .then((data) => {
         if (!cancelled) {
           setIndustries(data)
+          if (data.length === 0) {
+            setError('The marketplace catalog is not ready yet. Seed industries and curated templates, then reload this page.')
+          }
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
           setIndustries([])
+          setError(friendlyErrorMessage(err))
         }
       })
 
@@ -514,12 +518,12 @@ export default function MarketplacePage() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Globe size={40} className="mb-4 text-muted opacity-40" />
             <p className="text-base font-medium text-heading">
-              {activeTab === 'subscriptions' ? 'No active subscriptions' : 'No templates found'}
+              {activeTab === 'subscriptions' ? 'No active subscriptions' : 'No templates available yet'}
             </p>
             <p className="mt-1 text-sm text-subtle">
               {activeTab === 'subscriptions'
-                ? 'Browse the marketplace and subscribe to signal feeds'
-                : 'Try adjusting your filters'}
+                ? 'Browse the marketplace and subscribe to a feed to start receiving managed signals.'
+                : 'The catalog is empty right now. Check bootstrap data, then reload the marketplace.'}
             </p>
             {activeTab === 'subscriptions' && (
               <button

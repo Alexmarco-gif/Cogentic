@@ -27,8 +27,7 @@ export default function StudioPage() {
     activationError,
     resetContract,
     validationErrors,
-    feasibilityData,
-    syntheticPreview,
+    previewRows,
     creditEstimate,
     contracts,
     contractsLoading,
@@ -69,8 +68,7 @@ export default function StudioPage() {
       onToggleContractActive={toggleContractActiveById}
       onTriggerContractFetch={triggerFetchById}
       validationErrors={validationErrors}
-      feasibilityData={feasibilityData}
-      syntheticPreview={syntheticPreview}
+      previewRows={previewRows}
       creditEstimate={creditEstimate}
       contracts={contracts}
       contractsLoading={contractsLoading}

@@ -276,6 +276,33 @@ function SignalsInner() {
               </div>
             )}
 
+            {!error && !loading && signals.length === 0 && (
+              <div className="rounded-card border border-border bg-surface px-5 py-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-heading">Your signals workspace is ready for live intelligence.</p>
+                    <p className="mt-1 text-xs text-subtle">
+                      No signals have landed yet. Define what you want monitored in Studio or activate a managed source in Marketplace, then come back here to review the first cards and dossiers.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => router.push('/dashboard/studio')}
+                      className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white shadow-glow transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+                    >
+                      Create contract
+                    </button>
+                    <button
+                      onClick={() => router.push('/dashboard/marketplace')}
+                      className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-heading transition-colors hover:bg-muted"
+                    >
+                      Browse sources
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <SignalsTable
               rows={rows}
               allSignals={signals}

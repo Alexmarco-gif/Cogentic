@@ -157,14 +157,15 @@ export function DefinitionPane({
   onUpdateParameter,
 }: DefinitionPaneProps) {
   const isLocked = step !== 'draft' || isProcessing
+  const sourceOverrideRequired = parameters.sourceType === 'webhook' || parameters.sourcePreset === 'generic'
   const canRun = (
     nlQuery.trim().length > 10
     && !!selectedIndustryId
-    && parameters.sourceUrl.trim().length > 0
+    && (!sourceOverrideRequired || parameters.sourceUrl.trim().length > 0)
     && !isProcessing
     && step === 'draft'
   )
-  const sourceUrlLabel = parameters.sourceType === 'webhook' ? 'Webhook Endpoint URL' : 'Source URL'
+  const sourceUrlLabel = parameters.sourceType === 'webhook' ? 'Webhook Endpoint URL' : 'Source Override URL'
   const sourceUrlPlaceholder = getSourcePlaceholder(parameters.sourceType, parameters.sourcePreset)
   const providerOptions = getProviderOptions(parameters.sourceType)
 
@@ -229,7 +230,7 @@ export function DefinitionPane({
             onChange={e => onNlQueryChange(e.target.value)}
             disabled={isLocked}
             rows={5}
-            placeholder={`Describe what data you need…\n\nExample: "Daily agricultural commodity prices for maize, sorghum, and rice across a target region with 90-day historical window, delivered as JSON."`}
+            placeholder={`Describe what you want monitored...\n\nExample: "Track fuel price shocks affecting maize imports in Nigeria and alert me when the outlook changes."`}
             className="w-full resize-none rounded-xl border border-border bg-muted p-3 text-xs leading-relaxed text-body placeholder:text-subtle/70 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
           />
           <p className="mt-1 text-right text-[9px] text-subtle">{nlQuery.length} chars</p>
@@ -239,7 +240,7 @@ export function DefinitionPane({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-subtle">
-              Schema Fields
+              Return fields
               <span className="ml-1.5 rounded-pill bg-muted px-1.5 py-0.5 text-[9px] font-medium text-data">
                 {schemaFields.length}
               </span>
@@ -273,7 +274,7 @@ export function DefinitionPane({
               />
             ))}
             {schemaFields.length === 0 && (
-              <p className="py-3 text-center text-xs text-subtle">No fields — add one above</p>
+              <p className="py-3 text-center text-xs text-subtle">No return fields yet — add one above.</p>
             )}
           </div>
         </div>
@@ -281,7 +282,7 @@ export function DefinitionPane({
         {/* Parameters */}
         <div>
           <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-subtle">
-            Delivery Parameters
+            Monitoring settings
           </label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {[
@@ -302,45 +303,60 @@ export function DefinitionPane({
           </div>
         </div>
 
-        {/* Source configuration */}
+        {/* Managed source plan */}
         <div>
           <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-subtle">
-            Source Configuration
+            Managed Source Plan
           </label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div>
-              <p className="mb-1 text-[9px] text-subtle">Source type</p>
-              <SelectField
-                value={parameters.sourceType}
-                options={SOURCE_TYPE_OPTIONS}
-                onChange={(value) => onUpdateParameter('sourceType', value)}
-              />
-            </div>
-            <div>
-              <p className="mb-1 text-[9px] text-subtle">Provider preset</p>
-              <SelectField
-                value={parameters.sourcePreset}
-                options={providerOptions.map((option) => option.value)}
-                onChange={(value) => onUpdateParameter('sourcePreset', value)}
-              />
-            </div>
-            <div className="sm:col-span-1">
-              <p className="mb-1 text-[9px] text-subtle">{sourceUrlLabel}</p>
-              <input
-                type="url"
-                value={parameters.sourceUrl}
-                onChange={(e) => onUpdateParameter('sourceUrl', e.target.value)}
-                disabled={isLocked}
-                placeholder={sourceUrlPlaceholder}
-                className="w-full rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs placeholder:text-subtle/70 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-40"
-              />
-            </div>
+          <div className="rounded-xl border border-border bg-muted/70 p-3">
+            <p className="text-xs font-medium text-heading">
+              Cogent will resolve, connect, and operate the best-fit source mix for this contract.
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-subtle">
+              Start from user intent, not provider wiring. Advanced source overrides are only needed for webhook delivery or deliberate custom sourcing.
+            </p>
           </div>
-          <p className="mt-1 text-[9px] text-subtle">
-            {parameters.sourceType === 'webhook'
-              ? 'Webhook contracts deliver new signals to your endpoint after ingestion.'
-              : getSourcePresetDescription(parameters.sourceType, parameters.sourcePreset)}
-          </p>
+          <details className="mt-3 rounded-xl border border-border bg-surface">
+            <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-medium text-heading">
+              Advanced delivery and source overrides
+            </summary>
+            <div className="grid grid-cols-1 gap-2 border-t border-border px-3 py-3 sm:grid-cols-2">
+              <div>
+                <p className="mb-1 text-[9px] text-subtle">Source type</p>
+                <SelectField
+                  value={parameters.sourceType}
+                  options={SOURCE_TYPE_OPTIONS}
+                  onChange={(value) => onUpdateParameter('sourceType', value)}
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-[9px] text-subtle">Provider preset</p>
+                <SelectField
+                  value={parameters.sourcePreset}
+                  options={providerOptions.map((option) => option.value)}
+                  onChange={(value) => onUpdateParameter('sourcePreset', value)}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <p className="mb-1 text-[9px] text-subtle">{sourceUrlLabel}</p>
+                <input
+                  type="url"
+                  value={parameters.sourceUrl}
+                  onChange={(e) => onUpdateParameter('sourceUrl', e.target.value)}
+                  disabled={isLocked}
+                  placeholder={sourceUrlPlaceholder}
+                  className="w-full rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs placeholder:text-subtle/70 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-40"
+                />
+                <p className="mt-1 text-[9px] text-subtle">
+                  {parameters.sourceType === 'webhook'
+                    ? 'Webhook contracts deliver new signals to your endpoint after ingestion.'
+                    : sourceOverrideRequired
+                    ? 'Provide a source URL only when you want to override the Cogent managed source plan.'
+                    : getSourcePresetDescription(parameters.sourceType, parameters.sourcePreset)}
+                </p>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -352,7 +368,7 @@ export function DefinitionPane({
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Play className="h-4 w-4" />
-          {isProcessing ? 'Processing…' : 'Run Validation'}
+          {isProcessing ? 'Processing…' : 'Validate Tracking Plan'}
         </button>
       </div>
     </div>

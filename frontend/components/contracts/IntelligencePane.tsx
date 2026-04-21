@@ -17,13 +17,11 @@ import {
 } from 'lucide-react'
 
 import type { SignalContractResponse } from '@/lib/api/types'
-import { FeasibilityPanel } from './FeasibilityPanel'
 import type {
   ContractStep,
-  FeasibilityPoint,
+  PreviewRow,
   SchemaField,
   StudioAccessState,
-  SyntheticRow,
   ValidationError,
 } from '@/lib/hooks/useContractStudio'
 
@@ -74,7 +72,7 @@ function EmptyState() {
       <div>
         <p className="text-sm font-medium text-heading">Define your contract</p>
         <p className="mt-1 text-xs leading-relaxed text-subtle">
-          Choose an industry, set the live source, describe the data you need, then validate and simulate before activation.
+          Choose an industry, describe what you want monitored, and let Cogent propose the managed source plan before activation.
         </p>
       </div>
     </div>
@@ -117,7 +115,7 @@ function ValidationView({
           <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600" />
           <div>
             <p className="text-sm font-medium text-emerald-700">Validation passed</p>
-            <p className="text-xs text-emerald-600">Schema, source, and contract prerequisites look ready for simulation.</p>
+            <p className="text-xs text-emerald-600">Intent, schema, and managed source prerequisites look ready for review.</p>
           </div>
         </div>
       ) : (
@@ -126,7 +124,7 @@ function ValidationView({
             {errorItems.length} error{errorItems.length !== 1 ? 's' : ''}
             {warningItems.length > 0 && `, ${warningItems.length} warning${warningItems.length !== 1 ? 's' : ''}`}
           </p>
-          <p className="mt-0.5 text-xs text-rose-500">Fix the issues below before moving to simulation.</p>
+          <p className="mt-0.5 text-xs text-rose-500">Fix the issues below before moving to review.</p>
         </div>
       )}
 
@@ -165,7 +163,7 @@ function ValidationView({
         disabled={!canSimulate}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Run Simulation
+        Review Launch Plan
       </button>
     </div>
   )
@@ -178,7 +176,7 @@ function CreditCard({ estimate }: { estimate: number }) {
         <Coins className="h-5 w-5 text-amber-500" />
       </div>
       <div className="flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtle">Estimated monthly cost</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtle">Estimated monthly credits</p>
         <p className="mt-0.5 text-2xl font-semibold tabular-nums text-heading">
           {estimate.toLocaleString()}<span className="ml-1 text-sm font-medium text-subtle">credits</span>
         </p>
@@ -196,7 +194,7 @@ function PreviewTable({
   rows,
 }: {
   fields: SchemaField[]
-  rows: SyntheticRow[]
+  rows: PreviewRow[]
 }) {
   if (fields.length === 0 || rows.length === 0) return null
 
@@ -204,8 +202,8 @@ function PreviewTable({
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Table2 className="h-4 w-4 text-subtle" />
-        <p className="text-xs font-medium text-heading">Estimated delivery preview</p>
-        <span className="ml-auto text-[10px] text-subtle">{rows.length} source-backed sample rows</span>
+        <p className="text-xs font-medium text-heading">Planned output preview</p>
+        <span className="ml-auto text-[10px] text-subtle">{rows.length} review-only sample rows</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -237,13 +235,9 @@ function PreviewTable({
 }
 
 function ActiveView({
-  fields,
-  rows,
-  creditEstimate,
+  contractsCount,
 }: {
-  fields: SchemaField[]
-  rows: SyntheticRow[]
-  creditEstimate: number
+  contractsCount: number
 }) {
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -251,7 +245,7 @@ function ActiveView({
         <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600" />
         <div>
           <p className="text-sm font-medium text-emerald-700">Contract active</p>
-          <p className="text-xs text-emerald-600">The contract is live and ready for its next scheduled fetch cycle.</p>
+          <p className="text-xs text-emerald-600">The contract is live, and the initial fetch has been queued for the managed source plan.</p>
         </div>
         <span className="ml-auto flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">
           <span className="relative flex h-2 w-2">
@@ -261,9 +255,16 @@ function ActiveView({
           Live
         </span>
       </div>
-
-      <CreditCard estimate={creditEstimate} />
-      <PreviewTable fields={fields} rows={rows} />
+      <div className="rounded-xl border border-border bg-surface px-4 py-4">
+        <p className="text-sm font-medium text-heading">What happens next</p>
+        <p className="mt-1 text-xs leading-relaxed text-subtle">
+          Cogent will fetch the first live results for this contract in the background. Use the live contract controls
+          below to trigger another fetch, then open Signals to review real intelligence as it lands.
+        </p>
+        <p className="mt-3 text-[11px] text-subtle">
+          {contractsCount} live contract{contractsCount === 1 ? '' : 's'} currently visible in this workspace.
+        </p>
+      </div>
     </div>
   )
 }
@@ -319,7 +320,7 @@ function ContractList({
                       )}
                     </div>
                     <p className="mt-1 line-clamp-2 text-[11px] text-subtle">
-                      {contract.description ?? contract.source_url}
+                      {contract.description ?? 'Cogent managed source plan. Open this contract after the first fetch to review live signal output.'}
                     </p>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${
@@ -392,8 +393,7 @@ interface IntelligencePaneProps {
   isProcessing: boolean
   access: StudioAccessState
   validationErrors: ValidationError[]
-  feasibilityData: FeasibilityPoint[]
-  syntheticPreview: SyntheticRow[]
+  previewRows: PreviewRow[]
   schemaFields: SchemaField[]
   creditEstimate: number
   contracts: SignalContractResponse[]
@@ -413,8 +413,7 @@ export function IntelligencePane({
   isProcessing,
   access,
   validationErrors,
-  feasibilityData,
-  syntheticPreview,
+  previewRows,
   schemaFields,
   creditEstimate,
   contracts,
@@ -444,7 +443,7 @@ export function IntelligencePane({
     <div className="flex h-full flex-col overflow-y-auto bg-canvas">
       <div className="flex-shrink-0 border-b border-border px-5 py-3">
         <h2 className="text-sm font-medium text-heading">Intelligence Preview</h2>
-        <p className="text-[10px] text-subtle">Validation, simulation, activation, and live contract controls</p>
+        <p className="text-[10px] text-subtle">Validation, review, activation, and live contract controls</p>
       </div>
 
       <div className="flex flex-1 flex-col">
@@ -467,14 +466,16 @@ export function IntelligencePane({
               {isProcessing ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm font-medium text-heading">Running simulation...</p>
-                  <p className="text-xs text-subtle">Generating feasibility scores and a source-backed schema preview.</p>
+                  <p className="text-sm font-medium text-heading">Preparing launch plan...</p>
+                  <p className="text-xs text-subtle">Building a review-ready preview from the planned source mix.</p>
                 </div>
               ) : (
                 <>
-                  {feasibilityData.length > 0 && <FeasibilityPanel data={feasibilityData} />}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                    Preview rows and cost estimates below are planning aids generated inside Studio. Contract activation and fetch status below are live backend actions.
+                  </div>
                   <CreditCard estimate={creditEstimate} />
-                  <PreviewTable fields={schemaFields} rows={syntheticPreview} />
+                  <PreviewTable fields={schemaFields} rows={previewRows} />
                   <button
                     onClick={() => void handleActivate()}
                     disabled={!access.canManageContracts || activating}
@@ -492,9 +493,7 @@ export function IntelligencePane({
 
           {step === 'active' && (
             <ActiveView
-              fields={schemaFields}
-              rows={syntheticPreview}
-              creditEstimate={creditEstimate}
+              contractsCount={contracts.length}
             />
           )}
         </div>
