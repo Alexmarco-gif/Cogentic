@@ -243,7 +243,7 @@ function SettingsContent() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
               <p className="eyebrow">Settings</p>
-              <h1 className="mt-3 text-display text-heading">Control your account, workspace, and billing with clarity.</h1>
+              <h1 className="mt-3 max-w-[18ch] text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-heading sm:text-[2.15rem] lg:text-[2.3rem]">Control your account, workspace, and billing with clarity.</h1>
               <p className="mt-4 max-w-[65ch] text-body">
                 Everything here should help you manage identity, credits, privacy, and operational preferences without
                 hunting through scattered forms.

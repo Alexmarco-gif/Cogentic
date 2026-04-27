@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = False
 
-    # Database (Azure PostgreSQL Flexible Server)
+    # Database (Cloud SQL / managed PostgreSQL in deployed environments)
     database_url: str
     database_read_url: str | None = None  # Read replica URL (falls back to primary)
     # Pool defaults tuned for 4 Gunicorn workers with async concurrency.
@@ -80,15 +80,16 @@ class Settings(BaseSettings):
         "confidence_calibrator",
     ]
     # Set ML_VALIDATE_ON_STARTUP=true in production to fail fast if ONNX models
-    # are missing from ml_models_dir / Azure Blob before the first request hits them.
+    # are missing from ml_models_dir before the first request hits them.
     ml_validate_on_startup: bool = False
     ml_inference_timeout_ms: int = 100  # Max inference time per model
     ml_embedding_cache_enabled: bool = True  # Cache OpenAI embeddings in Redis
     ml_embedding_cache_ttl_days: int = 7  # Time-to-live for cached embeddings
 
-    # Azure Blob (prod model storage)
-    azure_blob_connection_string: str | None = None
-    azure_blob_model_container: str = "ml-models"
+    # Object storage for model/document artifacts.
+    gcs_model_bucket: str | None = None
+    gcs_document_bucket: str | None = None
+    google_cloud_project: str | None = None
 
     # Email (Resend)
     resend_api_key: str | None = None  # Set via RESEND_API_KEY env var

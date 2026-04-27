@@ -48,8 +48,8 @@ module.exports = {
         serif: ['var(--font-serif)', 'Georgia', 'serif'],
       },
       fontSize: {
-        display: ['3rem', { lineHeight: '1.02', fontWeight: '700', letterSpacing: '-0.04em' }],
-        title: ['1rem', { lineHeight: '1.45', fontWeight: '600', letterSpacing: '-0.02em' }],
+        display: ['2.2rem', { lineHeight: '1.08', fontWeight: '700', letterSpacing: '-0.036em' }],
+        title: ['1.0625rem', { lineHeight: '1.45', fontWeight: '600', letterSpacing: '-0.02em' }],
         body: ['0.9375rem', { lineHeight: '1.65', fontWeight: '500' }],
       },
       boxShadow: {

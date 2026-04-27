@@ -50,7 +50,7 @@ export default function LegalHubPage() {
   return (
     <div className="flex flex-col gap-10">
       <div>
-        <h1 className="mb-2 text-display text-heading">Legal and Compliance</h1>
+        <h1 className="mb-2 text-[1.95rem] font-semibold leading-[1.08] tracking-[-0.04em] text-heading sm:text-[2.1rem]">Legal and Compliance</h1>
         <p className="max-w-[65ch] text-sm leading-relaxed text-subtle">
           These documents explain the legal terms for using Cogent, how Stem Systems Ltd. handles personal data, and how
           enterprise data processing requests are handled.

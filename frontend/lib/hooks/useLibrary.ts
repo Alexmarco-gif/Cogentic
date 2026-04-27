@@ -291,7 +291,7 @@ const SEED_BRIEFS: LibraryBrief[] = [
       {
         heading: 'Government Cloud Infrastructure',
         content:
-          'The Federal Government\'s ₦22B cloud infrastructure procurement — awarded to consortium of IXION Technologies and Microsoft Azure — represents the largest single government IT spend since 2018. Downstream contracts for systems integration, data migration, and managed services create a secondary procurement market estimated at ₦8–12B over 36 months.',
+          'The Federal Government\'s ₦22B cloud infrastructure procurement — awarded to a consortium of local systems integrators and a hyperscale cloud provider — represents the largest single government IT spend since 2018. Downstream contracts for systems integration, data migration, and managed services create a secondary procurement market estimated at ₦8–12B over 36 months.',
       },
       {
         heading: 'Risk Factors',

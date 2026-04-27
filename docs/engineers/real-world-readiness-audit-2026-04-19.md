@@ -267,8 +267,7 @@ Evidence:
 
 - `README.md` still references `frontend/app/api/auth/[auth0]/`
 - auth route implementation has moved to explicit routes in `frontend/lib/auth0.ts`
-- `.env.example` uses `AZURE_STORAGE_CONNECTION_STRING`, while runtime config and Bicep use `AZURE_BLOB_CONNECTION_STRING`
-- `.env.example` uses `AZURE_STORAGE_CONTAINER_MODELS`, while runtime config expects `AZURE_BLOB_MODEL_CONTAINER`
+- Resolved in the GCP migration pass: `.env.example` now documents Cloud SQL, Upstash Redis, and Cloud Storage variables instead of legacy object-storage names.
 
 Impact:
 
@@ -679,7 +678,7 @@ Instead, the current product often asks the user to manually define acquisition 
 ### Confirmed setup inconsistencies
 
 - `README.md` references outdated auth route structure
-- `.env.example` contains stale Azure blob variable names
+- Resolved in the GCP migration pass: `.env.example` now uses `GOOGLE_CLOUD_PROJECT`, `GCS_MODEL_BUCKET`, and `GCS_DOCUMENT_BUCKET`.
 - the repo assumes a high number of secrets and provider credentials with little first-run validation guidance beyond environment presence
 - deployment stands up infrastructure, but not a trustworthy product bootstrap
 

@@ -6,7 +6,7 @@
 # Supported providers (choose one or more):
 #   - Better Uptime (betteruptime.com) — recommended
 #   - UptimeRobot (uptimerobot.com)
-#   - Azure Monitor Availability Test
+#   - Google Cloud Monitoring uptime checks
 #
 # ──────────────────────────────────────────────────────────────
 
@@ -64,21 +64,14 @@ uptime_robot:
       alert_contact_ids:
         - "<ALERT_CONTACT_ID>"
 
-# Azure Monitor Availability Test (if using Azure)
-azure_availability_test:
-  resource_group: "cogent-prod-rg"
-  tests:
-    - name: "cogent-api-availability"
+# Google Cloud Monitoring uptime check
+cloud_monitoring:
+  project_id: "<GCP_PROJECT_ID>"
+  checks:
+    - display_name: "Cogent API availability"
       url: "https://api.cogent.ai/health"
-      frequency: 300               # seconds (5 min minimum for Standard)
+      period: 300
       timeout: 30
-      locations:
-        - "us-ca-sjc-azr"          # West US
-        - "us-il-ch1-azr"          # Central US
-        - "emea-gb-db3-azr"        # UK South
-        - "emea-nl-ams-azr"        # West Europe
-      success_criteria:
-        ssl_check: true
+      matcher:
         status_code_range: "200-200"
         content_match: '"status":"healthy"'
-      action_group: "cogent-alerts-ag"

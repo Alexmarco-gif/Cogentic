@@ -10,7 +10,7 @@
 | **Frontend** | Next.js 14 (App Router) + Tailwind + Auth0 SDK | SSR/CSR SPA, handles auth flow, renders dashboards |
 | **Backend API** | FastAPI (async) + SQLAlchemy 2.0 + Pydantic v2 | REST API, JWT auth, business logic, AI orchestration |
 | **Workers** | RQ (Redis Queue) + Python | Background jobs: signal acquisition, document analysis, ML training |
-| **Data Stores** | PostgreSQL (Azure) + pgvector, Redis, Neo4j | Relational data, caching/queues, knowledge graph |
+| **Data Stores** | Cloud SQL PostgreSQL + pgvector, Upstash Redis, Neo4j | Relational data, caching/queues, knowledge graph |
 
 
 
@@ -69,7 +69,7 @@ API v1 Router (146+ endpoints)
     │      ├── ONNX Runtime (scoring, anomaly detection)
     │      └── Neo4j (causal graph queries)
     │
-    ├── Repository Layer → SQLAlchemy AsyncSession → PostgreSQL (Azure)
+    ├── Repository Layer → SQLAlchemy AsyncSession → Cloud SQL PostgreSQL
     │
     └── Background Jobs → Redis Queue → RQ Worker
               │
@@ -217,7 +217,7 @@ Cogent/
 
 - ✅ **Auth0 Integration** — email/password, Google OAuth, GitHub OAuth, webhooks
 - ✅ **FastAPI Backend** — 146+ endpoints, JWT middleware, CORS, rate limiting
-- ✅ **Database Layer** — PostgreSQL (Azure), pgvector, Alembic migrations, async SQLAlchemy
+- ✅ **Database Layer** — Cloud SQL PostgreSQL, pgvector, Alembic migrations, async SQLAlchemy
 - ✅ **Signal Intelligence Pipeline** — RSS fetchers, dedup, scoring, storage
 - ✅ **AI Layer** — OpenAI chat agent, RAG, synthesis, embeddings
 - ✅ **ML Layer** — ONNX inference, signal scoring, anomaly detection, entity resolution
@@ -227,7 +227,7 @@ Cogent/
 - ✅ **Observability** — Prometheus metrics, structured logging, Sentry, OpenTelemetry
 - ✅ **Compliance** — GDPR data retention, user data export
 - ✅ **Background Workers** — RQ + Redis, scheduled jobs (signal acquisition, ML training)
-- ✅ **CI/CD** — GitHub Actions (lint, typecheck, test, deploy to Azure Container Apps)
+- ✅ **CI/CD** — GitHub Actions (lint, typecheck, test, deploy to Cloud Run)
 
 ---
 
@@ -385,13 +385,13 @@ npm install
 - ✅ ML inference (ONNX Runtime)
 - ✅ Feature gating + pricing tiers
 - ✅ Background workers (RQ)
-- ✅ CI/CD pipeline (GitHub Actions → Azure Container Apps)
+- ✅ CI/CD pipeline (GitHub Actions → Cloud Run)
 - ✅ Observability (Prometheus, Sentry, structured logs)
 
 ### Pre-Launch Checklist
 
 - 📋 All pre-commit hooks green (in progress)
-- 📋 Azure infrastructure provisioned (ACR, Container Apps, Key Vault)
+- 📋 GCP infrastructure provisioned (Artifact Registry, Cloud Run, Secret Manager, Cloud SQL)
 - 📋 Production secrets set in GitHub environments
 - 📋 Smoke tests passing against staging
 - 📋 Domain + TLS configured

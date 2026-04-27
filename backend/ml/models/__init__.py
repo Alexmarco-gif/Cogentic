@@ -1,4 +1,4 @@
-# ML Model Artifacts (trained models stored here locally, Azure Blob in prod)
+# ML Model Artifacts (trained models stored here locally, Cloud Storage in prod)
 # Structure: {model_name}/v{version}/{model_name}.onnx
 # e.g. anomaly_detector/v202602110800/anomaly_detector.onnx
 #

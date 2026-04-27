@@ -1,8 +1,0 @@
-{
-  "name": "github-staging",
-  "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:Alexmarco-gif/Cogentic:environment:staging",
-  "audiences": [
-    "api://AzureADTokenExchange"
-  ]
-}

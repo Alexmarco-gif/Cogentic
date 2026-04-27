@@ -2,7 +2,7 @@
 # DOCKERFILE - FastAPI Backend
 # ==============================================
 # Multi-stage build for production-ready container
-# Optimized for Azure Container Apps
+# Optimized for Cloud Run
 
 # Stage 1: Builder
 ARG BASE_IMAGE=cogent-python-analytics:latest
@@ -23,7 +23,7 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port (Azure Container Apps will override this)
+# Expose port (Cloud Run will provide PORT, default remains 8000 here)
 EXPOSE 8000
 
 # Health check

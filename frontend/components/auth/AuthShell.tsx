@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, ArrowUpRight, LockKeyhole, ShieldCheck, Sparkles, Waves } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
+
 import { StemIcon } from '@/components/ui/StemIcon'
-import { cn } from '@/lib/utils'
 
 type Pillar = {
   title: string
@@ -76,7 +76,7 @@ export function AuthProviderButton({ provider, href }: ProviderButtonProps) {
   return (
     <a
       href={href}
-      className="button-press flex min-h-[52px] items-center justify-center gap-2 rounded-[18px] border border-border bg-surface px-4 py-3 text-[0.84rem] font-semibold text-body transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2 hover:shadow-[0_16px_36px_-28px_rgba(15,23,42,0.45)]"
+      className="button-press flex min-h-[52px] items-center justify-center gap-2 rounded-[18px] border border-border bg-surface px-4 py-3 text-[0.82rem] font-semibold text-body transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:bg-surface-2 hover:shadow-[0_16px_36px_-28px_rgba(15,23,42,0.45)]"
     >
       <ProviderIcon provider={provider} />
       <ProviderLabel provider={provider} />
@@ -94,42 +94,7 @@ export function AuthDivider({ label }: { label: string }) {
   )
 }
 
-export function AuthNotice({
-  icon,
-  children,
-  tone = 'primary',
-}: {
-  icon?: React.ReactNode
-  children: React.ReactNode
-  tone?: 'primary' | 'neutral'
-}) {
-  return (
-    <div
-      className={cn(
-        'rounded-[20px] border px-4 py-3 text-[0.82rem] leading-relaxed',
-        tone === 'primary'
-          ? 'border-primary/12 bg-primary/5 text-body'
-          : 'border-border bg-surface text-body',
-      )}
-    >
-      <div className="flex items-start gap-2.5">
-        {icon ? <span className="mt-0.5 shrink-0 text-primary">{icon}</span> : null}
-        <div>{children}</div>
-      </div>
-    </div>
-  )
-}
-
-function PillarCard({ title, description }: Pillar) {
-  return (
-    <div className="rounded-[20px] border border-border bg-white/80 px-3 py-3 shadow-[0_18px_44px_-36px_rgba(15,23,42,0.55)] backdrop-blur">
-      <p className="text-[0.82rem] font-semibold text-heading">{title}</p>
-      <p className="mt-1 text-[0.76rem] text-subtle">{description}</p>
-    </div>
-  )
-}
-
-function SignalTicker({ items }: { items: readonly Pillar[] }) {
+function LiveText({ items }: { items: readonly Pillar[] }) {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -137,73 +102,123 @@ function SignalTicker({ items }: { items: readonly Pillar[] }) {
     const timer = window.setInterval(() => {
       setIndex((value) => (value + 1) % items.length)
     }, 2600)
-
     return () => window.clearInterval(timer)
   }, [items])
 
-  const item = items[index]
-
   return (
-    <div className="rounded-[24px] border border-primary/12 bg-primary/5 px-4 py-3">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Waves size={16} strokeWidth={1.8} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-subtle">Live signal</p>
-          <p key={item.title} className="animate-fade-up mt-1 text-[0.92rem] font-semibold text-heading">
-            {item.title}
-          </p>
-        </div>
-      </div>
+    <div className="rounded-full border border-white/12 bg-white/8 px-3 py-2 text-[0.76rem] text-white/84 backdrop-blur sm:px-4 sm:text-[0.8rem]">
+      <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#60a5fa]" />
+      <span key={items[index]?.title} className="animate-fade-up inline-block">
+        {items[index]?.title}
+      </span>
     </div>
   )
 }
 
-function InsightBoard({ items }: { items: readonly Pillar[] }) {
-  const dashboardCards = useMemo(
-    () => items.slice(0, 3).map((item, index) => ({
-      id: item.title,
-      label: `0${index + 1}`,
-      title: item.title,
-      detail: index === 0 ? 'Signals monitored' : index === 1 ? 'Priority surfaced' : 'Decision support ready',
-    })),
-    [items],
-  )
+function AbstractWorkspaceVisual({ items }: { items: readonly Pillar[] }) {
+  const shortCards = items.slice(0, 3)
 
   return (
-    <div className="grid gap-3">
-      <div className="rounded-[28px] border border-border bg-[#111827] p-5 text-white shadow-[0_38px_90px_-52px_rgba(15,23,42,0.92)]">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">Market view</p>
-            <p className="mt-2 text-[1.05rem] font-semibold text-white">A calmer operating surface for change, signals, and next moves.</p>
+    <div className="relative overflow-hidden rounded-[30px] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_24%),linear-gradient(145deg,#4f46e5,#2563eb_58%,#1d4ed8)] p-4 text-white shadow-[0_42px_120px_-52px_rgba(37,99,235,0.7)] sm:rounded-[34px] sm:p-6 lg:p-7">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.12),transparent_18%),radial-gradient(circle_at_78%_18%,rgba(255,255,255,0.08),transparent_20%),radial-gradient(circle_at_70%_78%,rgba(255,255,255,0.06),transparent_24%)]" />
+      <div className="pointer-events-none absolute right-[-10%] top-[8%] h-56 w-56 rounded-full border border-white/10 bg-white/6 blur-sm" />
+      <div className="pointer-events-none absolute left-[-6%] bottom-[10%] h-48 w-48 rounded-full border border-white/8 bg-white/5 blur-sm" />
+
+      <div className="relative flex h-full flex-col justify-between gap-5 sm:gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="max-w-[26rem]">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/64">Product visualization</p>
+            <p className="mt-3 max-w-[12ch] text-[1.4rem] font-semibold leading-[1.1] text-white sm:text-[1.75rem] lg:text-[1.95rem]">
+              A quieter workspace for signals, clarity, and next moves.
+            </p>
           </div>
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
-            <StemIcon size={20} variant="white" aria-label="Cogent" />
+          <div className="hidden h-12 w-12 items-center justify-center rounded-[20px] border border-white/15 bg-white/10 sm:flex">
+            <StemIcon size={22} variant="white" aria-label="Cogent" />
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          {dashboardCards.map((card) => (
-            <div key={card.id} className="animate-float-gentle rounded-[20px] border border-white/10 bg-white/5 px-3 py-3" style={{ animationDelay: `${dashboardCards.indexOf(card) * 120}ms` }}>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/50">{card.label}</p>
-              <p className="mt-2 text-[0.82rem] font-semibold text-white">{card.title}</p>
-              <p className="mt-1 text-[0.72rem] text-white/60">{card.detail}</p>
+        <div className="relative rounded-[26px] border border-white/14 bg-white/8 p-3 shadow-[0_26px_70px_-38px_rgba(15,23,42,0.7)] backdrop-blur-md sm:rounded-[30px] sm:p-4">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-white/90" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/40" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
             </div>
-          ))}
+            <LiveText items={items} />
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+            <div className="rounded-[22px] border border-white/12 bg-[#f8fafc] p-3 text-slate-900 sm:rounded-[26px] sm:p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Intelligence board</p>
+                  <p className="mt-1 text-[1rem] font-semibold text-slate-900">Priority changes surfaced</p>
+                </div>
+                <div className="rounded-full bg-slate-100 px-3 py-1 text-[0.74rem] font-semibold text-slate-600">
+                  3 active
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px]">
+                <div className="space-y-3">
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="rounded-[20px] border border-slate-200 bg-white px-3 py-3 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.28)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="h-2.5 w-20 rounded-full bg-slate-200" />
+                          <div className="mt-2 h-2.5 w-32 rounded-full bg-slate-100" />
+                        </div>
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[0.7rem] font-semibold text-primary">
+                          High
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        <div className="h-2 w-24 rounded-full bg-slate-100" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden rounded-[22px] bg-slate-50 p-3 xl:block">
+                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Focus map</p>
+                  <div className="relative mt-4 h-44 rounded-[20px] bg-[radial-gradient(circle_at_50%_30%,rgba(37,99,235,0.18),transparent_20%),linear-gradient(180deg,#ffffff,#eef4fb)]">
+                    <span className="absolute left-[18%] top-[22%] h-3 w-3 rounded-full bg-primary shadow-[0_0_0_8px_rgba(37,99,235,0.12)]" />
+                    <span className="absolute right-[20%] top-[30%] h-3 w-3 rounded-full bg-slate-300" />
+                    <span className="absolute left-[44%] top-[56%] h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_0_8px_rgba(16,185,129,0.14)]" />
+                    <span className="absolute right-[26%] bottom-[18%] h-3 w-3 rounded-full bg-amber-400" />
+                    <div className="absolute left-[20%] top-[24%] h-px w-[34%] bg-slate-200" />
+                    <div className="absolute left-[44%] top-[57%] h-px w-[22%] -rotate-[22deg] bg-slate-200" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {shortCards.map((card, index) => (
+                <div
+                  key={card.title}
+                  className="animate-float-gentle rounded-[20px] border border-white/14 bg-white/10 px-4 py-4 backdrop-blur sm:rounded-[22px]"
+                  style={{ animationDelay: `${index * 120}ms` }}
+                >
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">0{index + 1}</p>
+                  <p className="mt-2 text-[0.9rem] font-semibold text-white">{card.title}</p>
+                  <p className="mt-1 text-[0.76rem] leading-relaxed text-white/72">{card.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-5 flex items-center gap-2 text-[0.78rem] text-white/72">
-          <span className="live-dot" />
-          Quietly updated as new signals are reviewed.
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-[32rem] text-[0.86rem] text-white/76">
+            Designed to feel like a working system, not a page explaining the system.
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-8 rounded-full bg-white/95" />
+            <span className="h-1.5 w-4 rounded-full bg-white/35" />
+          </div>
         </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <PillarCard title="Changes tracked" description="Earlier visibility" />
-        <PillarCard title="Noise reduced" description="Clearer focus" />
-        <PillarCard title="Decisions supported" description="Faster action" />
       </div>
     </div>
   )
@@ -230,62 +245,9 @@ export function AuthShell({
       <div className="pointer-events-none absolute bottom-[-10rem] right-[-6rem] h-[24rem] w-[24rem] rounded-full bg-slate-900/8 blur-3xl" />
 
       <div className="relative mx-auto flex min-h-screen max-w-[1460px] items-center px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
-        <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,30rem)] xl:gap-5">
-          <section className="animate-fade-up order-2 relative overflow-hidden rounded-[34px] border border-border bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-5 shadow-[0_38px_120px_-64px_rgba(15,23,42,0.55)] sm:p-7 lg:order-1 lg:min-h-[calc(100vh-4rem)] lg:p-10 xl:p-12">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.16),transparent_55%)]" />
-            <div className="relative flex h-full flex-col justify-between gap-7 lg:gap-10">
-              <div className="flex flex-col gap-6 lg:gap-8">
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-border bg-white shadow-[0_18px_42px_-28px_rgba(37,99,235,0.48)]">
-                      <StemIcon size={28} variant="brand" aria-label="Cogent" />
-                    </div>
-                    <div>
-                      <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-subtle">Cogent by Stem</p>
-                      <p className="mt-1 text-[0.9rem] font-semibold text-heading">Strategic market intelligence</p>
-                    </div>
-                  </div>
-
-                  <div className="inline-flex items-center gap-2 self-start rounded-full border border-primary/15 bg-primary/6 px-3.5 py-2 text-[0.76rem] font-semibold text-primary">
-                    <Sparkles size={14} strokeWidth={1.7} />
-                    {badge}
-                  </div>
-                </div>
-
-                <div className="max-w-2xl">
-                  <h1 className="max-w-[14ch] text-display text-heading sm:max-w-[12ch]">{title}</h1>
-                  <p className="mt-3 max-w-[54ch] text-body">{description}</p>
-                </div>
-
-                <SignalTicker items={pillars} />
-                <InsightBoard items={pillars} />
-              </div>
-
-              <div className="animate-fade-up grid gap-3 rounded-[28px] border border-border bg-white/75 p-4 backdrop-blur sm:grid-cols-[1.15fr_0.85fr] sm:p-5" style={{ animationDelay: '120ms' }}>
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-subtle">
-                    <ShieldCheck size={14} strokeWidth={1.7} />
-                    Trusted flow
-                  </div>
-                  <p className="mt-4 text-[0.96rem] font-semibold text-heading">
-                    Built to help financial teams see change early and act with less guesswork.
-                  </p>
-                </div>
-
-                <div className="grid gap-2">
-                  {['See change', 'Know what matters', 'Move faster'].map((item) => (
-                    <div key={item} className="flex items-center justify-between gap-2 rounded-[18px] border border-border bg-surface px-3 py-2 text-[0.8rem] font-medium text-body">
-                      <span>{item}</span>
-                      <ArrowUpRight className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="animate-fade-up order-1 surface-elevated flex flex-col justify-center rounded-[34px] px-4 py-5 sm:px-6 sm:py-6 lg:order-2 lg:min-h-[calc(100vh-4rem)] lg:px-8 lg:py-8" style={{ animationDelay: '80ms' }}>
-            <div className="mx-auto flex w-full max-w-[26rem] flex-col gap-7">
+        <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] xl:gap-5">
+          <section className="order-1 rounded-[28px] border border-border bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(248,250,252,0.98))] px-4 py-5 shadow-[0_38px_110px_-68px_rgba(15,23,42,0.35)] sm:rounded-[34px] sm:px-6 sm:py-6 lg:min-h-[calc(100vh-4rem)] lg:px-8 lg:py-8">
+            <div className="mx-auto flex h-full w-full max-w-[27rem] flex-col justify-between gap-7">
               <div className="flex items-center justify-between gap-3">
                 <Link href="/" className="inline-flex items-center gap-2 text-[0.82rem] font-semibold text-body transition-colors hover:text-heading">
                   <StemIcon size={18} variant="brand" aria-label="Cogent" />
@@ -297,40 +259,56 @@ export function AuthShell({
                 </div>
               </div>
 
-              <div>
-                <p className="eyebrow">{panelLabel}</p>
-                <h2 className="mt-3 text-display text-heading">{panelTitle}</h2>
-                <p className="mt-4 text-body">{panelDescription}</p>
-              </div>
-
-              {children}
-
-              <div className="rounded-[24px] border border-border bg-surface px-4 py-4">
-                <p className="text-[0.86rem] font-semibold text-heading">{footerPrompt}</p>
-                <p className="mt-1 text-[0.8rem] leading-relaxed text-subtle">{footerDescription}</p>
-                <Link
-                  href={footerHref}
-                  className="button-press mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2 text-[0.8rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover"
-                >
-                  {footerAction}
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
-
-              <div className="flex flex-col gap-3 border-t border-border pt-1 text-[0.74rem] text-subtle sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <div className="inline-flex items-center gap-2">
-                  <ShieldCheck size={13} strokeWidth={1.7} className="text-primary" />
-                  Secure access by Stem Systems Ltd.
+              <div className="flex flex-col gap-5 sm:gap-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/12 bg-primary/5 px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-primary">
+                    <Sparkles size={13} strokeWidth={1.7} />
+                    {badge}
+                  </div>
+                  <p className="eyebrow mt-5">{panelLabel}</p>
+                  <h1 className="mt-3 max-w-[14ch] text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-heading sm:text-[2.15rem] lg:text-[2.3rem]">{panelTitle}</h1>
+                  <p className="mt-3 max-w-[40ch] text-body">{panelDescription}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Link href="/legal/terms" className="transition-colors hover:text-body">
-                    Terms
-                  </Link>
-                  <Link href="/legal/privacy" className="transition-colors hover:text-body">
-                    Privacy
+
+                {children}
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-[22px] border border-border bg-surface px-4 py-4 sm:rounded-[24px]">
+                  <p className="text-[0.86rem] font-semibold text-heading">{footerPrompt}</p>
+                  <p className="mt-1 text-[0.8rem] leading-relaxed text-subtle">{footerDescription}</p>
+                  <Link
+                    href={footerHref}
+                    className="button-press mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2 text-[0.8rem] font-semibold text-heading transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover"
+                  >
+                    {footerAction}
+                    <ArrowRight size={14} />
                   </Link>
                 </div>
+
+                <div className="flex flex-col gap-3 border-t border-border pt-1 text-[0.74rem] text-subtle sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="inline-flex items-center gap-2">
+                    <ShieldCheck size={13} strokeWidth={1.7} className="text-primary" />
+                    Secure access by Stem Systems Ltd.
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Link href="/legal/terms" className="transition-colors hover:text-body">
+                      Terms
+                    </Link>
+                    <Link href="/legal/privacy" className="transition-colors hover:text-body">
+                      Privacy
+                    </Link>
+                  </div>
+                </div>
               </div>
+            </div>
+          </section>
+
+          <section className="order-2 lg:min-h-[calc(100vh-4rem)]">
+            <AbstractWorkspaceVisual items={pillars} />
+            <div className="mt-4 px-1 sm:px-2">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-subtle">{title}</p>
+              <p className="mt-2 max-w-[46ch] text-[0.88rem] text-body">{description}</p>
             </div>
           </section>
         </div>

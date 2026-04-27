@@ -2,7 +2,7 @@
 
 Loads ONNX-exported or joblib-serialized models for fast (<100ms) inference.
 Supports model version management (latest 3 versions hot).
-Local filesystem in dev, Azure Blob in prod.
+Local filesystem in dev, Cloud Storage-backed sync in prod.
 """
 
 import logging
@@ -25,7 +25,7 @@ class OnnxInferenceEngine:
     Supports both ONNX (via ONNX Runtime) and joblib (via sklearn) models.
 
     Features:
-        - Loads models from local filesystem (dev) or Azure Blob (prod)
+        - Loads models from local filesystem after deployment or artifact sync
         - Keeps latest N model versions hot in memory
         - <100ms inference target per prediction
         - Thread-safe session management

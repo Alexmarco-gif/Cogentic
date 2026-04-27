@@ -17,7 +17,7 @@ Prove the full chain below is working in staging:
 
 - Backend and worker container apps are healthy.
 - Redis and Postgres are reachable from the running apps.
-- Required provider credentials are present in Key Vault or app secrets.
+- Required provider credentials are present in Secret Manager or app secrets.
 - You have an **admin** bearer token for the staging backend.
 - At least one active contract exists, or you are ready to create/activate one.
 
@@ -26,7 +26,7 @@ Prove the full chain below is working in staging:
 From the repo root:
 
 ```powershell
-$env:COGENT_BASE_URL = "https://cogent-stg-backend.purpleglacier-069239e0.uksouth.azurecontainerapps.io"
+$env:COGENT_BASE_URL = "https://api-staging.cogent.ai"
 $env:COGENT_BEARER_TOKEN = "<admin bearer token>"
 python scripts/validate_intelligence_pipeline.py --trigger-fetch
 ```
@@ -110,7 +110,7 @@ After the script passes or mostly passes, confirm the user-facing journey:
 
 ### Provider readiness warns or fails
 
-- Check Key Vault secrets and container app secret references.
+- Check Secret Manager secrets and Cloud Run secret references.
 - Confirm the provider-specific env vars are present in the backend and worker.
 
 ### Queues are growing but signals do not land

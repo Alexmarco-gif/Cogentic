@@ -43,7 +43,7 @@ export function MorningBrief({
             Daily intelligence brief
           </div>
 
-          <h1 className="text-display text-heading">
+          <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-heading sm:text-[2.15rem] lg:text-[2.3rem]">
             {greeting}, {firstName}.
           </h1>
           <p className="mt-4 max-w-2xl text-body text-body">{summary}</p>

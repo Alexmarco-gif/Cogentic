@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Mail, User } from 'lucide-react'
 import {
   AuthDivider,
   AuthProviderButton,
@@ -47,35 +47,42 @@ export default function SignupPage() {
 
       <AuthDivider label="Or sign up with email" />
 
-      <form action="/api/auth/login" method="GET" className="space-y-3.5 sm:space-y-4">
+      <form action="/api/auth/login" method="GET" className="space-y-4 sm:space-y-4">
         <input type="hidden" name="screen_hint" value="signup" />
 
         <div className="space-y-2">
           <label htmlFor="name" className="text-[0.82rem] font-semibold text-heading">
             Full name
           </label>
-          <input
-            id="name"
-            type="text"
-            name="name_hint"
-            placeholder="Your full name"
-            autoComplete="name"
-            className="focus-ring h-12 w-full rounded-[18px] border border-border bg-surface px-4 text-[0.92rem] text-heading placeholder:text-subtle transition-all duration-200 hover:border-border-hover focus:border-primary/25"
-          />
+          <div className="focus-within:ring-1 focus-within:ring-primary/15 flex h-12 w-full items-center gap-3 rounded-[18px] border border-border bg-surface px-4 transition-all duration-200 hover:border-border-hover focus-within:border-primary/25">
+            <User className="h-4 w-4 text-subtle" strokeWidth={1.8} />
+            <input
+              id="name"
+              type="text"
+              name="name_hint"
+              placeholder="Your full name"
+              autoComplete="name"
+              className="focus-ring h-full w-full bg-transparent text-[0.92rem] text-heading placeholder:text-subtle"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
           <label htmlFor="email" className="text-[0.82rem] font-semibold text-heading">
             Work email
           </label>
-          <input
-            id="email"
-            type="email"
-            name="login_hint"
-            placeholder="you@company.com"
-            autoComplete="email"
-            className="focus-ring h-12 w-full rounded-[18px] border border-border bg-surface px-4 text-[0.92rem] text-heading placeholder:text-subtle transition-all duration-200 hover:border-border-hover focus:border-primary/25"
-          />
+          <div className="focus-within:ring-1 focus-within:ring-primary/15 flex h-12 w-full items-center gap-3 rounded-[18px] border border-border bg-surface px-4 transition-all duration-200 hover:border-border-hover focus-within:border-primary/25">
+            <Mail className="h-4 w-4 text-subtle" strokeWidth={1.8} />
+            <input
+              id="email"
+              type="email"
+              name="login_hint"
+              placeholder="you@company.com"
+              autoComplete="email"
+              className="focus-ring h-full w-full bg-transparent text-[0.92rem] text-heading placeholder:text-subtle"
+            />
+          </div>
+          <p className="text-[0.74rem] text-subtle">We’ll use this to create and route your workspace access.</p>
         </div>
 
         <label className="flex items-start gap-3 rounded-[20px] border border-border bg-surface px-4 py-4">
@@ -99,7 +106,7 @@ export default function SignupPage() {
 
         <button
           type="submit"
-          className="button-press flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-primary px-6 text-[0.9rem] font-semibold text-white shadow-[0_22px_46px_-24px_rgba(37,99,235,0.78)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
+          className="button-press flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-primary px-6 text-[0.88rem] font-semibold text-white shadow-[0_22px_46px_-24px_rgba(37,99,235,0.78)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover"
         >
           Create secure account
           <ArrowRight size={16} />

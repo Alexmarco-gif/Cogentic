@@ -33,7 +33,6 @@ import httpx
 from selectolax.parser import HTMLParser
 from sqlalchemy import delete, func, select
 
-from backend.config import get_settings
 from backend.database import AsyncSessionLocal
 from backend.models.ai_job import AIJob
 from backend.models.credit_transaction import CreditTransaction
@@ -48,6 +47,12 @@ from backend.services.email_service import (
     send_email,
 )
 from backend.services.feedback_retraining import run_feedback_retraining_job
+from backend.storage import (
+    delete_gcs_object,
+    download_gcs_object,
+    local_path_from_storage_path,
+    parse_gcs_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +288,9 @@ def _build_summary(text: str) -> str:
     return _truncate_text(summary, limit=500)
 
 
-def _classify_document(filename: str, content_type: str | None, text: str) -> dict[str, Any]:
+def _classify_document(
+    filename: str, content_type: str | None, text: str
+) -> dict[str, Any]:
     extension = Path(filename).suffix.lower().lstrip(".") or "unknown"
     lowered = text.lower()
     tags: list[str] = []
@@ -393,63 +400,27 @@ async def _read_remote_document(storage_path: str) -> bytes:
 async def _read_document_source(storage_path: str) -> tuple[bytes, str]:
     parsed = urlparse(storage_path)
 
+    if parse_gcs_path(storage_path):
+        return await asyncio.to_thread(download_gcs_object, storage_path), "gcs"
+
     if parsed.scheme in {"http", "https"}:
         return await _read_remote_document(storage_path), "remote"
 
-    path = Path(parsed.path) if parsed.scheme == "file" else Path(storage_path)
+    path = local_path_from_storage_path(storage_path)
     if not path.exists():
         raise FileNotFoundError(f"Document source not found: {path}")
 
     return path.read_bytes(), "local"
 
 
-def _azure_blob_parts(storage_path: str) -> tuple[str, str] | None:
-    parsed = urlparse(storage_path)
-    if parsed.scheme == "azure":
-        container, _, blob = parsed.path.lstrip("/").partition("/")
-        if container and blob:
-            return container, blob
-        return None
-
-    if parsed.scheme in {"http", "https"} and ".blob.core." in (parsed.netloc or ""):
-        path = parsed.path.lstrip("/")
-        container, _, blob = path.partition("/")
-        if container and blob:
-            return container, blob
-    return None
-
-
 def _delete_storage_path(storage_path: str | None) -> bool:
     if not storage_path:
         return False
 
-    blob_parts = _azure_blob_parts(storage_path)
-    if blob_parts:
-        settings = get_settings()
-        if not settings.azure_blob_connection_string:
-            logger.warning(
-                "Skipping Azure blob deletion for %s because no connection string is configured",
-                storage_path,
-            )
-            return False
+    if parse_gcs_path(storage_path):
+        return delete_gcs_object(storage_path)
 
-        try:
-            from azure.storage.blob import BlobServiceClient  # type: ignore[import]
-        except ImportError:  # pragma: no cover - dependency should exist in prod env
-            logger.warning("azure-storage-blob is not installed; blob cleanup skipped")
-            return False
-
-        container, blob = blob_parts
-        client = BlobServiceClient.from_connection_string(
-            settings.azure_blob_connection_string
-        )
-        client.get_blob_client(container=container, blob=blob).delete_blob(
-            delete_snapshots="include"
-        )
-        return True
-
-    parsed = urlparse(storage_path)
-    path = Path(parsed.path) if parsed.scheme == "file" else Path(storage_path)
+    path = local_path_from_storage_path(storage_path)
     if path.exists():
         path.unlink()
         return True
@@ -896,9 +867,7 @@ def send_email_notification(
     tags: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Worker-safe email wrapper."""
-    return send_email(
-        to=to, subject=subject, html=html, reply_to=reply_to, tags=tags
-    )
+    return send_email(to=to, subject=subject, html=html, reply_to=reply_to, tags=tags)
 
 
 def send_deletion_request_email_job(to: str, request_id: str) -> dict[str, Any]:

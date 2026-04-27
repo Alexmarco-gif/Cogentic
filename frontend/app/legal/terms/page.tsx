@@ -40,7 +40,7 @@ export default function TermsOfServicePage() {
     <article className="flex flex-col gap-10">
       <div className="border-b border-border pb-8">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-primary">Legal Document</p>
-        <h1 className="mb-3 text-display text-heading">Terms of Service</h1>
+        <h1 className="mb-3 text-[1.95rem] font-semibold leading-[1.08] tracking-[-0.04em] text-heading sm:text-[2.1rem]">Terms of Service</h1>
         <div className="flex flex-wrap gap-4 text-xs text-subtle">
           <span>
             Effective Date: <strong className="text-body">March 29, 2026</strong>
