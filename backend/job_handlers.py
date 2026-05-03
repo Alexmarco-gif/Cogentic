@@ -48,10 +48,10 @@ from backend.services.email_service import (
 )
 from backend.services.feedback_retraining import run_feedback_retraining_job
 from backend.storage import (
-    delete_gcs_object,
-    download_gcs_object,
+    delete_storage_object,
+    download_storage_object,
     local_path_from_storage_path,
-    parse_gcs_path,
+    storage_path_is_object,
 )
 
 logger = logging.getLogger(__name__)
@@ -400,8 +400,8 @@ async def _read_remote_document(storage_path: str) -> bytes:
 async def _read_document_source(storage_path: str) -> tuple[bytes, str]:
     parsed = urlparse(storage_path)
 
-    if parse_gcs_path(storage_path):
-        return await asyncio.to_thread(download_gcs_object, storage_path), "gcs"
+    if storage_path_is_object(storage_path):
+        return await asyncio.to_thread(download_storage_object, storage_path), "s3"
 
     if parsed.scheme in {"http", "https"}:
         return await _read_remote_document(storage_path), "remote"
@@ -417,8 +417,8 @@ def _delete_storage_path(storage_path: str | None) -> bool:
     if not storage_path:
         return False
 
-    if parse_gcs_path(storage_path):
-        return delete_gcs_object(storage_path)
+    if storage_path_is_object(storage_path):
+        return delete_storage_object(storage_path)
 
     path = local_path_from_storage_path(storage_path)
     if path.exists():

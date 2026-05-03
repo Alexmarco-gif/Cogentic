@@ -14,7 +14,7 @@ class MLModelRegistry(Base, UUIDMixin, TimestampMixin):
 
     Tracks:
       - Model identity (name, version)
-      - Artifact location (local path or Cloud Storage URI)
+      - Artifact location (local path or S3 URI)
       - Training metrics (accuracy, R², etc.)
       - Status lifecycle (training → active → archived)
     """

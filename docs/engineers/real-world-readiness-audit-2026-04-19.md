@@ -267,7 +267,7 @@ Evidence:
 
 - `README.md` still references `frontend/app/api/auth/[auth0]/`
 - auth route implementation has moved to explicit routes in `frontend/lib/auth0.ts`
-- Resolved in the GCP migration pass: `.env.example` now documents Cloud SQL, Upstash Redis, and Cloud Storage variables instead of legacy object-storage names.
+- Resolved in the AWS migration pass: `.env.example` now documents Amazon RDS PostgreSQL, ElastiCache Redis/Valkey, and S3 variables instead of legacy object-storage names.
 
 Impact:
 
@@ -678,7 +678,7 @@ Instead, the current product often asks the user to manually define acquisition 
 ### Confirmed setup inconsistencies
 
 - `README.md` references outdated auth route structure
-- Resolved in the GCP migration pass: `.env.example` now uses `GOOGLE_CLOUD_PROJECT`, `GCS_MODEL_BUCKET`, and `GCS_DOCUMENT_BUCKET`.
+- Resolved in the AWS migration pass: `.env.example` now uses `AWS_REGION`, `S3_MODEL_BUCKET`, and `S3_DOCUMENT_BUCKET`.
 - the repo assumes a high number of secrets and provider credentials with little first-run validation guidance beyond environment presence
 - deployment stands up infrastructure, but not a trustworthy product bootstrap
 

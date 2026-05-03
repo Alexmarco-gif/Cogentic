@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = False
 
-    # Database (Cloud SQL / managed PostgreSQL in deployed environments)
+    # Database (RDS PostgreSQL / managed PostgreSQL in deployed environments)
     database_url: str
     database_read_url: str | None = None  # Read replica URL (falls back to primary)
     # Pool defaults tuned for 4 Gunicorn workers with async concurrency.
@@ -87,9 +87,9 @@ class Settings(BaseSettings):
     ml_embedding_cache_ttl_days: int = 7  # Time-to-live for cached embeddings
 
     # Object storage for model/document artifacts.
-    gcs_model_bucket: str | None = None
-    gcs_document_bucket: str | None = None
-    google_cloud_project: str | None = None
+    aws_region: str = "eu-west-2"
+    s3_model_bucket: str | None = None
+    s3_document_bucket: str | None = None
 
     # Email (Resend)
     resend_api_key: str | None = None  # Set via RESEND_API_KEY env var

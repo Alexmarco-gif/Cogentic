@@ -40,7 +40,7 @@ class Document(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     content_type: Mapped[str | None] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
-    # Storage location (local path, remote URL, or gs:// bucket object)
+    # Storage location (local path, remote URL, or s3:// bucket object)
     storage_path: Mapped[str | None] = mapped_column(Text)
 
     # AI processing

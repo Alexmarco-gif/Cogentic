@@ -1,0 +1,173 @@
+name: Deploy AWS
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+concurrency:
+  group: deploy-aws-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PROJECT_NAME: cogent
+  BASE_IMAGE: python-analytics
+  BACKEND_IMAGE: backend
+  WORKER_IMAGE: worker
+  FRONTEND_IMAGE: frontend
+
+jobs:
+  resolve-env:
+    name: Resolve environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      image_tag: ${{ steps.env.outputs.image_tag }}
+      region: ${{ steps.env.outputs.region }}
+      cluster: ${{ steps.env.outputs.cluster }}
+      backend_service: ${{ steps.env.outputs.backend_service }}
+      worker_service: ${{ steps.env.outputs.worker_service }}
+      frontend_service: ${{ steps.env.outputs.frontend_service }}
+      name_prefix: ${{ steps.env.outputs.name_prefix }}
+    steps:
+      - id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            environment="production"
+            image_tag="${{ github.event.release.tag_name }}"
+            region="${{ vars.AWS_PRODUCTION_REGION }}"
+          else
+            environment="staging"
+            image_tag="sha-${GITHUB_SHA::8}"
+            region="${{ vars.AWS_STAGING_REGION }}"
+          fi
+
+          name_prefix="${{ env.PROJECT_NAME }}-${environment}"
+
+          echo "environment=${environment}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
+          echo "region=${region}" >> "$GITHUB_OUTPUT"
+          echo "name_prefix=${name_prefix}" >> "$GITHUB_OUTPUT"
+          echo "cluster=${name_prefix}-cluster" >> "$GITHUB_OUTPUT"
+          echo "backend_service=${name_prefix}-backend" >> "$GITHUB_OUTPUT"
+          echo "worker_service=${name_prefix}-worker" >> "$GITHUB_OUTPUT"
+          echo "frontend_service=${name_prefix}-frontend" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    needs: [ci, resolve-env]
+    environment: ${{ needs.resolve-env.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ needs.resolve-env.outputs.region }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Python analytics base
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.base-analytics
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.BASE_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.BASE_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          build-args: |
+            BASE_IMAGE=${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.BASE_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.worker
+          push: true
+          build-args: |
+            BASE_IMAGE=${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.BASE_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.WORKER_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.WORKER_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.FRONTEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ needs.resolve-env.outputs.name_prefix }}-${{ env.FRONTEND_IMAGE }}:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            BACKEND_URL=${{ vars.BACKEND_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy ECS services
+    runs-on: ubuntu-latest
+    needs: [build, resolve-env]
+    environment: ${{ needs.resolve-env.outputs.environment }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ needs.resolve-env.outputs.region }}
+
+      - name: Force ECS redeploy
+        run: |
+          aws ecs update-service \
+            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
+            --service "${{ needs.resolve-env.outputs.backend_service }}" \
+            --force-new-deployment
+
+          aws ecs update-service \
+            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
+            --service "${{ needs.resolve-env.outputs.worker_service }}" \
+            --force-new-deployment
+
+          aws ecs update-service \
+            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
+            --service "${{ needs.resolve-env.outputs.frontend_service }}" \
+            --force-new-deployment
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
+            --services \
+              "${{ needs.resolve-env.outputs.backend_service }}" \
+              "${{ needs.resolve-env.outputs.worker_service }}" \
+              "${{ needs.resolve-env.outputs.frontend_service }}"

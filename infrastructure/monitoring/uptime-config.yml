@@ -6,7 +6,6 @@
 # Supported providers (choose one or more):
 #   - Better Uptime (betteruptime.com) — recommended
 #   - UptimeRobot (uptimerobot.com)
-#   - Google Cloud Monitoring uptime checks
 #
 # ──────────────────────────────────────────────────────────────
 
@@ -64,14 +63,3 @@ uptime_robot:
       alert_contact_ids:
         - "<ALERT_CONTACT_ID>"
 
-# Google Cloud Monitoring uptime check
-cloud_monitoring:
-  project_id: "<GCP_PROJECT_ID>"
-  checks:
-    - display_name: "Cogent API availability"
-      url: "https://api.cogent.ai/health"
-      period: 300
-      timeout: 30
-      matcher:
-        status_code_range: "200-200"
-        content_match: '"status":"healthy"'

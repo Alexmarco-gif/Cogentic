@@ -6,70 +6,93 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlparse
 
-from backend.config import get_settings
-
-
-class GcsObject(NamedTuple):
+class S3Object(NamedTuple):
     bucket: str
-    name: str
+    key: str
 
 
-def parse_gcs_path(storage_path: str) -> GcsObject | None:
-    """Parse supported Cloud Storage object URL forms."""
+def parse_s3_path(storage_path: str) -> S3Object | None:
+    """Parse supported S3 object URL forms."""
     parsed = urlparse(storage_path)
 
-    if parsed.scheme == "gs":
+    if parsed.scheme == "s3":
         bucket = parsed.netloc
-        name = parsed.path.lstrip("/")
-        return GcsObject(bucket, name) if bucket and name else None
+        key = parsed.path.lstrip("/")
+        return S3Object(bucket, key) if bucket and key else None
 
     if parsed.scheme in {"http", "https"}:
         host = (parsed.netloc or "").lower()
         path = parsed.path.lstrip("/")
 
-        if host == "storage.googleapis.com":
-            bucket, _, name = path.partition("/")
-            return GcsObject(bucket, name) if bucket and name else None
+        if host == "s3.amazonaws.com":
+            bucket, _, key = path.partition("/")
+            return S3Object(bucket, key) if bucket and key else None
 
-        if host.endswith(".storage.googleapis.com"):
-            bucket = host[: -len(".storage.googleapis.com")]
-            return GcsObject(bucket, path) if bucket and path else None
+        if host.endswith(".s3.amazonaws.com"):
+            bucket = host[: -len(".s3.amazonaws.com")]
+            return S3Object(bucket, path) if bucket and path else None
+
+        if ".s3." in host and host.endswith(".amazonaws.com"):
+            bucket, _, _region_host = host.partition(".s3.")
+            return S3Object(bucket, path) if bucket and path else None
 
     return None
 
 
-def _gcs_client():
+def _s3_client():
     try:
-        from google.cloud import storage  # type: ignore[import]
+        import boto3  # type: ignore[import]
     except ImportError as exc:  # pragma: no cover - production dependency
-        raise RuntimeError("google-cloud-storage is not installed") from exc
+        raise RuntimeError("boto3 is not installed") from exc
 
-    settings = get_settings()
-    if settings.google_cloud_project:
-        return storage.Client(project=settings.google_cloud_project)
-    return storage.Client()
+    return boto3.client("s3")
 
 
-def download_gcs_object(storage_path: str) -> bytes:
-    obj = parse_gcs_path(storage_path)
+def download_s3_object(storage_path: str) -> bytes:
+    obj = parse_s3_path(storage_path)
     if obj is None:
-        raise ValueError(f"Unsupported Cloud Storage path: {storage_path}")
+        raise ValueError(f"Unsupported S3 path: {storage_path}")
 
-    client = _gcs_client()
-    return client.bucket(obj.bucket).blob(obj.name).download_as_bytes()
+    client = _s3_client()
+    response = client.get_object(Bucket=obj.bucket, Key=obj.key)
+    return response["Body"].read()
 
 
-def delete_gcs_object(storage_path: str) -> bool:
-    obj = parse_gcs_path(storage_path)
+def delete_s3_object(storage_path: str) -> bool:
+    obj = parse_s3_path(storage_path)
     if obj is None:
         return False
 
-    client = _gcs_client()
-    blob = client.bucket(obj.bucket).blob(obj.name)
-    if not blob.exists():
-        return False
-    blob.delete()
+    client = _s3_client()
+    from botocore.exceptions import ClientError  # type: ignore[import]
+
+    try:
+        client.head_object(Bucket=obj.bucket, Key=obj.key)
+    except ClientError as exc:
+        status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if status_code == 404:
+            return False
+        raise
+
+    client.delete_object(Bucket=obj.bucket, Key=obj.key)
     return True
+
+
+def storage_path_is_object(storage_path: str) -> bool:
+    return parse_s3_path(storage_path) is not None
+
+
+def download_storage_object(storage_path: str) -> bytes:
+    obj = parse_s3_path(storage_path)
+    if obj is None:
+        raise ValueError(f"Unsupported object storage path: {storage_path}")
+    return download_s3_object(storage_path)
+
+
+def delete_storage_object(storage_path: str) -> bool:
+    if parse_s3_path(storage_path) is None:
+        return False
+    return delete_s3_object(storage_path)
 
 
 def local_path_from_storage_path(storage_path: str) -> Path:

@@ -4,4 +4,4 @@
 # - entity_resolver.py: Semantic + fuzzy entity resolution
 # - model_registry.py (model): MLModelRegistry ORM model
 # - training/: scikit-learn → ONNX training scripts
-# - models/: ONNX model artifacts (local dev, Cloud Storage synced prod)
+# - models/: ONNX model artifacts (local dev, S3 synced prod)

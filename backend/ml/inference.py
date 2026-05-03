@@ -2,7 +2,7 @@
 
 Loads ONNX-exported or joblib-serialized models for fast (<100ms) inference.
 Supports model version management (latest 3 versions hot).
-Local filesystem in dev, Cloud Storage-backed sync in prod.
+Local filesystem in dev, S3-backed artifact sync in prod.
 """
 
 import logging

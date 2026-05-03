@@ -15,9 +15,9 @@ Prove the full chain below is working in staging:
 
 ## Prerequisites
 
-- Backend and worker container apps are healthy.
+- Backend and worker ECS services are healthy.
 - Redis and Postgres are reachable from the running apps.
-- Required provider credentials are present in Secret Manager or app secrets.
+- Required provider credentials are present in AWS Secrets Manager.
 - You have an **admin** bearer token for the staging backend.
 - At least one active contract exists, or you are ready to create/activate one.
 
@@ -104,13 +104,13 @@ After the script passes or mostly passes, confirm the user-facing journey:
 
 ### Workers are offline
 
-- Check the worker container app revisions.
+- Check the worker ECS service events and task logs.
 - Confirm Redis URL is valid.
 - Confirm the worker process is actually starting and heartbeating.
 
 ### Provider readiness warns or fails
 
-- Check Secret Manager secrets and Cloud Run secret references.
+- Check AWS Secrets Manager values and ECS task definition secret references.
 - Confirm the provider-specific env vars are present in the backend and worker.
 
 ### Queues are growing but signals do not land

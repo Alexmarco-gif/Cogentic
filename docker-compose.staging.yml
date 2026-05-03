@@ -2,7 +2,7 @@
 # Cogent — Docker Compose for Local Staging Simulation
 # =============================================================================
 # Mimics the production topology locally: backend + worker + frontend + Redis.
-# Database is NOT included; staging uses Cloud SQL for PostgreSQL.
+# Database is NOT included; staging uses managed PostgreSQL.
 #
 # Usage:
 #   cp .env.example .env            # fill in staging values

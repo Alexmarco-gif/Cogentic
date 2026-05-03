@@ -1,0 +1,23 @@
+aws_region  = "eu-west-2"
+environment = "staging"
+project_name = "cogent"
+
+# Add your ACM certificate ARN after creating/importing a cert in the same region.
+# certificate_arn = "arn:aws:acm:eu-west-2:123456789012:certificate/..."
+
+# Set these after DNS is ready. Until then, Terraform uses the ALB DNS name.
+# frontend_domain_name = "staging.cogent.ai"
+# backend_domain_name  = "api-staging.cogent.ai"
+
+db_instance_class = "db.t4g.micro"
+redis_node_type   = "cache.t4g.micro"
+
+# Keep these at 0 for the first infrastructure apply.
+# Set them to 1 after ECR images and required Secrets Manager values exist.
+frontend_desired_count = 0
+backend_desired_count  = 0
+worker_desired_count   = 0
+
+tags = {
+  Owner = "cogent"
+}
