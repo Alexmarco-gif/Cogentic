@@ -10,7 +10,10 @@ project_name = "cogent"
 # backend_domain_name  = "api-staging.cogent.ai"
 
 db_instance_class = "db.t4g.micro"
+db_engine_version = "16.13"
+db_password       = "replace-with-a-generated-32-character-password"
 redis_node_type   = "cache.t4g.micro"
+redis_auth_token  = "replace-with-a-generated-32-character-token"
 
 # Keep these at 0 for the first infrastructure apply.
 # Set them to 1 after ECR images and required Secrets Manager values exist.

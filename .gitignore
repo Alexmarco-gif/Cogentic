@@ -96,6 +96,8 @@ crash.log
 crash.*.log
 *.tfvars
 !*.tfvars.example
+**/provider-mirror/
+**/terraform.local.rc
 
 
 # Documentation

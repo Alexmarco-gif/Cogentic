@@ -73,16 +73,6 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-resource "random_password" "db" {
-  length  = 32
-  special = false
-}
-
-resource "random_password" "redis_auth" {
-  length  = 32
-  special = false
-}
-
 resource "aws_vpc" "app" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -382,7 +372,7 @@ resource "aws_db_instance" "postgres" {
   max_allocated_storage  = 100
   db_name                = var.db_name
   username               = var.db_username
-  password               = random_password.db.result
+  password               = var.db_password
   db_subnet_group_name   = aws_db_subnet_group.app.name
   vpc_security_group_ids = [aws_security_group.database.id]
   publicly_accessible    = false
@@ -415,7 +405,7 @@ resource "aws_elasticache_replication_group" "redis" {
 
   transit_encryption_enabled = true
   at_rest_encryption_enabled = true
-  auth_token                 = random_password.redis_auth.result
+  auth_token                 = var.redis_auth_token
 
   tags = local.common_tags
 }
@@ -428,7 +418,7 @@ resource "aws_secretsmanager_secret" "database_url" {
 
 resource "aws_secretsmanager_secret_version" "database_url" {
   secret_id     = aws_secretsmanager_secret.database_url.id
-  secret_string = "postgresql+asyncpg://${var.db_username}:${random_password.db.result}@${aws_db_instance.postgres.address}:5432/${var.db_name}?ssl=require"
+  secret_string = "postgresql+asyncpg://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:5432/${var.db_name}?ssl=require"
 }
 
 resource "aws_secretsmanager_secret" "redis_url" {
@@ -439,15 +429,11 @@ resource "aws_secretsmanager_secret" "redis_url" {
 
 resource "aws_secretsmanager_secret_version" "redis_url" {
   secret_id     = aws_secretsmanager_secret.redis_url.id
-  secret_string = "rediss://:${random_password.redis_auth.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
+  secret_string = "rediss://:${var.redis_auth_token}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
 }
 
 resource "aws_secretsmanager_secret" "runtime" {
-  for_each = setunion(
-    var.frontend_secret_names,
-    var.backend_secret_names,
-    var.worker_secret_names
-  )
+  for_each = var.runtime_secret_names
 
   name = "${local.name_prefix}/${each.key}"
 

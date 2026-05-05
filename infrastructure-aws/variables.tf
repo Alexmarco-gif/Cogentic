@@ -58,6 +58,12 @@ variable "db_username" {
   default     = "cogent"
 }
 
+variable "db_password" {
+  description = "PostgreSQL application password. Store only in local terraform.tfvars or a secure Terraform variable store."
+  type        = string
+  sensitive   = true
+}
+
 variable "db_instance_class" {
   description = "RDS instance class."
   type        = string
@@ -67,13 +73,19 @@ variable "db_instance_class" {
 variable "db_engine_version" {
   description = "PostgreSQL engine version. Choose a version that supports pgvector in your region."
   type        = string
-  default     = "16.3"
+  default     = "16.13"
 }
 
 variable "redis_node_type" {
   description = "ElastiCache Redis node type."
   type        = string
   default     = "cache.t4g.micro"
+}
+
+variable "redis_auth_token" {
+  description = "ElastiCache Redis auth token. Store only in local terraform.tfvars or a secure Terraform variable store."
+  type        = string
+  sensitive   = true
 }
 
 variable "frontend_desired_count" {
@@ -148,13 +160,17 @@ variable "frontend_secret_names" {
   ]
 }
 
-variable "backend_secret_names" {
-  description = "Backend secret environment variable names to create in Secrets Manager and inject into the backend task."
+variable "runtime_secret_names" {
+  description = "All application secret names to create in Secrets Manager. Not every created secret is injected into every task."
   type        = set(string)
   default = [
     "SECRET_KEY",
     "AUTH0_DOMAIN",
     "AUTH0_AUDIENCE",
+    "AUTH0_SECRET",
+    "AUTH0_ISSUER_BASE_URL",
+    "AUTH0_CLIENT_ID",
+    "AUTH0_CLIENT_SECRET",
     "AUTH0_M2M_CLIENT_ID",
     "AUTH0_M2M_CLIENT_SECRET",
     "AUTH0_WEBHOOK_SECRET",
@@ -175,6 +191,19 @@ variable "backend_secret_names" {
   ]
 }
 
+variable "backend_secret_names" {
+  description = "Backend secret environment variable names to create in Secrets Manager and inject into the backend task."
+  type        = set(string)
+  default = [
+    "SECRET_KEY",
+    "AUTH0_DOMAIN",
+    "AUTH0_AUDIENCE",
+    "AUTH0_M2M_CLIENT_ID",
+    "AUTH0_M2M_CLIENT_SECRET",
+    "AUTH0_WEBHOOK_SECRET"
+  ]
+}
+
 variable "worker_secret_names" {
   description = "Worker secret environment variable names to create in Secrets Manager and inject into the worker task."
   type        = set(string)
@@ -183,19 +212,7 @@ variable "worker_secret_names" {
     "AUTH0_DOMAIN",
     "AUTH0_AUDIENCE",
     "AUTH0_M2M_CLIENT_ID",
-    "AUTH0_M2M_CLIENT_SECRET",
-    "OPENAI_API_KEY",
-    "NEWSAPI_API_KEY",
-    "NGX_MARKET_DATA_API_KEY",
-    "NGX_MARKET_DATA_BASE_URL",
-    "X_BEARER_TOKEN",
-    "SERPAPI_API_KEY",
-    "RESEND_API_KEY",
-    "RESEND_FROM_EMAIL",
-    "SENTRY_DSN",
-    "POSTHOG_API_KEY",
-    "POSTHOG_HOST",
-    "LOGTAIL_TOKEN"
+    "AUTH0_M2M_CLIENT_SECRET"
   ]
 }
 
