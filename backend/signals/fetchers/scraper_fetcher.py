@@ -4,12 +4,9 @@ Uses httpx + selectolax for fast HTML parsing. ~35% of signals
 come from web scraping (company sites, press releases, job boards).
 """
 
-import ipaddress
 import logging
-import socket
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
 
 import httpx
 from selectolax.parser import HTMLParser
@@ -18,54 +15,6 @@ from backend.signals.fetchers.base import BaseFetcher, FetchError, FetchResult
 from backend.signals.provider_presets import resolve_scraper_provider_config
 
 logger = logging.getLogger(__name__)
-
-# Private / link-local / loopback networks that must never be fetched
-_BLOCKED_NETWORKS = [
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("169.254.0.0/16"),  # cloud metadata services
-    ipaddress.ip_network("::1/128"),
-    ipaddress.ip_network("fc00::/7"),
-    ipaddress.ip_network("fe80::/10"),
-]
-
-
-def _is_safe_url(url: str) -> bool:
-    """Return True only if the URL is safe to fetch (public HTTPS hostname)."""
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        return False
-
-    if parsed.scheme not in ("http", "https"):
-        return False
-
-    hostname = parsed.hostname
-    if not hostname:
-        return False
-
-    # Resolve the hostname and check every returned address
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        return False
-
-    for info in infos:
-        addr_str = info[4][0]
-        try:
-            addr = ipaddress.ip_address(addr_str)
-        except ValueError:
-            return False
-        for net in _BLOCKED_NETWORKS:
-            if addr in net:
-                logger.warning(
-                    "SSRF blocked: %s resolved to private address %s", url, addr_str
-                )
-                return False
-
-    return True
 
 
 class ScraperFetcher(BaseFetcher):
@@ -103,13 +52,12 @@ class ScraperFetcher(BaseFetcher):
         source_url, extraction_config = resolve_scraper_provider_config(
             source_url, extraction_config
         )
-        if not _is_safe_url(source_url):
+        if not self._is_safe_url(source_url):
             return FetchError(
                 message=f"URL blocked by SSRF protection: {source_url}",
                 retryable=False,
             )
         self.configure_timeout(extraction_config)
-        client = await self._get_client()
         all_results: list[FetchResult] = []
         max_retries = extraction_config.get("retries", 2)
         request_headers = extraction_config.get("headers", {})
@@ -125,10 +73,16 @@ class ScraperFetcher(BaseFetcher):
             response_text: str | None = None
             for attempt in range(max_retries):
                 try:
-                    response = await client.get(current_url, headers=request_headers)
+                    response = await self._request(
+                        "GET",
+                        current_url,
+                        headers=request_headers,
+                    )
                     response.raise_for_status()
                     response_text = response.text
                     break
+                except ValueError as e:
+                    return FetchError(message=str(e), retryable=False)
                 except httpx.TimeoutException:
                     if attempt < max_retries - 1:
                         import asyncio
@@ -187,9 +141,13 @@ class ScraperFetcher(BaseFetcher):
                     from urllib.parse import urlparse
 
                     parsed = urlparse(current_url)
-                    current_url = f"{parsed.scheme}://{parsed.netloc}{next_href}"
+                    next_url = f"{parsed.scheme}://{parsed.netloc}{next_href}"
+                    if not self._is_safe_url(next_url):
+                        logger.warning("SSRF blocked on pagination URL %s", next_url)
+                        break
+                    current_url = next_url
                 elif next_href.startswith("http"):
-                    if not _is_safe_url(next_href):
+                    if not self._is_safe_url(next_href):
                         logger.warning("SSRF blocked on pagination URL %s", next_href)
                         break
                     current_url = next_href

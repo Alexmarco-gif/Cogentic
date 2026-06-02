@@ -2,7 +2,7 @@
 Role enums and hierarchy for RBAC (Role-Based Access Control).
 
 Defines the role hierarchy used throughout the application:
-Owner > Admin > Member > Viewer
+Owner > Admin > Analyst > Member > Viewer
 """
 
 from enum import IntEnum
@@ -16,8 +16,9 @@ class Role(IntEnum):
     This allows simple comparison operations (>=, >, etc.)
 
     Hierarchy:
-    - Owner (4): Full control - billing, delete org, manage all
-    - Admin (3): High control - manage members (non-owners), all resources
+    - Owner (5): Full control - billing, delete org, manage all
+    - Admin (4): High control - manage members (non-owners), all resources
+    - Analyst (3): Intelligence operations - manage signals and knowledge workflows
     - Member (2): Standard access - create/edit own resources, view team resources
     - Viewer (1): Read-only - view resources only, no mutations
 
@@ -29,8 +30,9 @@ class Role(IntEnum):
 
     VIEWER = 1
     MEMBER = 2
-    ADMIN = 3
-    OWNER = 4
+    ANALYST = 3
+    ADMIN = 4
+    OWNER = 5
 
     @classmethod
     def from_string(cls, role_str: str) -> "Role":
@@ -55,6 +57,7 @@ class Role(IntEnum):
         role_map = {
             "viewer": cls.VIEWER,
             "member": cls.MEMBER,
+            "analyst": cls.ANALYST,
             "admin": cls.ADMIN,
             "owner": cls.OWNER,
         }
@@ -63,7 +66,7 @@ class Role(IntEnum):
         if normalized not in role_map:
             raise ValueError(
                 f"Invalid role: {role_str}. "
-                f"Must be one of: viewer, member, admin, owner"
+                f"Must be one of: viewer, member, analyst, admin, owner"
             )
 
         return role_map[normalized]
@@ -84,7 +87,7 @@ class Role(IntEnum):
     @classmethod
     def all_roles(cls) -> list[str]:
         """Get list of all role names (lowercase)"""
-        return ["viewer", "member", "admin", "owner"]
+        return ["viewer", "member", "analyst", "admin", "owner"]
 
     def __str__(self) -> str:
         return self.name.lower()
@@ -167,6 +170,18 @@ def get_role_capabilities(role: str | Role) -> dict[str, bool]:
             "can_create": True,
             "can_edit_own": True,
             "can_edit_all": False,
+            "can_delete_own": True,
+            "can_delete_all": False,
+            "can_manage_members": False,
+            "can_manage_billing": False,
+            "can_delete_org": False,
+            "can_change_owner_role": False,
+        },
+        Role.ANALYST: {
+            "can_view": True,
+            "can_create": True,
+            "can_edit_own": True,
+            "can_edit_all": True,
             "can_delete_own": True,
             "can_delete_all": False,
             "can_manage_members": False,

@@ -25,6 +25,7 @@ from backend.schemas.ml import (
     RefinementResponse,
     SignalScoreResponse,
     SignalScoresResponse,
+    TrainAllQueuedResponse,
     TrainingRequest,
     TrainingResponse,
 )
@@ -167,7 +168,7 @@ async def train_model(
     from backend.job_queue import enqueue_job
     from backend.jobs.refinement_job import train_single_model
 
-    enqueue_job(
+    job = enqueue_job(
         train_single_model,
         request.model_name,
         queue_name="low",
@@ -175,13 +176,15 @@ async def train_model(
     )
     return TrainingResponse(
         status="queued",
-        model=request.model_name,
+        model_name=request.model_name,
+        job_id=job.id,
         path=None,
     )
 
 
 @router.post(
     "/train/all",
+    response_model=TrainAllQueuedResponse,
 )
 async def train_all_models(
     auth: AuthContext = Depends(require_permissions(["admin"])),
@@ -196,7 +199,7 @@ async def train_all_models(
         queue_name="low",
         job_timeout="30m",
     )
-    return {"status": "queued", "job_id": job.id}
+    return TrainAllQueuedResponse(status="queued", jobs=[job.id])
 
 
 # ── Refinement ───────────────────────────────────────────────────────

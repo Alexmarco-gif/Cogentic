@@ -32,6 +32,7 @@ jobs:
       cluster: ${{ steps.env.outputs.cluster }}
       backend_service: ${{ steps.env.outputs.backend_service }}
       worker_service: ${{ steps.env.outputs.worker_service }}
+      scheduler_service: ${{ steps.env.outputs.scheduler_service }}
       frontend_service: ${{ steps.env.outputs.frontend_service }}
       name_prefix: ${{ steps.env.outputs.name_prefix }}
     steps:
@@ -56,6 +57,7 @@ jobs:
           echo "cluster=${name_prefix}-cluster" >> "$GITHUB_OUTPUT"
           echo "backend_service=${name_prefix}-backend" >> "$GITHUB_OUTPUT"
           echo "worker_service=${name_prefix}-worker" >> "$GITHUB_OUTPUT"
+          echo "scheduler_service=${name_prefix}-scheduler" >> "$GITHUB_OUTPUT"
           echo "frontend_service=${name_prefix}-frontend" >> "$GITHUB_OUTPUT"
 
   ci:
@@ -72,7 +74,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ needs.resolve-env.outputs.region }}
 
       - id: ecr
@@ -143,31 +146,110 @@ jobs:
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ needs.resolve-env.outputs.region }}
 
-      - name: Force ECS redeploy
+      - name: Register task definitions and deploy
         run: |
-          aws ecs update-service \
-            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
-            --service "${{ needs.resolve-env.outputs.backend_service }}" \
-            --force-new-deployment
+          set -euo pipefail
 
-          aws ecs update-service \
-            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
-            --service "${{ needs.resolve-env.outputs.worker_service }}" \
-            --force-new-deployment
+          CLUSTER="${{ needs.resolve-env.outputs.cluster }}"
+          NAME_PREFIX="${{ needs.resolve-env.outputs.name_prefix }}"
+          IMAGE_TAG="${{ needs.resolve-env.outputs.image_tag }}"
+          REGION="${{ needs.resolve-env.outputs.region }}"
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
-          aws ecs update-service \
-            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
-            --service "${{ needs.resolve-env.outputs.frontend_service }}" \
-            --force-new-deployment
+          PREV_BACKEND="$(aws ecs describe-services --cluster "$CLUSTER" --services "${{ needs.resolve-env.outputs.backend_service }}" --query 'services[0].taskDefinition' --output text)"
+          PREV_WORKER="$(aws ecs describe-services --cluster "$CLUSTER" --services "${{ needs.resolve-env.outputs.worker_service }}" --query 'services[0].taskDefinition' --output text)"
+          PREV_SCHEDULER="$(aws ecs describe-services --cluster "$CLUSTER" --services "${{ needs.resolve-env.outputs.scheduler_service }}" --query 'services[0].taskDefinition' --output text)"
+          PREV_FRONTEND="$(aws ecs describe-services --cluster "$CLUSTER" --services "${{ needs.resolve-env.outputs.frontend_service }}" --query 'services[0].taskDefinition' --output text)"
 
-      - name: Wait for service stability
-        run: |
+          rollback() {
+            echo "Deployment failed; rolling services back to previous task definitions"
+            aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.backend_service }}" --task-definition "$PREV_BACKEND" >/dev/null || true
+            aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.worker_service }}" --task-definition "$PREV_WORKER" >/dev/null || true
+            aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.scheduler_service }}" --task-definition "$PREV_SCHEDULER" >/dev/null || true
+            aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.frontend_service }}" --task-definition "$PREV_FRONTEND" >/dev/null || true
+          }
+          trap rollback ERR
+
+          render_and_register() {
+            local family="$1"
+            local container="$2"
+            local image="$3"
+            local task_json
+            local new_task_json
+
+            task_json="$(aws ecs describe-task-definition --task-definition "$family" --query taskDefinition)"
+            new_task_json="$(echo "$task_json" | jq --arg container "$container" --arg image "$image" '
+              del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy
+              )
+              | .containerDefinitions |= map(
+                  if .name == $container then .image = $image else . end
+                )
+            ')"
+            aws ecs register-task-definition \
+              --cli-input-json "$new_task_json" \
+              --query taskDefinition.taskDefinitionArn \
+              --output text
+          }
+
+          BACKEND_TD="$(render_and_register "$NAME_PREFIX-backend" "backend" "$REGISTRY/$NAME_PREFIX-${{ env.BACKEND_IMAGE }}:$IMAGE_TAG")"
+          WORKER_TD="$(render_and_register "$NAME_PREFIX-worker" "worker" "$REGISTRY/$NAME_PREFIX-${{ env.WORKER_IMAGE }}:$IMAGE_TAG")"
+          SCHEDULER_TD="$(render_and_register "$NAME_PREFIX-scheduler" "scheduler" "$REGISTRY/$NAME_PREFIX-${{ env.WORKER_IMAGE }}:$IMAGE_TAG")"
+          FRONTEND_TD="$(render_and_register "$NAME_PREFIX-frontend" "frontend" "$REGISTRY/$NAME_PREFIX-${{ env.FRONTEND_IMAGE }}:$IMAGE_TAG")"
+
+          NETWORK_CONFIG="$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "${{ needs.resolve-env.outputs.backend_service }}" \
+            --query 'services[0].networkConfiguration' \
+            --output json)"
+
+          MIGRATION_TASK="$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --launch-type FARGATE \
+            --task-definition "$BACKEND_TD" \
+            --network-configuration "$NETWORK_CONFIG" \
+            --overrides '{"containerOverrides":[{"name":"backend","command":["alembic","upgrade","head"]}]}' \
+            --query 'tasks[0].taskArn' \
+            --output text)"
+
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$MIGRATION_TASK"
+          MIGRATION_EXIT="$(aws ecs describe-tasks \
+            --cluster "$CLUSTER" \
+            --tasks "$MIGRATION_TASK" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)"
+          if [[ "$MIGRATION_EXIT" != "0" ]]; then
+            echo "Alembic migration task failed with exit code $MIGRATION_EXIT"
+            exit 1
+          fi
+
+          aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.backend_service }}" --task-definition "$BACKEND_TD" >/dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.worker_service }}" --task-definition "$WORKER_TD" >/dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.scheduler_service }}" --task-definition "$SCHEDULER_TD" >/dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service "${{ needs.resolve-env.outputs.frontend_service }}" --task-definition "$FRONTEND_TD" >/dev/null
+
           aws ecs wait services-stable \
-            --cluster "${{ needs.resolve-env.outputs.cluster }}" \
+            --cluster "$CLUSTER" \
             --services \
               "${{ needs.resolve-env.outputs.backend_service }}" \
               "${{ needs.resolve-env.outputs.worker_service }}" \
+              "${{ needs.resolve-env.outputs.scheduler_service }}" \
               "${{ needs.resolve-env.outputs.frontend_service }}"
+
+          BACKEND_URL="${{ vars.BACKEND_URL }}"
+          if [[ -n "$BACKEND_URL" ]]; then
+            curl --fail --silent --show-error "${BACKEND_URL}/health/ready"
+          fi
+
+          trap - ERR

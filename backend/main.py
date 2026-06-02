@@ -9,10 +9,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
@@ -218,21 +219,23 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("bootstrap_catalog_failed", error=str(e))
 
-    # Start signal acquisition scheduler
-    try:
-        from backend.signals.scheduler import get_scheduler
+    if settings.run_schedulers_in_api:
+        try:
+            from backend.signals.scheduler import get_scheduler
 
-        scheduler = get_scheduler()
-        scheduler.start()
-        logger.info("scheduler_started")
-    except Exception as e:
-        logger.error("scheduler_start_failed", error=str(e))
+            scheduler = get_scheduler()
+            scheduler.start()
+            logger.info("scheduler_started")
+        except Exception as e:
+            logger.error("scheduler_start_failed", error=str(e))
 
-    try:
-        start_pricing_jobs()
-        logger.info("pricing_scheduler_started")
-    except Exception as e:
-        logger.error("pricing_scheduler_start_failed", error=str(e))
+        try:
+            start_pricing_jobs()
+            logger.info("pricing_scheduler_started")
+        except Exception as e:
+            logger.error("pricing_scheduler_start_failed", error=str(e))
+    else:
+        logger.info("api_schedulers_disabled")
 
     # Start Situation Room WebSocket manager (Redis Pub/Sub listener)
     try:
@@ -249,19 +252,19 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("app_shutdown_started")
 
-    # Stop scheduler
-    try:
-        from backend.signals.scheduler import get_scheduler
+    if settings.run_schedulers_in_api:
+        try:
+            from backend.signals.scheduler import get_scheduler
 
-        scheduler = get_scheduler()
-        scheduler.stop()
-    except Exception as e:
-        logger.error("scheduler_stop_failed", error=str(e))
+            scheduler = get_scheduler()
+            scheduler.stop()
+        except Exception as e:
+            logger.error("scheduler_stop_failed", error=str(e))
 
-    try:
-        stop_pricing_jobs()
-    except Exception as e:
-        logger.error("pricing_scheduler_stop_failed", error=str(e))
+        try:
+            stop_pricing_jobs()
+        except Exception as e:
+            logger.error("pricing_scheduler_stop_failed", error=str(e))
 
     # Stop WebSocket manager
     try:
@@ -307,6 +310,7 @@ app.add_middleware(
         "Authorization",
         "Content-Type",
         "X-Request-ID",
+        "X-API-Key",
         "Accept",
     ],
 )
@@ -403,14 +407,17 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health_check():
-    """Detailed health check for container orchestrators.
+@app.get("/health/live")
+async def liveness_check():
+    """Cheap process liveness check for load balancers."""
+    return {
+        "status": "alive",
+        "version": settings.app_version,
+        "environment": settings.environment,
+    }
 
-    Returns HTTP 200 when all critical services are reachable, or
-    HTTP 503 (Service Unavailable) when any dependency is down so that
-    load-balancers can route traffic away from unhealthy instances.
-    """
+
+async def _readiness_payload() -> tuple[int, dict]:
     # Test database
     db_healthy = False
     db_latency_ms: float | None = None
@@ -434,27 +441,105 @@ async def health_check():
     except Exception:
         pass
 
-    all_healthy = db_healthy and redis_healthy
-    status_code = 200 if all_healthy else 503
+    migrations_healthy = True
+    migration_heads: list[str] = []
+    db_versions: list[str] = []
+    if db_healthy:
+        try:
+            from alembic.config import Config as AlembicConfig
+            from alembic.script import ScriptDirectory
 
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "status": "healthy" if all_healthy else "degraded",
-            "version": settings.app_version,
-            "environment": settings.environment,
-            "services": {
-                "database": {
-                    "status": "up" if db_healthy else "down",
-                    "latency_ms": db_latency_ms,
-                },
-                "redis": {
-                    "status": "up" if redis_healthy else "down",
-                    "latency_ms": redis_latency_ms,
-                },
+            alembic_cfg = AlembicConfig("alembic.ini")
+            script = ScriptDirectory.from_config(alembic_cfg)
+            migration_heads = sorted(script.get_heads())
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text("select version_num from alembic_version")
+                )
+                db_versions = sorted(str(row[0]) for row in result.fetchall())
+            migrations_healthy = bool(db_versions) and db_versions == migration_heads
+        except Exception:
+            migrations_healthy = False
+
+    ml_healthy = True
+    missing_models: list[str] = []
+    if settings.ml_validate_on_startup or _is_production:
+        try:
+            from backend.ml.inference import get_inference_engine
+
+            inference_engine = get_inference_engine()
+            missing_models = [
+                name
+                for name in settings.ml_models_required
+                if not inference_engine.is_model_available(name)
+            ]
+            ml_healthy = not missing_models
+        except Exception:
+            ml_healthy = False
+            missing_models = list(settings.ml_models_required)
+
+    provider_config = {
+        "openai": bool(settings.openai_api_key),
+        "newsapi": bool(settings.newsapi_api_key),
+        "ngx_market_data": bool(
+            settings.ngx_market_data_api_key and settings.ngx_market_data_base_url
+        ),
+        "x": bool(settings.x_bearer_token),
+        "paystack": bool(settings.paystack_secret_key and settings.paystack_public_key),
+    }
+    provider_config_healthy = all(provider_config.values()) if _is_production else True
+
+    all_healthy = (
+        db_healthy
+        and redis_healthy
+        and migrations_healthy
+        and ml_healthy
+        and provider_config_healthy
+    )
+    status_code = 200 if all_healthy else 503
+    return status_code, {
+        "status": "healthy" if all_healthy else "degraded",
+        "version": settings.app_version,
+        "environment": settings.environment,
+        "services": {
+            "database": {
+                "status": "up" if db_healthy else "down",
+                "latency_ms": db_latency_ms,
+            },
+            "redis": {
+                "status": "up" if redis_healthy else "down",
+                "latency_ms": redis_latency_ms,
+            },
+            "migrations": {
+                "status": "up" if migrations_healthy else "down",
+                "database_versions": db_versions,
+                "expected_heads": migration_heads,
+            },
+            "ml_models": {
+                "status": "up" if ml_healthy else "down",
+                "required": settings.ml_models_required,
+                "missing": missing_models,
+            },
+            "provider_config": {
+                "status": "up" if provider_config_healthy else "down",
+                "configured": provider_config,
             },
         },
-    )
+    }
+
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Dependency readiness check for orchestrators and deploy smoke tests."""
+    status_code, payload = await _readiness_payload()
+    return JSONResponse(status_code=status_code, content=payload)
+
+
+@app.get("/health")
+async def health_check():
+    """Backward-compatible readiness endpoint."""
+    status_code, payload = await _readiness_payload()
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 if __name__ == "__main__":

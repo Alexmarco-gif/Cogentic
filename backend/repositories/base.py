@@ -21,13 +21,39 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.db = db
 
+    def _requires_tenant_scope(self) -> bool:
+        """Return True for tenant-owned models when production guardrails are on."""
+        if not hasattr(self.model, "org_id"):
+            return False
+        if getattr(self.model, "__allow_unscoped_repository__", False):
+            return False
+        try:
+            from backend.config import get_settings
+
+            return get_settings().enforce_tenant_scoped_repositories
+        except Exception:
+            return False
+
+    def _assert_tenant_scope(self, operation: str, filters: dict[str, Any] | None = None):
+        """Prevent accidental unscoped access to tenant-owned tables in production."""
+        if not self._requires_tenant_scope():
+            return
+        if filters and "org_id" in filters:
+            return
+        raise RuntimeError(
+            f"Unscoped {operation} on tenant-owned model {self.model.__name__}. "
+            "Use TenantRepository or pass an explicit org_id filter."
+        )
+
     async def get(self, id: UUID) -> ModelType | None:
         """Get a single record by ID"""
+        self._assert_tenant_scope("get")
         result = await self.db.execute(select(self.model).where(self.model.id == id))
         return result.scalar_one_or_none()
 
     async def get_by_ids(self, ids: list[UUID]) -> list[ModelType]:
         """Get multiple records by their IDs (bulk fetch)"""
+        self._assert_tenant_scope("get_by_ids")
         if not ids:
             return []
 
@@ -56,6 +82,7 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             List of model instances
         """
+        self._assert_tenant_scope("get_multi", filters)
         query = select(self.model)
 
         # Apply filters
@@ -85,6 +112,7 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             Total count of matching records
         """
+        self._assert_tenant_scope("count", filters)
         query = select(func.count(self.model.id))
 
         # Apply filters
@@ -98,6 +126,10 @@ class BaseRepository(Generic[ModelType]):
 
     async def create(self, **kwargs: Any) -> ModelType:
         """Create a new record"""
+        if self._requires_tenant_scope() and "org_id" not in kwargs:
+            raise RuntimeError(
+                f"Tenant-owned model {self.model.__name__} requires org_id on create."
+            )
         db_obj = self.model(**kwargs)
         self.db.add(db_obj)
         await self.db.flush()
@@ -116,6 +148,10 @@ class BaseRepository(Generic[ModelType]):
         """
         if not items:
             return []
+        if self._requires_tenant_scope() and any("org_id" not in item for item in items):
+            raise RuntimeError(
+                f"Tenant-owned model {self.model.__name__} requires org_id on create_many."
+            )
 
         db_objects = [self.model(**item) for item in items]
         self.db.add_all(db_objects)
@@ -127,6 +163,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def update(self, id: UUID, **kwargs: Any) -> ModelType | None:
         """Update an existing record"""
+        self._assert_tenant_scope("update")
         db_obj = await self.get(id)
         if not db_obj:
             return None
@@ -170,6 +207,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def delete(self, id: UUID) -> bool:
         """Hard delete a record"""
+        self._assert_tenant_scope("delete")
         db_obj = await self.get(id)
         if not db_obj:
             return False
@@ -190,6 +228,7 @@ class BaseRepository(Generic[ModelType]):
         """
         if not ids:
             return 0
+        self._assert_tenant_scope("delete_many")
 
         result = await self.db.execute(delete(self.model).where(self.model.id.in_(ids)))
         await self.db.flush()
@@ -197,6 +236,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def soft_delete(self, id: UUID) -> ModelType | None:
         """Soft delete a record (if model has deleted_at)"""
+        self._assert_tenant_scope("soft_delete")
         db_obj = await self.get(id)
         if not db_obj:
             return None
@@ -210,6 +250,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def exists(self, id: UUID) -> bool:
         """Check if a record exists by ID"""
+        self._assert_tenant_scope("exists")
         result = await self.db.execute(
             select(func.count(self.model.id)).where(self.model.id == id)
         )

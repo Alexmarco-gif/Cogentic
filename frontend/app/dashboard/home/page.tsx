@@ -18,7 +18,7 @@ import {
 import {
   friendlyErrorMessage,
   get,
-  getAccessTokenSilent,
+  createSituationRoomWebSocketTicket,
   getSituationRoomDashboard,
   isApiError,
 } from '@/lib/api'
@@ -423,12 +423,12 @@ function extractWsErrorMessage(data: unknown): string | null {
   return null
 }
 
-function buildSituationRoomWebSocketUrl(industrySlug: string, token: string): string {
+function buildSituationRoomWebSocketUrl(industrySlug: string, ticket: string): string {
   const configuredBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '')
   const base = configuredBase || window.location.origin
   const url = new URL(`/api/v1/situation-room/${industrySlug}/live`, base)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  url.searchParams.set('token', token)
+  url.searchParams.set('ticket', ticket)
   return url.toString()
 }
 
@@ -580,13 +580,20 @@ function useSituationRoomDashboard(industrySlug: string, enabled: boolean): Situ
     }
 
     async function connect() {
-      const token = await getAccessTokenSilent()
-      if (!token || disposed) {
+      let ticket: string | null = null
+      try {
+        const ticketResponse = await createSituationRoomWebSocketTicket(industrySlug)
+        ticket = ticketResponse.ticket
+      } catch {
+        ticket = null
+      }
+
+      if (!ticket || disposed) {
         setLiveConnected(false)
         return
       }
 
-      socket = new WebSocket(buildSituationRoomWebSocketUrl(industrySlug, token))
+      socket = new WebSocket(buildSituationRoomWebSocketUrl(industrySlug, ticket))
 
       socket.onopen = () => {
         if (disposed) return

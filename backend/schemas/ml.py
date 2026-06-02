@@ -89,9 +89,17 @@ class TrainingResponse(BaseModel):
     """Training job result."""
 
     status: str
-    model: str | None = None
+    model_name: str | None = None
+    job_id: str | None = None
     path: str | None = None
     error: str | None = None
+
+
+class TrainAllQueuedResponse(BaseModel):
+    """Queued training jobs for the model set."""
+
+    status: str
+    jobs: list[str]
 
 
 class TrainAllResponse(BaseModel):

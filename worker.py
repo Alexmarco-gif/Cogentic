@@ -46,6 +46,11 @@ logger = logging.getLogger(__name__)
 
 _worker_started_at: float = 0.0
 _worker_ref: Worker | SimpleWorker | None = None
+_scheduler_mode = False
+
+
+def _redis_value(value):
+    return value.decode("utf-8") if isinstance(value, bytes) else value
 
 
 class _HealthHandler(BaseHTTPRequestHandler):
@@ -71,6 +76,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
         body = json.dumps(
             {
                 "status": "healthy" if healthy else "degraded",
+                "mode": "scheduler" if _scheduler_mode else "worker",
                 "uptime_s": uptime,
                 "redis": "up" if redis_ok else "down",
             }
@@ -94,6 +100,61 @@ def _start_health_server(port: int = 8001):
     logger.info(f"Worker health server listening on :{port}/health")
 
 
+async def _renew_scheduler_lock(redis_conn, lock_key: str, token: str, ttl: int):
+    """Renew a Redis lock while the scheduler process is healthy."""
+    import asyncio
+
+    while True:
+        await asyncio.sleep(max(1, ttl // 3))
+        try:
+            if _redis_value(redis_conn.get(lock_key)) != token:
+                logger.error("Lost scheduler lock; exiting to avoid duplicate jobs")
+                os._exit(2)
+            redis_conn.expire(lock_key, ttl)
+        except Exception:
+            logger.exception("Failed to renew scheduler lock")
+            os._exit(2)
+
+
+def _run_scheduler_mode():
+    """Run the singleton scheduler service outside the API process."""
+    import asyncio
+    import uuid
+
+    from backend.jobs.pricing_scheduler import start_pricing_jobs, stop_pricing_jobs
+    from backend.signals.scheduler import get_scheduler
+
+    redis_conn = get_redis_client()
+    lock_key = os.environ.get("SCHEDULER_LOCK_KEY", "cogent:scheduler:singleton")
+    lock_ttl = int(os.environ.get("SCHEDULER_LOCK_TTL_SECONDS", "90"))
+    token = f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4()}"
+
+    if not redis_conn.set(lock_key, token, nx=True, ex=lock_ttl):
+        logger.error("Another scheduler owns %s; exiting", lock_key)
+        raise SystemExit(2)
+
+    async def _main():
+        renew_task = asyncio.create_task(
+            _renew_scheduler_lock(redis_conn, lock_key, token, lock_ttl)
+        )
+        scheduler = get_scheduler()
+        try:
+            scheduler.start()
+            start_pricing_jobs()
+            logger.info("Scheduler service started")
+            await asyncio.Event().wait()
+        finally:
+            renew_task.cancel()
+            try:
+                scheduler.stop()
+            finally:
+                stop_pricing_jobs()
+                if _redis_value(redis_conn.get(lock_key)) == token:
+                    redis_conn.delete(lock_key)
+
+    asyncio.run(_main())
+
+
 def main():
     parser = argparse.ArgumentParser(description="RQ Worker for Cogent background jobs")
     parser.add_argument(
@@ -108,11 +169,28 @@ def main():
         help="Run in burst mode (quit after all jobs processed)",
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument(
+        "--scheduler",
+        action="store_true",
+        help="Run singleton APScheduler dispatchers instead of processing RQ jobs",
+    )
 
     args = parser.parse_args()
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    global _worker_started_at, _worker_ref, _scheduler_mode
+    _scheduler_mode = args.scheduler
+    _worker_started_at = time.time()
+
+    # Start liveness health server
+    health_port = int(os.environ.get("WORKER_HEALTH_PORT", "8001"))
+    _start_health_server(health_port)
+
+    if args.scheduler:
+        _run_scheduler_mode()
+        return
 
     # Select queues to process
     if args.queue == "high":
@@ -154,12 +232,6 @@ def main():
     # Setup RQ logging
     setup_loghandlers("INFO")
 
-    # Start liveness health server
-    health_port = int(os.environ.get("WORKER_HEALTH_PORT", "8001"))
-    _start_health_server(health_port)
-
-    global _worker_started_at, _worker_ref
-    _worker_started_at = time.time()
     _worker_ref = worker
 
     # Enqueue periodic jobs at startup (idempotent — RQ deduplicates by job_id)

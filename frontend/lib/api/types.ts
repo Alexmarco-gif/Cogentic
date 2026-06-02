@@ -545,52 +545,59 @@ export interface EntityResolveRequest {
 }
 
 export interface EntityResolveResponse {
-  entity_id: string;
+  entity_id: string | null;
   name: string;
-  entity_type: string;
+  method: string;
   confidence: number;
+  resolved: boolean;
 }
 
 export interface EntityCreateRequest {
   name: string;
-  entity_type: string;
-  metadata?: Record<string, unknown>;
+  entity_type?: string;
+  aliases?: string[];
 }
 
 export interface EntityCreateResponse {
   id: string;
   name: string;
   entity_type: string;
-  created_at: string;
+  aliases: string[];
 }
 
 export interface EntityProfileResponse {
   id: string;
   name: string;
   entity_type: string;
-  metadata: Record<string, unknown>;
+  verified: boolean;
+  aliases: Array<Record<string, unknown>>;
+  source_profiles: Array<Record<string, unknown>>;
+  relationship_count: number;
   signal_count: number;
-  first_seen: string;
-  last_seen: string;
-}
-
-export interface EntityNetworkNode {
-  id: string;
-  name: string;
-  entity_type: string;
-}
-
-export interface EntityNetworkEdge {
-  source_id: string;
-  target_id: string;
-  relationship_type: string;
-  weight: number;
+  data_richness: number;
 }
 
 export interface EntityNetworkResponse {
-  entity_id: string;
-  nodes: EntityNetworkNode[];
-  edges: EntityNetworkEdge[];
+  nodes: Array<Record<string, unknown>>;
+  edges: Array<Record<string, unknown>>;
+}
+
+export interface RelationshipUpsertRequest {
+  source_entity_id: string;
+  target_entity_id: string;
+  relationship_type?: string;
+  strength?: number;
+  confidence?: number;
+  evidence_signals?: string[];
+}
+
+export interface RelationshipUpsertResponse {
+  id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  relationship_type: string;
+  strength: number;
+  confidence: number;
 }
 
 // ── Entity Discovery ─────────────────────────────────────────────────────────
@@ -831,42 +838,74 @@ export interface FetchTierRequest {
 
 export interface SignalScoresResponse {
   signal_id: string;
-  scores: Record<string, number>;
-  model_version: string;
+  scores: SignalScoreResponse[];
+}
+
+export interface SignalScoreResponse {
+  id: string;
+  signal_id: string;
+  score_type: string;
+  score_value: number;
+  model_run_id: string | null;
+  created_at: string;
 }
 
 export interface MLStatusResponse {
-  status: string;
-  models_loaded: number;
-  last_training: string | null;
+  models_available: string[];
+  latest_runs: MLModelRunResponse[];
+  registered_models: MLModelRegistryResponse[];
 }
 
 export interface MLModelRunResponse {
   id: string;
   model_name: string;
+  model_version: string;
+  signals_processed: number;
+  duration_ms: number | null;
   status: string;
-  started_at: string;
-  completed_at: string | null;
-  metrics: Record<string, number>;
+  error_message: string | null;
+  ran_at: string;
+  created_at: string;
 }
 
 export interface MLModelRegistryResponse {
-  name: string;
-  version: string;
+  id: string;
+  model_name: string;
+  model_version: string;
+  description: string | null;
+  artifact_path: string;
+  artifact_size_bytes: number | null;
+  metrics: Record<string, unknown>;
   status: string;
-  accuracy: number;
+  training_samples: number | null;
+  training_duration_ms: number | null;
+  trained_at: string;
   created_at: string;
 }
 
 export interface TrainingRequest {
   model_name: string;
-  parameters?: Record<string, unknown>;
 }
 
 export interface TrainingResponse {
-  job_id: string;
-  model_name: string;
   status: string;
+  model_name: string | null;
+  job_id: string | null;
+  path?: string | null;
+  error?: string | null;
+}
+
+export interface TrainAllQueuedResponse {
+  status: string;
+  jobs: string[];
+}
+
+export interface RefinementResponse {
+  total: number;
+  refined: number;
+  duplicates: number;
+  errors: number;
+  duration_ms: number;
 }
 
 // ── Monitoring ───────────────────────────────────────────────────────────────

@@ -29,9 +29,15 @@ variable "enable_nat_gateway" {
 }
 
 variable "certificate_arn" {
-  description = "Optional ACM certificate ARN for HTTPS. Leave empty for HTTP-only bootstrap."
+  description = "ACM certificate ARN for HTTPS. HTTP-only bootstrap requires allow_http_bootstrap=true."
   type        = string
   default     = ""
+}
+
+variable "allow_http_bootstrap" {
+  description = "Temporarily allow HTTP-only ALB bootstrapping when no ACM certificate is available."
+  type        = bool
+  default     = false
 }
 
 variable "frontend_domain_name" {
@@ -67,7 +73,7 @@ variable "db_password" {
 variable "db_instance_class" {
   description = "RDS instance class."
   type        = string
-  default     = "db.t4g.micro"
+  default     = "db.t4g.medium"
 }
 
 variable "db_engine_version" {
@@ -79,7 +85,7 @@ variable "db_engine_version" {
 variable "redis_node_type" {
   description = "ElastiCache Redis node type."
   type        = string
-  default     = "cache.t4g.micro"
+  default     = "cache.t4g.small"
 }
 
 variable "redis_auth_token" {
@@ -91,19 +97,25 @@ variable "redis_auth_token" {
 variable "frontend_desired_count" {
   description = "Desired frontend ECS tasks."
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "backend_desired_count" {
   description = "Desired backend ECS tasks."
   type        = number
-  default     = 0
+  default     = 2
 }
 
 variable "worker_desired_count" {
   description = "Desired worker ECS tasks."
   type        = number
-  default     = 0
+  default     = 1
+}
+
+variable "scheduler_desired_count" {
+  description = "Desired singleton scheduler ECS tasks. Keep at 1 in production."
+  type        = number
+  default     = 1
 }
 
 variable "frontend_cpu" {
@@ -173,6 +185,7 @@ variable "runtime_secret_names" {
     "AUTH0_CLIENT_SECRET",
     "AUTH0_M2M_CLIENT_ID",
     "AUTH0_M2M_CLIENT_SECRET",
+    "AUTH0_M2M_ALLOWED_CLIENT_IDS",
     "AUTH0_WEBHOOK_SECRET",
     "OPENAI_API_KEY",
     "NEWSAPI_API_KEY",
@@ -200,7 +213,22 @@ variable "backend_secret_names" {
     "AUTH0_AUDIENCE",
     "AUTH0_M2M_CLIENT_ID",
     "AUTH0_M2M_CLIENT_SECRET",
-    "AUTH0_WEBHOOK_SECRET"
+    "AUTH0_M2M_ALLOWED_CLIENT_IDS",
+    "AUTH0_WEBHOOK_SECRET",
+    "OPENAI_API_KEY",
+    "NEWSAPI_API_KEY",
+    "NGX_MARKET_DATA_API_KEY",
+    "NGX_MARKET_DATA_BASE_URL",
+    "X_BEARER_TOKEN",
+    "SERPAPI_API_KEY",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "PAYSTACK_SECRET_KEY",
+    "PAYSTACK_PUBLIC_KEY",
+    "SENTRY_DSN",
+    "POSTHOG_API_KEY",
+    "POSTHOG_HOST",
+    "LOGTAIL_TOKEN"
   ]
 }
 
@@ -212,7 +240,23 @@ variable "worker_secret_names" {
     "AUTH0_DOMAIN",
     "AUTH0_AUDIENCE",
     "AUTH0_M2M_CLIENT_ID",
-    "AUTH0_M2M_CLIENT_SECRET"
+    "AUTH0_M2M_CLIENT_SECRET",
+    "AUTH0_M2M_ALLOWED_CLIENT_IDS",
+    "AUTH0_WEBHOOK_SECRET",
+    "OPENAI_API_KEY",
+    "NEWSAPI_API_KEY",
+    "NGX_MARKET_DATA_API_KEY",
+    "NGX_MARKET_DATA_BASE_URL",
+    "X_BEARER_TOKEN",
+    "SERPAPI_API_KEY",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "PAYSTACK_SECRET_KEY",
+    "PAYSTACK_PUBLIC_KEY",
+    "SENTRY_DSN",
+    "POSTHOG_API_KEY",
+    "POSTHOG_HOST",
+    "LOGTAIL_TOKEN"
   ]
 }
 

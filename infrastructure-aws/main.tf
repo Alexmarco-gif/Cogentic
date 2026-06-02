@@ -15,17 +15,20 @@ locals {
 
   backend_environment = merge(
     {
-      APP_ENV                          = var.environment
-      ENVIRONMENT                      = var.environment
-      DEBUG                            = "false"
-      REQUIRE_HEALTHY_DB_ON_STARTUP    = "true"
-      REQUIRE_HEALTHY_REDIS_ON_STARTUP = "true"
-      AWS_REGION                       = var.aws_region
-      S3_MODEL_BUCKET                  = aws_s3_bucket.app.bucket
-      S3_DOCUMENT_BUCKET               = aws_s3_bucket.app.bucket
-      FRONTEND_URL                     = local.frontend_url
-      BACKEND_URL                      = local.backend_url
-      ALLOWED_ORIGINS                  = local.frontend_url
+      APP_ENV                            = var.environment
+      ENVIRONMENT                        = var.environment
+      DEBUG                              = "false"
+      REQUIRE_HEALTHY_DB_ON_STARTUP      = "true"
+      REQUIRE_HEALTHY_REDIS_ON_STARTUP   = "true"
+      ML_VALIDATE_ON_STARTUP             = "true"
+      ENFORCE_TENANT_SCOPED_REPOSITORIES = "true"
+      RUN_SCHEDULERS_IN_API              = "false"
+      AWS_REGION                         = var.aws_region
+      S3_MODEL_BUCKET                    = aws_s3_bucket.app.bucket
+      S3_DOCUMENT_BUCKET                 = aws_s3_bucket.app.bucket
+      FRONTEND_URL                       = local.frontend_url
+      BACKEND_URL                        = local.backend_url
+      CORS_ORIGINS                       = local.frontend_url
     },
     var.additional_backend_environment
   )
@@ -42,12 +45,14 @@ locals {
 
   worker_environment = merge(
     {
-      APP_ENV            = var.environment
-      ENVIRONMENT        = var.environment
-      DEBUG              = "false"
-      AWS_REGION         = var.aws_region
-      S3_MODEL_BUCKET    = aws_s3_bucket.app.bucket
-      S3_DOCUMENT_BUCKET = aws_s3_bucket.app.bucket
+      APP_ENV                = var.environment
+      ENVIRONMENT            = var.environment
+      DEBUG                  = "false"
+      ML_VALIDATE_ON_STARTUP = "true"
+      RUN_SCHEDULERS_IN_API  = "false"
+      AWS_REGION             = var.aws_region
+      S3_MODEL_BUCKET        = aws_s3_bucket.app.bucket
+      S3_DOCUMENT_BUCKET     = aws_s3_bucket.app.bucket
     },
     var.additional_worker_environment
   )
@@ -66,6 +71,13 @@ locals {
       REDIS_URL    = aws_secretsmanager_secret.redis_url.arn
     },
     { for name in var.worker_secret_names : name => aws_secretsmanager_secret.runtime[name].arn }
+  )
+
+  scheduler_environment = merge(
+    local.worker_environment,
+    {
+      WORKER_HEALTH_PORT = "8001"
+    }
   )
 }
 
@@ -565,7 +577,7 @@ resource "aws_lb_target_group" "backend" {
   vpc_id      = aws_vpc.app.id
 
   health_check {
-    path                = "/health"
+    path                = "/health/ready"
     healthy_threshold   = 2
     unhealthy_threshold = 3
     timeout             = 5
@@ -582,8 +594,25 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.frontend.arn
+    type = var.certificate_arn != "" ? "redirect" : "forward"
+
+    target_group_arn = var.certificate_arn != "" ? null : aws_lb_target_group.frontend.arn
+
+    dynamic "redirect" {
+      for_each = var.certificate_arn != "" ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.certificate_arn != "" || var.allow_http_bootstrap
+      error_message = "certificate_arn is required unless allow_http_bootstrap is explicitly true."
+    }
   }
 }
 
@@ -602,7 +631,9 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-resource "aws_lb_listener_rule" "backend_http_path" {
+resource "aws_lb_listener_rule" "backend_http_path_primary" {
+  count = var.certificate_arn == "" ? 1 : 0
+
   listener_arn = aws_lb_listener.http.arn
   priority     = 10
 
@@ -613,12 +644,30 @@ resource "aws_lb_listener_rule" "backend_http_path" {
 
   condition {
     path_pattern {
-      values = ["/api/v1/*", "/health", "/metrics", "/docs", "/openapi.json"]
+      values = ["/api/v1/*", "/health", "/health/*", "/metrics", "/docs"]
     }
   }
 }
 
-resource "aws_lb_listener_rule" "backend_https_path" {
+resource "aws_lb_listener_rule" "backend_http_path_secondary" {
+  count = var.certificate_arn == "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 11
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/openapi.json", "/webhooks/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "backend_https_path_primary" {
   count = var.certificate_arn != "" ? 1 : 0
 
   listener_arn = aws_lb_listener.https[0].arn
@@ -631,13 +680,31 @@ resource "aws_lb_listener_rule" "backend_https_path" {
 
   condition {
     path_pattern {
-      values = ["/api/v1/*", "/health", "/metrics", "/docs", "/openapi.json"]
+      values = ["/api/v1/*", "/health", "/health/*", "/metrics", "/docs"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "backend_https_path_secondary" {
+  count = var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 11
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/openapi.json", "/webhooks/*"]
     }
   }
 }
 
 resource "aws_lb_listener_rule" "backend_http_host" {
-  count = var.backend_domain_name != "" ? 1 : 0
+  count = var.certificate_arn == "" && var.backend_domain_name != "" ? 1 : 0
 
   listener_arn = aws_lb_listener.http.arn
   priority     = 5
@@ -768,6 +835,38 @@ resource "aws_ecs_task_definition" "worker" {
   tags = local.common_tags
 }
 
+resource "aws_ecs_task_definition" "scheduler" {
+  family                   = "${local.name_prefix}-scheduler"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.worker_cpu
+  memory                   = var.worker_memory
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name         = "scheduler"
+      image        = "${aws_ecr_repository.worker.repository_url}:${var.image_tag}"
+      essential    = true
+      command      = ["python", "worker.py", "--scheduler"]
+      portMappings = [{ containerPort = 8001, hostPort = 8001, protocol = "tcp" }]
+      environment  = [for key, value in local.scheduler_environment : { name = key, value = value }]
+      secrets      = [for key, arn in local.worker_secret_arns : { name = key, valueFrom = arn }]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.worker.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "scheduler"
+        }
+      }
+    }
+  ])
+
+  tags = local.common_tags
+}
+
 resource "aws_ecs_service" "frontend" {
   name            = "${local.name_prefix}-frontend"
   cluster         = aws_ecs_cluster.app.id
@@ -821,6 +920,22 @@ resource "aws_ecs_service" "worker" {
   cluster         = aws_ecs_cluster.app.id
   task_definition = aws_ecs_task_definition.worker.arn
   desired_count   = var.worker_desired_count
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_ecs_service" "scheduler" {
+  name            = "${local.name_prefix}-scheduler"
+  cluster         = aws_ecs_cluster.app.id
+  task_definition = aws_ecs_task_definition.scheduler.arn
+  desired_count   = var.scheduler_desired_count
   launch_type     = "FARGATE"
 
   network_configuration {

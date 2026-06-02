@@ -166,6 +166,16 @@ class APIKeyRepository(BaseRepository[APIKey]):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
+    async def get_scoped(self, api_key_id: UUID, org_id: UUID) -> APIKey | None:
+        """Get an API key by ID constrained to the owning organization."""
+        result = await self.db.execute(
+            select(APIKey)
+            .where(APIKey.id == api_key_id)
+            .where(APIKey.org_id == org_id)
+            .where(APIKey.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def revoke(self, api_key_id: UUID) -> APIKey | None:
         """
         Revoke an API key (soft delete alternative - key still exists but inactive).
@@ -182,6 +192,14 @@ class APIKeyRepository(BaseRepository[APIKey]):
             api_key.revoked_at = datetime.now(timezone.utc)
             await self.db.flush()
 
+        return api_key
+
+    async def revoke_scoped(self, api_key_id: UUID, org_id: UUID) -> APIKey | None:
+        """Revoke an API key constrained to the owning organization."""
+        api_key = await self.get_scoped(api_key_id, org_id)
+        if api_key:
+            api_key.revoked_at = datetime.now(timezone.utc)
+            await self.db.flush()
         return api_key
 
     async def count_active_by_org(self, org_id: UUID) -> int:
@@ -244,4 +262,35 @@ class APIKeyRepository(BaseRepository[APIKey]):
         )
         await self.db.flush()
 
+        return new_key_model, plaintext_key
+
+    async def rotate_key_scoped(
+        self,
+        old_key_id: UUID,
+        org_id: UUID,
+        rotated_by_user_id: UUID,
+        grace_period_hours: int = 24,
+    ) -> tuple[APIKey, str]:
+        """Rotate an API key constrained to the owning organization."""
+        old_key = await self.get_scoped(old_key_id, org_id)
+        if old_key is None or old_key.revoked_at is not None:
+            raise ValueError("API key not found or already revoked")
+
+        new_key_model, plaintext_key = await self.create_key(
+            org_id=old_key.org_id,
+            created_by_user_id=rotated_by_user_id,
+            name=f"{old_key.name} (rotated)",
+            description=old_key.description,
+            scopes=old_key.scopes_list,
+            rate_limit=old_key.rate_limit,
+            expires_in_days=(
+                int((old_key.expires_at - datetime.now(timezone.utc)).days)
+                if old_key.expires_at
+                else None
+            ),
+        )
+        old_key.expires_at = datetime.now(timezone.utc) + timedelta(
+            hours=grace_period_hours
+        )
+        await self.db.flush()
         return new_key_model, plaintext_key

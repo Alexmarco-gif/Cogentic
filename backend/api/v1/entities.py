@@ -82,6 +82,8 @@ class RelationshipUpsertResponse(BaseModel):
     """Response for upserting a relationship."""
 
     id: str
+    source_entity_id: str
+    target_entity_id: str
     relationship_type: str
     strength: float
     confidence: float
@@ -219,6 +221,8 @@ async def upsert_relationship(
 
     return {
         "id": str(rel.id),
+        "source_entity_id": str(rel.source_entity_id),
+        "target_entity_id": str(rel.target_entity_id),
         "relationship_type": rel.relationship_type,
         "strength": rel.strength,
         "confidence": rel.confidence,

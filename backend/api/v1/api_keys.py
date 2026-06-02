@@ -235,29 +235,15 @@ async def revoke_api_key(
     require_admin(auth)
 
     repo = APIKeyRepository(db)
-    api_key = await repo.get(key_id)
+    api_key = await repo.get_scoped(key_id, org_id)
 
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
         )
 
-    # Verify key belongs to org
-    if api_key.org_id != org_id:
-        logger.warning(
-            "Attempted to revoke API key from different org",
-            extra={
-                "user_id": str(auth.user_id),
-                "user_org": str(org_id),
-                "key_org": str(api_key.org_id),
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
-        )
-
     # Revoke key
-    await repo.revoke(key_id)
+    await repo.revoke_scoped(key_id, org_id)
     await db.commit()
 
     logger.info(
@@ -307,16 +293,17 @@ async def rotate_api_key(
     require_admin(auth)
 
     repo = APIKeyRepository(db)
-    old_key = await repo.get(key_id)
+    old_key = await repo.get_scoped(key_id, org_id)
 
-    if not old_key or old_key.org_id != org_id:
+    if not old_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
         )
 
     try:
-        new_key_model, plaintext_key = await repo.rotate_key(
+        new_key_model, plaintext_key = await repo.rotate_key_scoped(
             old_key_id=key_id,
+            org_id=org_id,
             rotated_by_user_id=auth.user_id,
             grace_period_hours=request.grace_period_hours,
         )
@@ -371,9 +358,9 @@ async def get_api_key(
     require_admin(auth)
 
     repo = APIKeyRepository(db)
-    api_key = await repo.get(key_id)
+    api_key = await repo.get_scoped(key_id, org_id)
 
-    if not api_key or api_key.org_id != org_id:
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
         )

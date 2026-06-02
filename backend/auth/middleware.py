@@ -60,6 +60,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
 
+        # API-key eligible routes authenticate in their route dependency. Let
+        # those requests through so get_current_user_or_api_key can validate
+        # scope, org membership, and key status instead of being blocked here.
+        if request.headers.get("X-API-Key"):
+            return await call_next(request)
+
         # For API routes, require authentication
         # But first check if this is a known route - if not, let FastAPI return 404
         if not request.url.path.startswith("/api/"):

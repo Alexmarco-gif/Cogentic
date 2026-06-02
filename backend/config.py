@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     auth0_audience: str
     auth0_m2m_client_id: str
     auth0_m2m_client_secret: str
+    auth0_m2m_allowed_client_ids: str = ""
     auth0_webhook_secret: str | None = (
         None  # Optional: for webhook signature verification
     )
@@ -127,6 +128,8 @@ class Settings(BaseSettings):
     require_healthy_db_on_startup: bool = False
     require_healthy_redis_on_startup: bool = False
     bootstrap_catalog_on_startup: bool = True
+    run_schedulers_in_api: bool = False
+    enforce_tenant_scoped_repositories: bool = False
 
     # CORS origins
     cors_origins: str = "http://localhost:3000"
@@ -141,6 +144,18 @@ class Settings(BaseSettings):
                 if origin.strip()
             ]
         return list(self.cors_origins)
+
+    @property
+    def auth0_m2m_allowed_client_ids_list(self) -> list[str]:
+        """Auth0 client IDs allowed to use M2M tokens."""
+        configured = [
+            client_id.strip()
+            for client_id in self.auth0_m2m_allowed_client_ids.split(",")
+            if client_id.strip()
+        ]
+        if self.auth0_m2m_client_id and self.auth0_m2m_client_id not in configured:
+            configured.append(self.auth0_m2m_client_id)
+        return configured
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"

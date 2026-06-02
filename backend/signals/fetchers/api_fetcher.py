@@ -72,7 +72,6 @@ class APIFetcher(BaseFetcher):
                 retryable=False,
             )
         self.configure_timeout(extraction_config)
-        client = await self._get_client()
 
         method = extraction_config.get("method", "GET").upper()
         headers = extraction_config.get("headers", {})
@@ -84,13 +83,20 @@ class APIFetcher(BaseFetcher):
         for attempt in range(max_retries):
             try:
                 if method == "GET":
-                    response = await client.get(
-                        source_url, headers=headers, params=params
+                    response = await self._request(
+                        "GET",
+                        source_url,
+                        headers=headers,
+                        params=params,
                     )
                 elif method == "POST":
                     body = extraction_config.get("body", {})
-                    response = await client.post(
-                        source_url, headers=headers, params=params, json=body
+                    response = await self._request(
+                        "POST",
+                        source_url,
+                        headers=headers,
+                        params=params,
+                        json_body=body,
                     )
                 else:
                     return FetchError(
@@ -99,6 +105,15 @@ class APIFetcher(BaseFetcher):
                     )
 
                 response.raise_for_status()
+                content_type = response.headers.get("content-type", "").lower()
+                if (
+                    "application/json" not in content_type
+                    and "+json" not in content_type
+                ):
+                    return FetchError(
+                        message=f"Unexpected API content type: {content_type or 'unknown'}",
+                        retryable=False,
+                    )
                 data = response.json()
                 return self._parse_response(data, extraction_config, source_url)
 
@@ -122,6 +137,11 @@ class APIFetcher(BaseFetcher):
                 last_error = FetchError(
                     message=f"Request error fetching {source_url}: {e}",
                     retryable=True,
+                )
+            except ValueError as e:
+                return FetchError(
+                    message=str(e),
+                    retryable=False,
                 )
             except Exception as e:
                 return FetchError(

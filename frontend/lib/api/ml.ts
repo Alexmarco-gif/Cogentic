@@ -12,6 +12,8 @@ import type {
   MLModelRegistryResponse,
   TrainingRequest,
   TrainingResponse,
+  TrainAllQueuedResponse,
+  RefinementResponse,
 } from './types';
 
 /** GET /api/v1/ml/signals/:signalId/scores */
@@ -41,10 +43,10 @@ export function trainModel(body: TrainingRequest) {
 
 /** POST /api/v1/ml/train/all */
 export function trainAllModels() {
-  return post<{ status: string; jobs: string[] }>('/ml/train/all');
+  return post<TrainAllQueuedResponse>('/ml/train/all');
 }
 
 /** POST /api/v1/ml/refine/unprocessed */
 export function refineUnprocessed() {
-  return post<{ processed: number; errors: number }>('/ml/refine/unprocessed');
+  return post<RefinementResponse>('/ml/refine/unprocessed');
 }

@@ -1,63 +1,83 @@
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$ProjectId,
+# AWS Secret Seeding Script for PowerShell
+# Usage: .\scripts\seed-secret-manager.ps1
 
-    [string]$Environment = "staging"
-)
+$Region = "eu-west-2"
+$Environment = "staging"
+$ProjectName = "cogent"
+$Prefix = "$ProjectName-$Environment"
 
-$prefix = "cogent-$Environment"
+Write-Host "Starting AWS Secret Seeding for $Prefix..." -ForegroundColor Blue
 
-$secretMap = @{
-    "redis-url"                   = "REDIS_URL"
-    "secret-key"                  = "SECRET_KEY"
-    "auth0-domain"                = "AUTH0_DOMAIN"
-    "auth0-audience"              = "AUTH0_AUDIENCE"
-    "auth0-m2m-client-id"         = "AUTH0_M2M_CLIENT_ID"
-    "auth0-m2m-client-secret"     = "AUTH0_M2M_CLIENT_SECRET"
-    "auth0-webhook-secret"        = "AUTH0_WEBHOOK_SECRET"
-    "auth0-frontend-secret"       = "AUTH0_SECRET"
-    "auth0-client-id"             = "AUTH0_CLIENT_ID"
-    "auth0-client-secret"         = "AUTH0_CLIENT_SECRET"
-    "openai-api-key"              = "OPENAI_API_KEY"
-    "newsapi-api-key"             = "NEWSAPI_API_KEY"
-    "ngx-market-data-api-key"     = "NGX_MARKET_DATA_API_KEY"
-    "ngx-market-data-base-url"    = "NGX_MARKET_DATA_BASE_URL"
-    "x-bearer-token"              = "X_BEARER_TOKEN"
-    "serpapi-api-key"             = "SERPAPI_API_KEY"
-    "resend-api-key"              = "RESEND_API_KEY"
-    "paystack-public-key"         = "PAYSTACK_PUBLIC_KEY"
-    "paystack-secret-key"         = "PAYSTACK_SECRET_KEY"
-    "sentry-dsn"                  = "SENTRY_DSN"
-    "logtail-token"               = "LOGTAIL_TOKEN"
-    "posthog-api-key"             = "POSTHOG_API_KEY"
-    "neo4j-uri"                   = "NEO4J_URI"
-    "neo4j-user"                  = "NEO4J_USER"
-    "neo4j-password"              = "NEO4J_PASSWORD"
+# 1. Load .env file into a dictionary
+$envVars = @{}
+if (Test-Path .env) {
+    Get-Content .env | ForEach-Object {
+        # Match lines that aren't comments and have an = sign
+        if ($_ -match "^(?<name>[^#\s][^=]*)=(?<value>.*)$") {
+            $name = $Matches['name'].Trim()
+            $value = $Matches['value'].Trim().Trim('"').Trim("'")
+            if ($value) {
+                $envVars[$name] = $value
+            }
+        }
+    }
+    Write-Host "Loaded $($envVars.Count) variables from .env" -ForegroundColor Gray
+} else {
+    Write-Error "Could not find .env file in the current directory."
+    return
 }
 
-foreach ($entry in $secretMap.GetEnumerator()) {
-    $secretName = "$prefix-$($entry.Key)"
-    $envName = $entry.Value
-    $value = [Environment]::GetEnvironmentVariable($envName)
+# 2. List of secrets expected by the infrastructure (from variables.tf)
+$secretNames = @(
+    "SECRET_KEY",
+    "AUTH0_DOMAIN",
+    "AUTH0_AUDIENCE",
+    "AUTH0_SECRET",
+    "AUTH0_ISSUER_BASE_URL",
+    "AUTH0_CLIENT_ID",
+    "AUTH0_CLIENT_SECRET",
+    "AUTH0_M2M_CLIENT_ID",
+    "AUTH0_M2M_CLIENT_SECRET",
+    "AUTH0_WEBHOOK_SECRET",
+    "OPENAI_API_KEY",
+    "NEWSAPI_API_KEY",
+    "NGX_MARKET_DATA_API_KEY",
+    "NGX_MARKET_DATA_BASE_URL",
+    "X_BEARER_TOKEN",
+    "SERPAPI_API_KEY",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "PAYSTACK_PUBLIC_KEY",
+    "PAYSTACK_SECRET_KEY",
+    "SENTRY_DSN",
+    "LOGTAIL_TOKEN",
+    "POSTHOG_API_KEY",
+    "POSTHOG_HOST"
+)
 
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        Write-Host "[secret-manager] Skipping $secretName; $envName is not set"
+# 3. Process each secret
+foreach ($name in $secretNames) {
+    $value = $envVars[$name]
+    $secretId = "$Prefix/$name"
+
+    if (-not $value) {
+        Write-Host "[aws-secrets] Skipping $secretId; $name is not set in .env" -ForegroundColor Gray
         continue
     }
 
-    gcloud secrets describe $secretName --project $ProjectId *> $null
-    if ($LASTEXITCODE -ne 0) {
-        gcloud secrets create $secretName --project $ProjectId --replication-policy automatic
-    }
+    Write-Host "[aws-secrets] Syncing $secretId..." -NoNewline
 
-    $tempFile = New-TemporaryFile
-    try {
-        Set-Content -LiteralPath $tempFile -Value $value -NoNewline
-        gcloud secrets versions add $secretName --project $ProjectId --data-file $tempFile
-        Write-Host "[secret-manager] Updated $secretName"
-    }
-    finally {
-        Remove-Item -LiteralPath $tempFile -Force
+    # Check if the secret exists in AWS
+    aws secretsmanager describe-secret --secret-id $secretId --region $Region 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        # Create the secret if it doesn't exist
+        aws secretsmanager create-secret --name $secretId --secret-string "$value" --region $Region | Out-Null
+        Write-Host " [CREATED]" -ForegroundColor Green
+    } else {
+        # Update the secret value if it already exists
+        aws secretsmanager put-secret-value --secret-id $secretId --secret-string "$value" --region $Region | Out-Null
+        Write-Host " [UPDATED]" -ForegroundColor Yellow
     }
 }
 
+Write-Host "`nSeeding complete! Your AWS Secrets Manager is now synchronized with your .env file." -ForegroundColor Green

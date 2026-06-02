@@ -12,6 +12,8 @@ import type {
   EntityCreateResponse,
   EntityProfileResponse,
   EntityNetworkResponse,
+  RelationshipUpsertRequest,
+  RelationshipUpsertResponse,
 } from './types';
 
 /** POST /api/v1/entities/resolve */
@@ -40,9 +42,6 @@ export function getEntityWithInfluence(entityId: string) {
 }
 
 /** POST /api/v1/entities/relationships */
-export function upsertRelationship(body: { source_id: string; target_id: string; relationship_type: string; weight?: number }) {
-  return post<{ id: string; source_id: string; target_id: string; relationship_type: string }>(
-    '/entities/relationships',
-    body,
-  );
+export function upsertRelationship(body: RelationshipUpsertRequest) {
+  return post<RelationshipUpsertResponse>('/entities/relationships', body);
 }

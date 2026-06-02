@@ -77,6 +77,11 @@ class AuthContext(BaseModel):
 
     # Request metadata
     request_id: str | None = Field(None, description="X-Request-ID for tracing")
+    auth_method: Literal["jwt", "api_key"] = Field(
+        "jwt", description="Credential type used for this request"
+    )
+    api_key_id: UUID | None = Field(None, description="API key ID when auth_method=api_key")
+    api_key_scopes: list[str] = Field(default_factory=list)
 
     @property
     def is_owner(self) -> bool:

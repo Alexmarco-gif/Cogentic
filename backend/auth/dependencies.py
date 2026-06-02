@@ -19,12 +19,99 @@ from backend.auth.exceptions import (
     NotOrgMemberError,
 )
 from backend.auth.schemas import AuthContext, TokenPayload
+from backend.config import get_settings
 from backend.database import get_db
 from backend.repositories.organization import OrganizationRepository
 from backend.repositories.user import UserRepository
 from backend.repositories.user_session import UserSessionRepository
 
 logger = logging.getLogger(__name__)
+
+ROLE_INHERITANCE: dict[str, set[str]] = {
+    "owner": {"owner", "admin", "analyst", "member", "viewer"},
+    "admin": {"admin", "analyst", "member", "viewer"},
+    "analyst": {"analyst", "member", "viewer"},
+    "member": {"member", "viewer"},
+    "viewer": {"viewer"},
+}
+
+ROLE_CAPABILITIES: dict[str, set[str]] = {
+    "viewer": {
+        "view_signals",
+        "view_regulatory_knowledge",
+        "view_entities",
+        "view_ml",
+    },
+    "member": {
+        "view_signals",
+        "view_regulatory_knowledge",
+        "view_entities",
+        "view_ml",
+        "create_signals",
+    },
+    "analyst": {
+        "view_signals",
+        "view_regulatory_knowledge",
+        "view_entities",
+        "view_ml",
+        "create_signals",
+        "manage_signals",
+        "manage_regulatory_knowledge",
+        "manage_entities",
+        "manage_ml",
+    },
+    "admin": {
+        "view_signals",
+        "view_regulatory_knowledge",
+        "view_entities",
+        "view_ml",
+        "create_signals",
+        "manage_signals",
+        "manage_regulatory_knowledge",
+        "manage_entities",
+        "manage_ml",
+        "manage_members",
+        "manage_api_keys",
+        "manage_monitoring",
+    },
+    "owner": {
+        "view_signals",
+        "view_regulatory_knowledge",
+        "view_entities",
+        "view_ml",
+        "create_signals",
+        "manage_signals",
+        "manage_regulatory_knowledge",
+        "manage_entities",
+        "manage_ml",
+        "manage_members",
+        "manage_api_keys",
+        "manage_monitoring",
+        "manage_billing",
+        "manage_organization",
+    },
+}
+
+API_KEY_SCOPE_ALIASES: dict[str, set[str]] = {
+    "read": {"read:*"},
+    "write": {"write:*"},
+    "read:documents": {"read:*"},
+    "write:documents": {"write:*"},
+    "read:signals": {"read:*"},
+    "write:signals": {"write:*"},
+    "read:contracts": {"read:*"},
+    "write:contracts": {"write:*"},
+}
+
+
+def _allowed_permissions_for_role(role: str | None) -> set[str]:
+    """Return both inherited role names and capability strings for a role."""
+    normalized = (role or "viewer").lower().strip()
+    role_names = ROLE_INHERITANCE.get(normalized, ROLE_INHERITANCE["viewer"])
+    capabilities: set[str] = set()
+    for role_name in role_names:
+        capabilities.update(ROLE_CAPABILITIES.get(role_name, set()))
+    return set(role_names) | capabilities
 
 
 def require_permissions(permissions: list[str]) -> Callable:
@@ -52,23 +139,10 @@ def require_permissions(permissions: list[str]) -> Callable:
         if auth.is_super_admin:
             return auth
 
-        # Map user role to a hierarchy level
-        user_role = auth.role.lower() if auth.role else "viewer"
-
-        role_hierarchy = {
-            "owner": ["owner", "admin", "analyst", "member", "viewer"],
-            "admin": ["admin", "analyst", "member", "viewer"],
-            "analyst": ["analyst", "member", "viewer"],
-            "member": ["member", "viewer"],
-            "viewer": ["viewer"],
-        }
-
-        allowed_roles = role_hierarchy.get(user_role, ["viewer"])
-
-        # Check if any required permission/role is satisfied
-        for permission in permissions:
-            if permission.lower() in allowed_roles:
-                return auth
+        allowed = _allowed_permissions_for_role(auth.role)
+        requested = {permission.lower().strip() for permission in permissions}
+        if allowed.intersection(requested):
+            return auth
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -76,6 +150,32 @@ def require_permissions(permissions: list[str]) -> Callable:
         )
 
     return permission_checker
+
+
+def require_api_key_scopes(scopes: list[str]) -> Callable:
+    """Dependency factory for endpoints that allow API-key auth."""
+
+    async def scope_checker(
+        auth: AuthContext = Depends(get_current_user_or_api_key),
+    ) -> AuthContext:
+        if auth.auth_method != "api_key":
+            return auth
+
+        granted = set(auth.api_key_scopes)
+        expanded = set(granted)
+        for scope in granted:
+            expanded.update(API_KEY_SCOPE_ALIASES.get(scope, set()))
+
+        requested = {scope.lower().strip() for scope in scopes}
+        if requested.intersection(expanded):
+            return auth
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient API key scope. Required one of: {scopes}",
+        )
+
+    return scope_checker
 
 
 async def get_token_payload(request: Request) -> TokenPayload:
@@ -204,6 +304,18 @@ async def _handle_m2m_token(
     Returns:
         AuthContext built from M2M token claims
     """
+    settings = get_settings()
+    allowed_clients = settings.auth0_m2m_allowed_client_ids_list
+    if payload.sub not in allowed_clients and payload.azp not in allowed_clients:
+        logger.warning(
+            "m2m_client_not_allowed",
+            extra={"client_id": payload.sub, "azp": payload.azp},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="M2M client is not allowed",
+        )
+
     org_id = UUID(payload.org_id)
     user_id = UUID(payload.user_id)
     role = payload.role or "member"
@@ -211,6 +323,37 @@ async def _handle_m2m_token(
 
     org_repo = OrganizationRepository(db)
     organization = await org_repo.get(org_id)
+    if not organization:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+    user_repo = UserRepository(db)
+    service_user = await user_repo.get(user_id)
+    membership = await org_repo.get_user_membership(org_id, user_id)
+    if not service_user or not membership:
+        logger.warning(
+            "m2m_membership_missing",
+            extra={
+                "client_id": payload.sub,
+                "org_id": str(org_id),
+                "user_id": str(user_id),
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="M2M service user is not a member of the requested organization",
+        )
+    if role not in _allowed_permissions_for_role(membership.role):
+        logger.warning(
+            "m2m_role_escalation_denied",
+            extra={
+                "client_id": payload.sub,
+                "claimed_role": role,
+                "membership_role": membership.role,
+            },
+        )
+        role = membership.role
     org_plan = organization.pricing_tier if organization else payload.plan
 
     auth_context = AuthContext(
@@ -223,6 +366,7 @@ async def _handle_m2m_token(
         is_super_admin=payload.is_super_admin,
         token_expires_at=datetime.fromtimestamp(payload.exp, tz=timezone.utc),
         request_id=auth_utils.get_request_id(request),
+        auth_method="jwt",
     )
 
     logger.info(
@@ -323,6 +467,7 @@ async def _handle_user_token(
         is_super_admin=payload.is_super_admin,
         token_expires_at=datetime.fromtimestamp(payload.exp, tz=timezone.utc),
         request_id=auth_utils.get_request_id(request),
+        auth_method="jwt",
     )
 
     logger.debug(
@@ -434,11 +579,13 @@ async def get_current_user_or_api_key(
         InvalidTokenError: If both JWT and API key invalid
     """
     # Try JWT first
-    try:
-        return await get_current_user(request, db)
-    except MissingTokenError:
-        # No JWT, try API key
-        pass
+    authorization = request.headers.get("Authorization", "")
+    if authorization.lower().startswith("bearer "):
+        payload = await get_token_payload(request)
+        auth_utils.validate_custom_claims(payload)
+        if payload.is_m2m_token:
+            return await _handle_m2m_token(payload, request, db)
+        return await _handle_user_token(payload, request, db)
 
     # Check for API key in header
     api_key = request.headers.get("X-API-Key")
@@ -506,6 +653,9 @@ async def get_current_user_or_api_key(
         is_super_admin=False,  # API keys never have super admin
         token_expires_at=api_key_model.expires_at or datetime(2099, 1, 1),
         request_id=auth_utils.get_request_id(request),
+        auth_method="api_key",
+        api_key_id=api_key_model.id,
+        api_key_scopes=api_key_model.scopes_list,
     )
 
     logger.info(

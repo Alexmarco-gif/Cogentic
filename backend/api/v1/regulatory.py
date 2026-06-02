@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user, require_permissions
@@ -23,6 +24,20 @@ from backend.repositories.regulatory import RegulatoryRepository
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/regulatory", tags=["regulatory-knowledge"])
+
+
+async def _get_visible_signal(
+    db: AsyncSession,
+    signal_id: UUID,
+    org_id: UUID,
+) -> Signal | None:
+    result = await db.execute(
+        select(Signal).where(
+            Signal.id == signal_id,
+            or_(Signal.org_id == org_id, Signal.org_id.is_(None)),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 # === Schemas ===
@@ -342,7 +357,7 @@ async def enrich_signal_with_regulatory_context(
     generic AI can't provide this depth of regulatory analysis.
     """
     # Get signal
-    signal = await db.get(Signal, signal_id)
+    signal = await _get_visible_signal(db, signal_id, auth.org_id)
     if not signal:
         raise HTTPException(status_code=404, detail="Signal not found")
 
@@ -370,7 +385,7 @@ async def extract_regulatory_event_from_signal(
 
     Uses NLP + ML to detect and structure regulatory content.
     """
-    signal = await db.get(Signal, signal_id)
+    signal = await _get_visible_signal(db, signal_id, auth.org_id)
     if not signal:
         raise HTTPException(status_code=404, detail="Signal not found")
 

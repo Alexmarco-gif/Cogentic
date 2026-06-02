@@ -37,16 +37,32 @@ class RSSFetcher(BaseFetcher):
     ) -> list[FetchResult] | FetchError:
         """Fetch and parse an RSS/Atom feed."""
         self.configure_timeout(extraction_config)
-        client = await self._get_client()
         max_retries = extraction_config.get("retries", 2)
         last_error: FetchError | None = None
 
         for attempt in range(max_retries):
             try:
-                response = await client.get(source_url)
+                response = await self._request("GET", source_url)
                 response.raise_for_status()
+                content_type = response.headers.get("content-type", "").lower()
+                if content_type and not any(
+                    allowed in content_type
+                    for allowed in (
+                        "application/rss+xml",
+                        "application/atom+xml",
+                        "application/xml",
+                        "text/xml",
+                        "text/html",
+                    )
+                ):
+                    return FetchError(
+                        message=f"Unexpected RSS content type: {content_type}",
+                        retryable=False,
+                    )
                 raw_content = response.text
                 break
+            except ValueError as e:
+                return FetchError(message=str(e), retryable=False)
             except Exception as e:
                 last_error = FetchError(
                     message=f"Failed to fetch RSS feed {source_url} (attempt {attempt + 1}): {e}",
