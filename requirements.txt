@@ -1,4 +1,4 @@
-﻿aiosqlite==0.22.1
+aiosqlite==0.22.1
 alembic==1.18.3
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -132,6 +132,6 @@ gunicorn==23.0.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 websockets==16.0
-wrapt==2.0.1
+wrapt==2.1.2
 zipp==3.23.0
 resend>=1.0.0,<2.0.0

@@ -99,6 +99,6 @@ uvicorn==0.40.0
 gunicorn==23.0.0
 watchfiles==1.1.1
 websockets==16.0
-wrapt==2.0.1
+wrapt==2.1.2
 zipp==3.23.0
 resend>=1.0.0,<2.0.0
