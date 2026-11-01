@@ -4,7 +4,7 @@
 # Builds the full runtime stack once so backend/worker
 # can reuse it without re-downloading the scientific stack.
 
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 WORKDIR /opt/cogent-base
 
