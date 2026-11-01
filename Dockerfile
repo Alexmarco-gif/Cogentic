@@ -9,7 +9,7 @@ ARG BASE_IMAGE=cogent-python-analytics:latest
 FROM ${BASE_IMAGE} AS builder
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 
